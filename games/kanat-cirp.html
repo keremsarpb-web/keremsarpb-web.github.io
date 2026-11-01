@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Kanat Çırp — KSB Games</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#3d2c5e;touch-action:none;overscroll-behavior:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+canvas{display:block;position:fixed;left:0;top:0;width:100%;height:100%;touch-action:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+'use strict';
+const ID = 'kanat-cirp', FONT = 'Fredoka,system-ui,sans-serif';
+const C_PIPE = '#7fd8be', C_PIPE_D = '#3fa58b', C_STAR = '#ffd166', C_INK = '#3d2c5e';
+const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+let W = 1, H = 1, DPR = 1;
+
+const LS = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, String(v)); } catch (e) {} }
+};
+let best = parseInt(LS.get('ksb-' + ID + '-best', '0'), 10) || 0;
+let muted = LS.get('ksb-' + ID + '-mute', '0') === '1';
+let AC = null, master = null;
+function initAudio() {
+  if (AC) { if (AC.state === 'suspended' && !document.hidden) AC.resume(); return; }
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); master = AC.createGain(); master.gain.value = muted ? 0 : 0.45; master.connect(AC.destination); } catch (e) { AC = null; }
+}
+function tone(f, d, type, v, f2, delay) {
+  if (!AC || muted) return;
+  const t = AC.currentTime + (delay || 0), o = AC.createOscillator(), g = AC.createGain();
+  o.type = type || 'sine'; o.frequency.setValueAtTime(f, t);
+  if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d);
+  g.gain.setValueAtTime(0.0008, t); g.gain.exponentialRampToValueAtTime(v || 0.15, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0008, t + d);
+  o.connect(g); g.connect(master); o.start(t); o.stop(t + d + 0.03);
+}
+function noise(d, v, fc, type) {
+  if (!AC || muted) return;
+  const n = Math.max(1, AC.sampleRate * d | 0), b = AC.createBuffer(1, n, AC.sampleRate), a = b.getChannelData(0);
+  for (let i = 0; i < n; i++) a[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2);
+  const s = AC.createBufferSource(); s.buffer = b;
+  const f = AC.createBiquadFilter(); f.type = type || 'lowpass'; f.frequency.value = fc || 1200;
+  const g = AC.createGain(); g.gain.value = v || 0.3; s.connect(f); f.connect(g); g.connect(master); s.start();
+}
+function toggleMute() { muted = !muted; LS.set('ksb-' + ID + '-mute', muted ? '1' : '0'); if (master) master.gain.value = muted ? 0 : 0.45; }
+function inMute(x, y) { return x > W - 60 && y < 60; }
+function drawMute(col) {
+  const x = W - 46, y = 14;
+  ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(x + 4, y + 11); ctx.lineTo(x + 10, y + 11); ctx.lineTo(x + 17, y + 4); ctx.lineTo(x + 17, y + 28);
+  ctx.lineTo(x + 10, y + 21); ctx.lineTo(x + 4, y + 21); ctx.closePath(); ctx.fill(); ctx.beginPath();
+  if (muted) { ctx.moveTo(x + 22, y + 11); ctx.lineTo(x + 31, y + 21); ctx.moveTo(x + 31, y + 11); ctx.lineTo(x + 22, y + 21); }
+  else { ctx.arc(x + 18, y + 16, 6, -0.8, 0.8); ctx.moveTo(x + 18 + 11 * Math.cos(-0.8), y + 16 + 11 * Math.sin(-0.8)); ctx.arc(x + 18, y + 16, 11, -0.8, 0.8); }
+  ctx.stroke(); ctx.restore();
+}
+const rr = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+function setFont(size, w) { ctx.font = (w || 700) + ' ' + Math.round(size) + 'px ' + FONT; }
+function softText(text, x, y, size, col, maxW, w) {
+  ctx.save(); setFont(size, w); const tw = ctx.measureText(text).width;
+  if (maxW && tw > maxW) { size *= maxW / tw; setFont(size, w); }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round'; ctx.lineWidth = size * 0.16; ctx.strokeStyle = C_INK; ctx.strokeText(text, x, y + size * 0.06);
+  ctx.shadowColor = 'rgba(255,200,230,0.8)'; ctx.shadowBlur = size * 0.3; ctx.fillStyle = col; ctx.fillText(text, x, y); ctx.restore();
+}
+
+// ---------- layout: logical height 640 ----------
+const LHt = 640, GROUND = 70, PW = 72;
+let S = 1, LW = 400, PX = 120;
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1); W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+  S = H / LHt; LW = W / S; PX = clamp(LW * 0.3, 90, 320);
+}
+window.addEventListener('resize', resize);
+
+// ---------- state ----------
+let state = 'title', paused = false, T = 0, overT = 0, newBest = false;
+let plane = { y: 300, vy: 0, rot: 0 }, pipes = [], parts = [], trail = [], pops = [];
+let score = 0, scroll = 0, speed = 170, nextGap = 0, shake = 0, flash = 0, scorePulse = 0;
+const clouds = []; for (let i = 0; i < 9; i++) clouds.push({ x: Math.random(), y: rr(40, 330), s: rr(0.6, 1.4), z: rr(0.15, 0.45) });
+
+function gapSize() { return Math.max(128, 178 - score * 1.3); }
+function newGame() {
+  plane = { y: LHt * 0.42, vy: 0, rot: 0 }; pipes = []; parts = []; trail = []; pops = [];
+  score = 0; speed = 170; nextGap = LW + 60; newBest = false; paused = false; state = 'play'; flap();
+}
+function addPipe(x) {
+  const g = gapSize(), m = 80, cy = rr(m + g / 2, LHt - GROUND - m - g / 2);
+  const moving = score > 12 && Math.random() < Math.min(0.5, (score - 12) * 0.03);
+  pipes.push({ x, cy, base: cy, g, passed: false, star: Math.random() < 0.3, got: false, mv: moving ? rr(30, 55) : 0, ph: Math.random() * 6 });
+}
+function flap() {
+  plane.vy = -440; tone(520, 0.12, 'sine', 0.14, 820); noise(0.08, 0.08, 2500, 'highpass');
+  for (let i = 0; i < 6; i++) { const a = rr(1.8, 2.8), s = rr(60, 160), l = rr(0.3, 0.6); parts.push({ x: PX - 10, y: plane.y + 6, vx: Math.cos(a) * s - speed * 0.4, vy: Math.sin(a) * s, life: l, max: l, col: Math.random() < 0.5 ? '#fff' : '#ffd6e8', sz: rr(2, 4), rot: Math.random() * 6 }); }
+}
+function confetti(x, y, n) {
+  const cols = ['#ffd166', '#ff8fab', '#7fd8be', '#fff', '#b8a1ff'];
+  for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, s = rr(80, 320), l = rr(0.6, 1.3); parts.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 120, life: l, max: l, col: cols[i % cols.length], sz: rr(3, 6), rot: Math.random() * 6, g: 1 }); }
+}
+function crash() {
+  if (state !== 'play') return;
+  state = 'dying'; shake = 14; flash = 1; confetti(PX, plane.y, 40);
+  noise(0.35, 0.35, 900); tone(330, 0.5, 'triangle', 0.18, 90);
+  if (score > best) { best = score; newBest = true; LS.set('ksb-' + ID + '-best', best); }
+}
+function circleRect(cx, cy, r, x, y, w, h) { const nx = clamp(cx, x, x + w), ny = clamp(cy, y, y + h); return (cx - nx) ** 2 + (cy - ny) ** 2 < r * r; }
+
+// ---------- update ----------
+function update(dt) {
+  T += dt;
+  for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.x += p.vx * dt; p.y += p.vy * dt; if (p.g) p.vy += 500 * dt; p.vx *= 0.97; p.rot += dt * 6; p.life -= dt; if (p.life <= 0) parts.splice(i, 1); }
+  for (let i = pops.length - 1; i >= 0; i--) { pops[i].t += dt; if (pops[i].t > 0.8) pops.splice(i, 1); }
+  shake = Math.max(0, shake - dt * 40); flash = Math.max(0, flash - dt * 3); scorePulse = Math.max(0, scorePulse - dt * 4);
+  const moving = state === 'title' || state === 'play';
+  if (moving) scroll += speed * dt;
+  if (state === 'title') { plane.y = LHt * 0.5 + Math.sin(T * 2.5) * 18; plane.rot = Math.cos(T * 2.5) * -0.15; return; }
+  if (state === 'over') { overT += dt; return; }
+  // physics (play + dying)
+  plane.vy = Math.min(720, plane.vy + 1500 * dt); plane.y += plane.vy * dt;
+  if (plane.y < 12) { plane.y = 12; plane.vy = Math.max(0, plane.vy); }
+  plane.rot += (clamp(plane.vy / 700, -0.5, 1.3) - plane.rot) * Math.min(1, dt * (state === 'dying' ? 4 : 9));
+  if (plane.y > LHt - GROUND - 10) {
+    plane.y = LHt - GROUND - 10;
+    if (state === 'play') crash();
+    state = 'over'; overT = 0; tone(160, 0.25, 'triangle', 0.15, 80);
+    return;
+  }
+  if (state !== 'play') return;
+  speed = Math.min(270, 170 + score * 2.2);
+  trail.push(PX - 14, plane.y + 4); if (trail.length > 36) trail.splice(0, 2);
+  for (let i = 0; i < trail.length; i += 2) trail[i] -= speed * dt;
+  for (const p of pipes) { p.x -= speed * dt; if (p.mv) p.cy = p.base + Math.sin(T * 1.6 + p.ph) * p.mv; }
+  nextGap -= speed * dt;
+  if (nextGap <= LW + 40) { addPipe(nextGap + 40); nextGap += Math.max(200, 250 - score * 1.2); }
+  pipes = pipes.filter(p => p.x > -PW - 20);
+  for (const p of pipes) {
+    const top = p.cy - p.g / 2, bot = p.cy + p.g / 2;
+    if (circleRect(PX, plane.y, 12, p.x, -50, PW, top + 50) || circleRect(PX, plane.y, 12, p.x, bot, PW, LHt)) { crash(); return; }
+    if (p.star && !p.got && Math.hypot(PX - (p.x + PW / 2), plane.y - p.cy) < 26) {
+      p.got = true; score += 2; scorePulse = 1; confetti(p.x + PW / 2, p.cy, 14); pops.push({ x: p.x + PW / 2, y: p.cy, t: 0, txt: '+2' });
+      tone(880, 0.1, 'sine', 0.14); tone(1320, 0.18, 'sine', 0.14, 0, 0.08);
+    }
+    if (!p.passed && p.x + PW < PX - 12) { p.passed = true; score++; scorePulse = 1; tone(660, 0.08, 'triangle', 0.12); tone(990, 0.14, 'triangle', 0.12, 0, 0.06); }
+  }
+}
+
+// ---------- draw ----------
+function hills(f, amp, base, col, freq) {
+  ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, LHt);
+  const off = scroll * f;
+  for (let x = 0; x <= LW + 20; x += 20) { const wx = x + off; ctx.lineTo(x, base - Math.sin(wx * freq) * amp - Math.sin(wx * freq * 2.7 + 1) * amp * 0.4); }
+  ctx.lineTo(LW + 20, LHt); ctx.closePath(); ctx.fill();
+}
+function drawSky() {
+  const g = ctx.createLinearGradient(0, 0, 0, LHt);
+  g.addColorStop(0, '#3d2c5e'); g.addColorStop(0.45, '#9a6a8f'); g.addColorStop(0.75, '#f2a490'); g.addColorStop(1, '#ffd3b0');
+  ctx.fillStyle = g; ctx.fillRect(-40, -40, LW + 80, LHt + 80);
+  // stars at the top
+  ctx.fillStyle = '#fff';
+  for (let i = 0; i < 40; i++) { const x = ((Math.sin(i * 33.1) * 0.5 + 0.5) * LW * 1.3 - scroll * 0.02) % (LW * 1.3), y = (Math.cos(i * 17.7) * 0.5 + 0.5) * 220; ctx.globalAlpha = (0.3 + 0.3 * Math.sin(T * 2 + i)) * (1 - y / 240); ctx.fillRect(x < 0 ? x + LW * 1.3 : x, y, 2, 2); }
+  ctx.globalAlpha = 1;
+  // sun
+  const sx = LW * 0.72, sy = LHt * 0.62, sr = 70;
+  const sg = ctx.createRadialGradient(sx, sy, sr * 0.5, sx, sy, sr * 3); sg.addColorStop(0, 'rgba(255,230,180,0.6)'); sg.addColorStop(1, 'rgba(255,230,180,0)');
+  ctx.fillStyle = sg; ctx.fillRect(sx - sr * 3, sy - sr * 3, sr * 6, sr * 6);
+  ctx.fillStyle = '#ffe8c2'; ctx.beginPath(); ctx.arc(sx, sy, sr, 0, 7); ctx.fill();
+  // clouds
+  for (const c of clouds) {
+    const span = LW + 300, x = ((c.x * span - scroll * c.z) % span + span) % span - 150;
+    ctx.fillStyle = 'rgba(255,240,245,' + (0.35 + c.z) + ')';
+    ctx.beginPath(); ctx.ellipse(x, c.y, 50 * c.s, 16 * c.s, 0, 0, 7); ctx.ellipse(x + 26 * c.s, c.y - 10 * c.s, 30 * c.s, 18 * c.s, 0, 0, 7); ctx.ellipse(x - 24 * c.s, c.y - 6 * c.s, 24 * c.s, 14 * c.s, 0, 0, 7); ctx.fill();
+  }
+  hills(0.12, 40, LHt - GROUND - 110, '#8a5f8a', 0.006);
+  hills(0.3, 28, LHt - GROUND - 50, '#5e4377', 0.011);
+}
+function drawPipe(p) {
+  const top = p.cy - p.g / 2, bot = p.cy + p.g / 2;
+  for (const [y, h, cap] of [[-20, top + 20, top], [bot, LHt - GROUND - bot, bot]]) {
+    ctx.fillStyle = C_PIPE; ctx.fillRect(p.x + 6, y, PW - 12, h);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(p.x + 12, y, 8, h);
+    ctx.fillStyle = C_PIPE_D; ctx.fillRect(p.x + PW - 18, y, 8, h);
+    // zigzag paper-cut edge
+    ctx.fillStyle = 'rgba(61,44,94,0.18)';
+    for (let yy = y + 14; yy < y + h - 10; yy += 26) ctx.fillRect(p.x + 6, yy, PW - 12, 3);
+    // cap
+    const cy = cap === top ? top - 22 : bot;
+    ctx.fillStyle = C_PIPE_D; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(p.x, cy, PW, 22, 8) : ctx.rect(p.x, cy, PW, 22); ctx.fill();
+    ctx.fillStyle = '#a8f0da'; ctx.fillRect(p.x + 6, cy + 4, PW - 12, 5);
+  }
+  if (p.star && !p.got) {
+    const x = p.x + PW / 2, y = p.cy + Math.sin(T * 4 + p.ph) * 4;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(T * 3) * 0.3); ctx.shadowColor = C_STAR; ctx.shadowBlur = 16; ctx.fillStyle = C_STAR;
+    ctx.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 6 : 14, a = -Math.PI / 2 + i * Math.PI / 5; ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+}
+function drawGround() {
+  const y = LHt - GROUND;
+  ctx.fillStyle = '#2e2347'; ctx.fillRect(-20, y, LW + 40, GROUND + 40);
+  ctx.fillStyle = '#ff8fab'; ctx.fillRect(-20, y, LW + 40, 6);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  const off = scroll % 40;
+  for (let x = -off - 40; x < LW + 40; x += 40) { ctx.beginPath(); ctx.moveTo(x, y + 6); ctx.lineTo(x + 20, y + 6); ctx.lineTo(x + 4, y + GROUND); ctx.lineTo(x - 16, y + GROUND); ctx.fill(); }
+}
+function drawPlane(x, y, rot, k) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(k, k);
+  ctx.shadowColor = 'rgba(255,190,220,0.9)'; ctx.shadowBlur = 14;
+  ctx.fillStyle = '#e9dcf2'; ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(-16, 12); ctx.lineTo(-8, 2); ctx.closePath(); ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fffaf3'; ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(-18, -12); ctx.lineTo(-6, 1); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = '#c9b6dc'; ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(-6, 1); ctx.lineTo(-10, 6); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = C_INK; ctx.lineWidth = 1.4; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(22, 0); ctx.lineTo(-18, -12); ctx.lineTo(-6, 1); ctx.lineTo(-16, 12); ctx.closePath(); ctx.moveTo(22, 0); ctx.lineTo(-6, 1); ctx.stroke();
+  ctx.fillStyle = '#ff8fab'; ctx.beginPath(); ctx.arc(-2, -4, 2.2, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function drawParts() {
+  for (const p of parts) {
+    ctx.save(); ctx.globalAlpha = Math.max(0, p.life / p.max); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.col;
+    ctx.fillRect(-p.sz / 2, -p.sz / 4, p.sz, p.sz / 2); ctx.restore();
+  }
+}
+function drawTrail() {
+  ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([4, 6]); ctx.lineCap = 'round';
+  ctx.beginPath(); for (let i = 0; i < trail.length; i += 2) i ? ctx.lineTo(trail[i], trail[i + 1]) : ctx.moveTo(trail[i], trail[i + 1]);
+  if (trail.length) ctx.lineTo(PX - 14, plane.y + 4); ctx.stroke(); ctx.restore();
+}
+function overlay(title, lines, hint) {
+  ctx.fillStyle = 'rgba(46,35,71,0.55)'; ctx.fillRect(-30, -30, W + 60, H + 60);
+  const s = Math.min(W * 0.13, H * 0.1, 88);
+  softText(title, W / 2, H * 0.34, s, '#fff', W * 0.88);
+  lines.forEach((l, i) => softText(l[0], W / 2, H * 0.34 + s * 1.15 + i * s * 0.62, s * 0.44, l[1], W * 0.85, 500));
+  if (hint) { ctx.save(); ctx.globalAlpha = 0.6 + 0.4 * Math.sin(T * 4); softText(hint, W / 2, H * 0.7, Math.min(W * 0.058, 28), '#fff', W * 0.9, 600); ctx.restore(); }
+}
+function draw() {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.save(); if (shake > 0) ctx.translate(rr(-shake, shake), rr(-shake, shake));
+  ctx.save(); ctx.scale(S, S);
+  drawSky();
+  for (const p of pipes) drawPipe(p);
+  drawGround(); drawTrail(); drawParts();
+  const px = state === 'title' ? LW / 2 : PX;
+  drawPlane(px, plane.y, plane.rot, state === 'title' ? 2 : 1.25);
+  for (const p of pops) { ctx.save(); ctx.globalAlpha = 1 - p.t / 0.8; setFont(20); ctx.textAlign = 'center'; ctx.fillStyle = C_STAR; ctx.fillText(p.txt, p.x, p.y - 20 - p.t * 40); ctx.restore(); }
+  ctx.restore();
+  if (flash > 0) { ctx.fillStyle = 'rgba(255,255,255,' + flash * 0.6 + ')'; ctx.fillRect(-30, -30, W + 60, H + 60); }
+  if (state === 'title') {
+    const s = Math.min(W * 0.19, H * 0.12, 130);
+    softText('KANAT', W / 2, H * 0.2, s, '#fff', W * 0.86);
+    softText('ÇIRP', W / 2, H * 0.2 + s * 0.98, s * 1.1, '#ffd6e8', W * 0.86);
+    ctx.save(); ctx.globalAlpha = 0.65 + 0.35 * Math.sin(T * 4);
+    softText('Başlamak için dokun / tıkla', W / 2, H * 0.66, Math.min(W * 0.06, 30), '#fff', W * 0.9, 600); ctx.restore();
+    softText('Dokun · Tıkla · Boşluk: kanat çırp', W / 2, H * 0.66 + 42, Math.min(W * 0.042, 20), '#ffe8f0', W * 0.92, 500);
+    if (best > 0) softText('En iyi: ' + best, W / 2, H * 0.66 + 80, Math.min(W * 0.05, 24), C_STAR, W * 0.9);
+  } else {
+    if (state !== 'over') softText(String(score), W / 2, 70, 54 * (1 + scorePulse * 0.25), '#fff');
+    if (state === 'over') overlay('OYUN BİTTİ', [['Skor: ' + score, '#fff'], [newBest ? 'Yeni rekor!' : 'En iyi: ' + best, C_STAR]], overT > 0.7 ? 'Tekrar için dokun / tıkla' : '');
+    else if (paused) overlay('DURAKLATILDI', [['Skor: ' + score, '#fff']], 'Devam etmek için dokun');
+  }
+  ctx.restore(); drawMute('#fff');
+}
+
+// ---------- input ----------
+function action() {
+  initAudio();
+  if (paused) { paused = false; return; }
+  if (state === 'title') { newGame(); return; }
+  if (state === 'over') { if (overT > 0.7) newGame(); return; }
+  if (state === 'play') flap();
+}
+cv.addEventListener('pointerdown', e => { e.preventDefault(); initAudio(); if (inMute(e.clientX, e.clientY)) { toggleMute(); return; } action(); });
+window.addEventListener('keydown', e => {
+  const k = e.key; if (k.startsWith('Arrow') || k === ' ' || e.code === 'Space') e.preventDefault();
+  if (e.repeat) return;
+  initAudio();
+  if (k === 'm' || k === 'M') { toggleMute(); return; }
+  if ((k === 'p' || k === 'P' || k === 'Escape') && state === 'play') { paused = !paused; return; }
+  if (k === ' ' || k === 'Enter' || k === 'ArrowUp' || k === 'w' || k === 'W') action();
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (state === 'play') paused = true; if (AC && AC.state === 'running') AC.suspend(); }
+  else { if (AC) AC.resume(); last = performance.now(); }
+});
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.033, Math.max(0, (now - last) / 1000)); last = now;
+  if (!paused) update(dt); else T += dt;
+  draw(); requestAnimationFrame(frame);
+}
+resize(); requestAnimationFrame(frame);
+</script>
+</body>
+</html>
