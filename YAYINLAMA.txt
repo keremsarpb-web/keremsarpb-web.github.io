@@ -1,0 +1,50 @@
+KSB GAMES SİTESİNİ YAYINLAMA VE GOOGLE'A EKLEME
+=================================================
+
+Sitenin adresi:  https://keremsarpb-web.github.io/
+GitHub kullanıcı adı:  keremsarpb-web
+
+
+A) ADRES AYARI  >  TAMAMLANDI
+   index.html, sitemap.xml ve robots.txt bu adrese göre ayarlandı.
+   Kullanıcı adını değiştirirsen Claude'a söyle, yeniden ayarlasın.
+
+
+B) GITHUB PAGES'E YÜKLE
+   1. Sağ üstteki "+" > "New repository".
+      - Repository name:  keremsarpb-web.github.io   (tam olarak kendi adın + .github.io)
+      - "Public" seçili olsun > "Create repository".
+   2. "uploading an existing file" bağlantısına tıkla.
+      Şunları tarayıcıya sürükle:
+        index.html, favicon.svg, favicon.png, sitemap.xml, robots.txt, .nojekyll,
+        games klasörü, thumbs klasörü
+      (YAYINLAMA.txt yüklenmese de olur.)
+      En altta "Commit changes".
+   3. "Settings" > "Pages" > Branch: main, / (root) > "Save".
+   4. 1-2 dakika sonra https://keremsarpb-web.github.io/ açılır.
+
+
+C) GOOGLE'A TANIT  (Google Search Console, ücretsiz)
+   1. https://search.google.com/search-console adresine Google hesabınla gir.
+   2. "Mülk ekle" > sağdaki "URL öneki" kutusuna şunu yaz:
+        https://keremsarpb-web.github.io/
+   3. Doğrulama yöntemi olarak "HTML dosyası"nı seç:
+      - Google'ın verdiği dosyayı indir (adı google123abc.html gibi).
+      - GitHub deposuna B-2'deki gibi yükle, "Commit changes".
+      - 1-2 dakika bekle, Search Console'da "Doğrula"ya bas.
+   4. Sol menüde "Site haritaları" > "sitemap.xml" yaz > "Gönder".
+   5. Üstteki arama kutusuna (URL denetimi) sitenin adresini yaz >
+      "Dizine eklenmesini iste".
+
+   Google'ın siteyi listelemesi birkaç gün ile birkaç hafta sürebilir.
+   Kontrol etmek için Google'da şunu ara:   site:keremsarpb-web.github.io
+
+
+D) "KSB GAMES" ARAMASINDA ÜST SIRAYA ÇIKMAK İÇİN
+   - Sitenin linkini her yerde paylaş: YouTube kanal açıklaması, TikTok/Instagram
+     biyografisi, Discord sunucusu, oyunlarını tanıttığın her gönderi.
+     Başka sitelerden gelen bağlantılar Google'a "bu site önemli" der.
+   - GitHub profilinde görünen adı "KSB Games" yap.
+   - Yeni oyun ekledikçe siteyi güncelle; Google yaşayan siteleri sever.
+   Not: Google'da sıralamayı kimse garanti edemez. "KSB Games" adı nadir
+   olduğu için bu adımlarla genelde ilk sonuçlarda çıkar.
