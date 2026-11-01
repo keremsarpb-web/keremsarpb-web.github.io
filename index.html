@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>KSB Games – Tarayıcıda Ücretsiz Oyunlar</title>
-<meta name="description" content="KSB Games: tarayıcıda ücretsiz oynanan korku, aksiyon ve rahat oyunlar. Neon Arena, Son Işık, Rüzgârın Şarkısı, Balkabağı Gecesi, Balkabağı Kâbusu ve Zirve. Kurulum yok, tıkla ve oyna.">
+<meta name="description" content="KSB Games: tarayıcıda ücretsiz oynanan korku, aksiyon ve rahat oyunlar. Neon Arena, Son Işık, Rüzgârın Şarkısı, Balkabağı Gecesi, Balkabağı Kâbusu, Zirve ve Çöp Adam Savaşı. Kurulum yok, tıkla ve oyna.">
 <meta name="robots" content="index, follow">
 <meta name="author" content="KSB Games">
 <link rel="canonical" href="https://keremsarpb-web.github.io/">
@@ -49,7 +49,8 @@
         { "@type": "ListItem", "position": 3, "item": { "@type": "VideoGame", "name": "Rüzgârın Şarkısı", "genre": ["Uçuş", "Keşif"], "playMode": "SinglePlayer", "gamePlatform": "Web tarayıcısı", "url": "https://keremsarpb-web.github.io/games/ruzgarin-sarkisi.html", "image": "https://keremsarpb-web.github.io/thumbs/ruzgarin-sarkisi.jpg", "author": { "@id": "https://keremsarpb-web.github.io/#org" } } },
         { "@type": "ListItem", "position": 4, "item": { "@type": "VideoGame", "name": "Balkabağı Gecesi", "genre": "Korku", "playMode": "SinglePlayer", "gamePlatform": "Web tarayıcısı", "url": "https://keremsarpb-web.github.io/games/balkabagi-gecesi.html", "image": "https://keremsarpb-web.github.io/thumbs/balkabagi-gecesi.jpg", "author": { "@id": "https://keremsarpb-web.github.io/#org" } } },
         { "@type": "ListItem", "position": 5, "item": { "@type": "VideoGame", "name": "Balkabağı Kâbusu", "genre": "Korku", "playMode": "SinglePlayer", "gamePlatform": "Web tarayıcısı", "url": "https://keremsarpb-web.github.io/games/balkabagi-kabusu.html", "image": "https://keremsarpb-web.github.io/thumbs/balkabagi-kabusu.jpg", "author": { "@id": "https://keremsarpb-web.github.io/#org" } } },
-        { "@type": "ListItem", "position": 6, "item": { "@type": "VideoGame", "name": "Zirve", "genre": ["Arcade", "Kule"], "playMode": "SinglePlayer", "gamePlatform": "Web tarayıcısı", "url": "https://keremsarpb-web.github.io/games/zirve.html", "image": "https://keremsarpb-web.github.io/thumbs/zirve.jpg", "author": { "@id": "https://keremsarpb-web.github.io/#org" } } }
+        { "@type": "ListItem", "position": 6, "item": { "@type": "VideoGame", "name": "Zirve", "genre": ["Arcade", "Kule"], "playMode": "SinglePlayer", "gamePlatform": "Web tarayıcısı", "url": "https://keremsarpb-web.github.io/games/zirve.html", "image": "https://keremsarpb-web.github.io/thumbs/zirve.jpg", "author": { "@id": "https://keremsarpb-web.github.io/#org" } } },
+        { "@type": "ListItem", "position": 7, "item": { "@type": "VideoGame", "name": "Çöp Adam Savaşı", "genre": ["Strateji", "Online"], "playMode": ["SinglePlayer", "MultiPlayer"], "gamePlatform": "Web tarayıcısı", "url": "https://keremsarpb-web.github.io/games/cop-adam-savasi.html", "image": "https://keremsarpb-web.github.io/thumbs/cop-adam-savasi.jpg", "author": { "@id": "https://keremsarpb-web.github.io/#org" } } }
       ]
     }
   ]
@@ -253,7 +254,7 @@
 <footer class="wrap">
   <div class="bar">
     <div><b>KSB Games</b><br>Oyunların hepsi tarayıcıda çalışır, kurulum yok. Beğendiğini İndir ile bilgisayarına al; çift tıklayıp aç.
-      <nav class="gamelinks" aria-label="Oyunlar"><a href="games/neon-arena.html">Neon Arena</a><a href="games/son-isik.html">Son Işık</a><a href="games/ruzgarin-sarkisi.html">Rüzgârın Şarkısı</a><a href="games/balkabagi-gecesi.html">Balkabağı Gecesi</a><a href="games/balkabagi-kabusu.html">Balkabağı Kâbusu</a><a href="games/zirve.html">Zirve</a></nav></div>
+      <nav class="gamelinks" aria-label="Oyunlar"><a href="games/neon-arena.html">Neon Arena</a><a href="games/son-isik.html">Son Işık</a><a href="games/ruzgarin-sarkisi.html">Rüzgârın Şarkısı</a><a href="games/balkabagi-gecesi.html">Balkabağı Gecesi</a><a href="games/balkabagi-kabusu.html">Balkabağı Kâbusu</a><a href="games/zirve.html">Zirve</a><a href="games/cop-adam-savasi.html">Çöp Adam Savaşı</a></nav></div>
     <div class="count">Fare ile oynanan oyunlarda imleç oyuna kilitlenir · çıkmak için Esc</div>
   </div>
 </footer>
@@ -279,6 +280,10 @@ const GAMES = [
     pitch: 'Neon ışıklı arenada beş silah, kayma ve dört harita. Robot dalgalarına karşı tek başına hayatta kal ya da arkadaşlarınla kapış.',
     keys: [['WASD', 'yürü'], ['Fare', 'nişan'], ['C', 'kay'], ['1–5', 'silah']],
     note: 'Arkadaşlarınla oynamak için oyunda ODA KUR ya da RASTGELE KATIL.' },
+  { id: 'cop-adam-savasi', title: 'Çöp Adam Savaşı', genre: 'aksiyon', label: 'Strateji · Online 1v1', plat: ['PC', 'Telefon'],
+    pitch: 'Madencilerinle altın kaz, kılıççı, okçu, büyücü ve dev eğit, ordunu yönet ve düşmanın taş heykelini yık.',
+    keys: [['1–6', 'asker eğit'], ['Q W E', 'savun · bekle · saldır'], ['A D', 'kamera']],
+    note: 'RASTGELE RAKİP BUL ile online oyna; kimse yoksa bilgisayar rakibin olur.' },
   { id: 'son-isik', title: 'Son Işık', genre: 'korku', label: 'Korku · Labirent', plat: ['PC'],
     pitch: 'Karanlık bir labirentte fenerinle çıkışı ara. Pilin azalıyor ve koridorlarda yalnız değilsin.',
     keys: [['WASD', 'yürü'], ['Shift', 'koş'], ['F', 'fener']] },

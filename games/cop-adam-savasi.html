@@ -1,0 +1,1237 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Çöp Adam Savaşı</title>
+<meta name="description" content="Çöp adam ordunu kur, altın kaz, düşman heykelini yık. Rastgele rakiple online 1'e 1 ya da bilgisayara karşı oyna.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --gold:#ffc83d; --blue:#3d8bff; --red:#ff4b4b; --ink:#16131a; --panel:rgba(18,14,24,.78); --line:rgba(255,220,150,.25); --txt:#f6ecd8; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; height:100%; overflow:hidden; background:#1b1424; color:var(--txt); font-family:'Rajdhani',sans-serif; user-select:none; -webkit-user-select:none; touch-action:none; }
+  canvas#cv { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  button { font-family:'Bungee',sans-serif; font-size:15px; letter-spacing:.04em; color:var(--txt); background:linear-gradient(180deg,#3a2c22,#241a14); border:2px solid #6b5236; border-radius:10px; padding:11px 16px; cursor:pointer; box-shadow:0 3px 0 #120c08, inset 0 1px 0 rgba(255,255,255,.12); transition:transform .08s, filter .15s; }
+  button:hover { filter:brightness(1.18); }
+  button:active { transform:translateY(2px); box-shadow:0 1px 0 #120c08; }
+  button.big { background:linear-gradient(180deg,#e0a526,#a8650f); border-color:#ffd77a; color:#2a1700; font-size:19px; box-shadow:0 4px 0 #5a3204, 0 0 26px rgba(255,190,60,.35); animation:glow 2.4s ease-in-out infinite; }
+  @keyframes glow { 50% { box-shadow:0 4px 0 #5a3204, 0 0 40px rgba(255,190,60,.6); } }
+  button.link { background:none; border:none; box-shadow:none; font-family:'Rajdhani'; font-weight:700; font-size:15px; text-decoration:underline; opacity:.8; padding:6px; }
+  input.tx { font-family:'Bungee'; font-size:16px; background:rgba(0,0,0,.45); color:#fff; border:2px solid #6b5236; border-radius:10px; padding:9px 12px; outline:none; min-width:0; }
+  input.tx:focus { border-color:var(--gold); }
+
+  .screen { position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:16px; z-index:20; background:radial-gradient(ellipse at center, rgba(20,10,20,.25), rgba(10,5,12,.7)); overflow:auto; }
+  .screen.show { display:flex; }
+  .card { width:min(470px,100%); background:var(--panel); border:2px solid var(--line); border-radius:18px; padding:22px 22px 16px; text-align:center; backdrop-filter:blur(6px); box-shadow:0 20px 60px rgba(0,0,0,.5); margin:auto; }
+  .card > button { width:100%; margin:6px 0; }
+  .logo { font-family:'Bungee'; font-size:44px; line-height:.95; color:#fff; text-shadow:0 4px 0 #000, 0 0 30px rgba(255,180,60,.4); }
+  .logo b { color:var(--gold); font-weight:400; font-size:54px; }
+  .tag { font-weight:700; letter-spacing:.35em; font-size:12px; opacity:.75; margin:8px 0 16px; }
+  .name { display:flex; align-items:center; gap:10px; justify-content:center; font-family:'Bungee'; font-size:13px; margin-bottom:12px; }
+  .name input { width:190px; }
+  .row { display:flex; gap:8px; margin:6px 0; align-items:stretch; }
+  .row > * { flex:1; }
+  .row input { flex:0 0 96px; text-align:center; text-transform:uppercase; }
+  .sep { font-size:12px; letter-spacing:.3em; opacity:.55; margin:10px 0 4px; }
+  .seg { display:flex; border:2px solid #6b5236; border-radius:10px; overflow:hidden; flex:0 0 auto; }
+  .seg b { font-family:'Bungee'; font-weight:400; font-size:11px; padding:0 9px; display:flex; align-items:center; cursor:pointer; opacity:.55; }
+  .seg b.on { background:#6b5236; opacity:1; }
+  #msg { min-height:20px; font-weight:700; margin-top:8px; color:#ffd77a; }
+  #msg.bad { color:#ff8a8a; }
+  h2 { font-family:'Bungee'; font-weight:400; margin:4px 0 10px; font-size:28px; }
+  .codeBig { font-family:'Bungee'; font-size:52px; letter-spacing:.12em; color:var(--gold); text-shadow:0 0 24px rgba(255,200,60,.4); margin:6px 0; }
+  .help { text-align:left; font-size:16px; line-height:1.4; }
+  .help b { color:var(--gold); }
+  .help ul { padding-left:18px; margin:6px 0; }
+  .stats { font-size:18px; line-height:1.6; margin:6px 0 12px; }
+  .stats b { color:var(--gold); }
+  #endTitle.win { color:var(--gold); } #endTitle.lose { color:#ff7272; }
+
+  /* oyun arayüzü */
+  #hud { display:none; }
+  #hud.show { display:block; }
+  #top { position:fixed; top:0; left:0; right:0; display:flex; align-items:center; gap:12px; padding:8px 12px; z-index:5; pointer-events:none; padding-top:max(8px, env(safe-area-inset-top)); }
+  #top > * { pointer-events:auto; }
+  .res { display:flex; gap:8px; }
+  .pill { font-family:'Bungee'; font-size:17px; background:var(--panel); border:2px solid var(--line); border-radius:999px; padding:4px 14px 4px 8px; display:flex; align-items:center; gap:7px; white-space:nowrap; }
+  .coin { width:18px; height:18px; border-radius:50%; background:radial-gradient(circle at 35% 35%,#fff6c4,#ffc83d 45%,#b9780c); box-shadow:0 0 8px rgba(255,200,60,.6); }
+  .pill i { font-style:normal; font-size:15px; }
+  .bars { flex:1; display:flex; align-items:center; gap:10px; max-width:640px; margin:0 auto; }
+  .bar { flex:1; height:22px; background:rgba(0,0,0,.55); border:2px solid var(--line); border-radius:8px; position:relative; overflow:hidden; }
+  .bar i { position:absolute; inset:0; transform-origin:left; }
+  .bar.b0 i { background:linear-gradient(90deg,#1c5bd6,#5fa2ff); }
+  .bar.b1 i { background:linear-gradient(270deg,#c21f1f,#ff6b6b); transform-origin:right; }
+  .bar span { position:absolute; inset:0; display:flex; align-items:center; padding:0 8px; font-weight:700; font-size:14px; text-shadow:0 1px 2px #000; white-space:nowrap; overflow:hidden; }
+  .bar.b1 span { justify-content:flex-end; }
+  #clock { font-family:'Bungee'; font-size:15px; opacity:.85; min-width:48px; text-align:center; }
+  #menuBtn { padding:6px 12px; font-size:14px; }
+  #mini { position:fixed; left:50%; transform:translateX(-50%); top:calc(max(8px, env(safe-area-inset-top)) + 40px); width:min(560px,70vw); height:30px; z-index:5; border-radius:8px; border:2px solid var(--line); background:rgba(0,0,0,.45); cursor:pointer; }
+  #bottom { position:fixed; left:0; right:0; bottom:0; z-index:5; display:flex; align-items:flex-end; gap:10px; padding:8px 10px; padding-bottom:max(8px, env(safe-area-inset-bottom)); background:linear-gradient(0deg, rgba(14,9,10,.9), rgba(14,9,10,.55) 75%, rgba(14,9,10,0)); }
+  #cards { display:flex; gap:7px; flex:1; min-width:0; }
+  .uc { position:relative; flex:1; max-width:112px; min-width:0; padding:4px 4px 5px; border-radius:12px; background:linear-gradient(180deg,#3a2c22,#20160f); border:2px solid #6b5236; display:flex; flex-direction:column; align-items:center; font-family:'Rajdhani'; letter-spacing:0; box-shadow:0 3px 0 #0e0906; }
+  .uc canvas { width:54px; height:54px; }
+  .uc .nm { font-weight:700; font-size:14px; line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .uc .cs { font-family:'Bungee'; font-size:12px; color:var(--gold); display:flex; align-items:center; gap:4px; margin-top:2px; }
+  .uc .cs .coin { width:11px; height:11px; }
+  .uc kbd, #stances kbd { position:absolute; top:3px; left:5px; font-family:'Bungee'; font-size:10px; opacity:.6; }
+  .uc .qn { position:absolute; top:-7px; right:-6px; background:var(--gold); color:#2a1700; font-family:'Bungee'; font-size:12px; border-radius:999px; min-width:21px; height:21px; display:none; align-items:center; justify-content:center; padding:0 5px; }
+  .uc .qn.on { display:flex; }
+  .uc.off { filter:grayscale(.85) brightness(.6); }
+  .uc .pg { position:absolute; left:6px; right:6px; bottom:2px; height:3px; border-radius:2px; background:var(--gold); transform-origin:left; transform:scaleX(0); }
+  #stances { display:flex; gap:6px; }
+  #stances button { position:relative; display:flex; flex-direction:column; align-items:center; gap:2px; padding:8px 10px 7px; font-size:12px; min-width:74px; }
+  #stances button span { font-size:22px; line-height:1; }
+  #stances button.on { background:linear-gradient(180deg,#e0a526,#a8650f); border-color:#ffd77a; color:#2a1700; }
+  #toast { position:fixed; top:90px; left:50%; transform:translateX(-50%); z-index:30; font-family:'Bungee'; font-size:16px; background:var(--panel); border:2px solid var(--gold); border-radius:12px; padding:9px 16px; opacity:0; transition:opacity .3s; pointer-events:none; text-align:center; }
+  #toast.on { opacity:1; }
+  #banner { position:fixed; top:34%; left:0; right:0; text-align:center; z-index:4; pointer-events:none; font-family:'Bungee'; font-size:min(9vw,64px); color:#fff; text-shadow:0 5px 0 #000, 0 0 40px rgba(255,180,60,.5); opacity:0; transition:opacity .4s; }
+  #banner small { display:block; font-family:'Rajdhani'; font-weight:700; font-size:20px; letter-spacing:.3em; color:var(--gold); }
+  @media (max-height:520px), (max-width:760px) {
+    .uc canvas { width:38px; height:38px; } .uc .nm { font-size:12px; } .uc { padding:3px 2px 4px; }
+    #stances button { min-width:52px; padding:6px 6px 5px; font-size:10px; } #stances button span { font-size:18px; }
+    .pill { font-size:14px; padding:3px 10px 3px 6px; } .bar { height:18px; } .bar span { font-size:12px; }
+    #mini { height:22px; top:calc(max(6px, env(safe-area-inset-top)) + 32px); }
+    .logo { font-size:32px; } .logo b { font-size:40px; } .card { padding:14px; } .tag { margin:4px 0 8px; }
+  }
+  @media (max-width:560px) { #clock { display:none; } #stances kbd, .uc kbd { display:none; } }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+
+<div id="hud">
+  <div id="top">
+    <div class="res">
+      <div class="pill"><span class="coin"></span><span id="gold">0</span></div>
+      <div class="pill"><i>👥</i><span id="pop">0/30</span></div>
+    </div>
+    <div class="bars">
+      <div class="bar b0"><i id="hp0"></i><span id="n0">MAVİ</span></div>
+      <div id="clock">0:00</div>
+      <div class="bar b1"><i id="hp1"></i><span id="n1">KIRMIZI</span></div>
+    </div>
+    <button id="menuBtn" aria-label="Menü">II</button>
+  </div>
+  <canvas id="mini"></canvas>
+  <div id="bottom">
+    <div id="cards"></div>
+    <div id="stances">
+      <button data-s="0"><kbd>Q</kbd><span>🛡️</span>SAVUN</button>
+      <button data-s="1"><kbd>W</kbd><span>🚩</span>BEKLE</button>
+      <button data-s="2"><kbd>E</kbd><span>⚔️</span>SALDIR</button>
+    </div>
+  </div>
+</div>
+<div id="banner"></div>
+<div id="toast"></div>
+
+<div id="menu" class="screen show">
+  <div class="card">
+    <div class="logo">ÇÖP ADAM<br><b>SAVAŞI</b></div>
+    <div class="tag">ONLINE STRATEJİ · KSB GAMES</div>
+    <label class="name">ADIN <input class="tx" id="pname" maxlength="14" autocomplete="off" spellcheck="false"></label>
+    <button id="quick" class="big">⚔️ RASTGELE RAKİP BUL</button>
+    <div class="row"><button id="host">ODA KUR</button><input class="tx" id="code" maxlength="5" placeholder="KOD" autocomplete="off" spellcheck="false"><button id="join">KATIL</button></div>
+    <div class="sep">YA DA</div>
+    <div class="row"><button id="solo">🤖 BİLGİSAYARA KARŞI</button>
+      <div class="seg" id="diff"><b data-d="kolay">KOLAY</b><b data-d="normal" class="on">NORMAL</b><b data-d="zor">ZOR</b></div></div>
+    <div id="msg"></div>
+    <button id="helpBtn" class="link">Nasıl oynanır?</button>
+  </div>
+</div>
+
+<div id="help" class="screen">
+  <div class="card help">
+    <h2 style="text-align:center">NASIL OYNANIR</h2>
+    <b>Amaç:</b> düşmanın taş heykelini yık, kendi heykelini koru.
+    <ul>
+      <li><b>Madenciler</b> altın kazıp heykele taşır. Ne kadar çok madenci, o kadar çok altın.</li>
+      <li>Altınla asker eğit: <b>Kılıççı</b> ucuz ve hızlı, <b>Okçu</b> uzaktan vurur, <b>Mızrakçı</b> kalkanıyla oklara dayanır, <b>Büyücü</b> topluca patlatır, <b>Dev</b> her şeyi ezer.</li>
+      <li>Ordunu yönet: <b>SAVUN</b> heykelin önünde bekler, <b>BEKLE</b> cephede durur, <b>SALDIR</b> düşman heykeline yürür.</li>
+    </ul>
+    <b>Kontroller:</b> 1–6 asker eğit · Q / W / E ordu emri · A / D ya da sürükle: kamera · üstteki haritaya tıkla: oraya git.
+    <p style="opacity:.8">Rastgele Rakip Bul kimseyi bulamazsa 20 saniye sonra bilgisayar rakibin olur.</p>
+    <button id="helpBack" style="width:100%">TAMAM</button>
+  </div>
+</div>
+
+<div id="wait" class="screen">
+  <div class="card">
+    <h2 id="waitTitle">RAKİP BEKLENİYOR</h2>
+    <div class="sep" style="margin:0">ODA KODU</div>
+    <div class="codeBig" id="waitCode">-----</div>
+    <p id="waitTxt">Arkadaşın oyunu açıp bu kodla KATIL'a bassın.</p>
+    <button id="copyCode">KODU KOPYALA</button>
+    <button id="waitAI">🤖 HEMEN BİLGİSAYARLA BAŞLA</button>
+    <button id="waitCancel" class="link">Vazgeç</button>
+  </div>
+</div>
+
+<div id="pause" class="screen">
+  <div class="card">
+    <h2 id="pauseTitle">DURAKLATILDI</h2>
+    <button id="resume">DEVAM ET</button>
+    <button id="toggleSnd">SES: AÇIK</button>
+    <button id="quit">MAÇTAN ÇIK</button>
+  </div>
+</div>
+
+<div id="end" class="screen">
+  <div class="card">
+    <h2 id="endTitle">ZAFER!</h2>
+    <div id="endSub" style="font-weight:700;opacity:.85"></div>
+    <div class="stats" id="endStats"></div>
+    <button id="again" class="big">TEKRAR OYNA</button>
+    <button id="toMenu">ANA MENÜ</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const R = (a, b) => a + Math.random() * (b - a);
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+                set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+
+// ------------------------------------------------------------ dünya ve birlikler
+const W = 3600, STAT = [170, W - 170], HOLD = [W * 0.37, W * 0.63];
+const MINES = [[380, 500, 620], [W - 380, W - 500, W - 620]];
+const POPCAP = 30, STATUE_HP = 3000, GY = 380, LANE = 52;
+const TEAM = ['#3d8bff', '#ff4b4b'], TEAM_D = ['#1d4fb0', '#b31e1e'];
+// h: kafa yüksekliği (vuruş efektleri için), scale: çizim boyutu
+const UT = {
+  miner:  { n: 'Madenci',  cost: 150,  pop: 1, time: 4,   hp: 90,   spd: 64, dmg: 0,  rate: 1,   range: 0,   scale: 0.95, h: 50 },
+  sword:  { n: 'Kılıççı',  cost: 125,  pop: 1, time: 4.5, hp: 140,  spd: 80, dmg: 17, rate: 0.85, range: 30, scale: 1,    h: 52 },
+  archer: { n: 'Okçu',     cost: 300,  pop: 1, time: 6,   hp: 85,   spd: 68, dmg: 15, rate: 1.5, range: 430, scale: 1,    h: 52, ranged: 1 },
+  spear:  { n: 'Mızrakçı', cost: 500,  pop: 2, time: 8,   hp: 420,  spd: 56, dmg: 28, rate: 1.25, range: 42, scale: 1.12, h: 58, armor: 0.4 },
+  mage:   { n: 'Büyücü',   cost: 1100, pop: 3, time: 12,  hp: 150,  spd: 54, dmg: 62, rate: 3.2, range: 340, scale: 1.05, h: 55, ranged: 1, aoe: 95 },
+  giant:  { n: 'Dev',      cost: 1500, pop: 4, time: 15,  hp: 1400, spd: 40, dmg: 80, rate: 2.3, range: 64,  scale: 2.3,  h: 125, aoe: 60 },
+};
+const TYPES = Object.keys(UT), TI = Object.fromEntries(TYPES.map((t, i) => [t, i]));
+const S_IDLE = 0, S_WALK = 1, S_ATK = 2, S_MINE = 3, S_CARRY = 4;
+
+let G = null;           // simülasyon (tek başına, demo ve oda sahibi)
+let role = 'demo';      // demo | solo | host | client
+let me = 0, paused = false;
+let names = ['MAVİ', 'KIRMIZI'];
+const outbox = [];
+
+function makeAI(diff) { return { diff, mult: { kolay: 0.75, normal: 1.15, zor: 1.6 }[diff] || 1, t: 2, plan: null, wave: { kolay: 8, normal: 11, zor: 13 }[diff] || 11 }; }
+function newGame(ai0, ai1) {
+  G = { t: 0, units: [], nid: 1, pend: [], over: -1,
+    teams: [ai0, ai1].map(ai => ({ gold: 450, stance: 0, queue: [], qT: 0, statue: STATUE_HP, ai: ai ? makeAI(ai) : null, trained: 0, kills: 0, mined: 0, shT: 0 })) };
+  for (const tm of [0, 1]) { spawn('miner', tm); spawn('miner', tm); spawn('sword', tm); }
+}
+function spawn(type, team, x) {
+  const T = UT[type], dir = team ? -1 : 1;
+  const u = { id: G.nid++, type, team, x: x != null ? x : STAT[team] + dir * R(30, 60), y: Math.random(), hp: T.hp, max: T.hp, st: S_IDLE,
+    cd: 0, face: dir, off: R(-55, 55), carry: 0, mine: -1, mt: 0 };
+  G.units.push(u); return u;
+}
+function popOf(team) {
+  let p = 0;
+  for (const u of G.units) if (u.team === team) p += UT[u.type].pop;
+  for (const q of G.teams[team].queue) p += UT[q].pop;
+  return p;
+}
+function train(team, type) {
+  const tm = G.teams[team], T = UT[type];
+  if (!T || G.over >= 0 || tm.gold < T.cost || popOf(team) + T.pop > POPCAP || tm.queue.length >= 6) return false;
+  tm.gold -= T.cost; tm.queue.push(type); return true;
+}
+function setStance(team, s) { if (G && s >= 0 && s <= 2) G.teams[team].stance = s; }
+function ev(e) { playEvent(e); if (role === 'host') outbox.push(e); }
+
+function step(dt) {
+  if (G.over >= 0) return;
+  G.t += dt;
+  for (let i = 0; i < 2; i++) {
+    const tm = G.teams[i];
+    tm.gold += 1.5 * dt * (tm.ai ? tm.ai.mult : 1);
+    tm.shT -= dt;
+    if (tm.queue.length) {
+      tm.qT += dt;
+      const type = tm.queue[0];
+      if (tm.qT >= UT[type].time) { tm.qT = 0; tm.queue.shift(); spawn(type, i); tm.trained++; ev({ k: 'tr', team: i, type }); }
+    } else tm.qT = 0;
+    if (tm.ai) stepAI(i, dt);
+  }
+  for (const u of G.units) if (u.hp > 0) stepUnit(u, dt);
+  for (let i = G.pend.length - 1; i >= 0; i--) {
+    const p = G.pend[i]; p.t -= dt;
+    if (p.t <= 0) { G.pend.splice(i, 1); resolve(p); }
+  }
+  G.units = G.units.filter(u => u.hp > 0);
+}
+function moveToward(u, tx, spd, dt) {
+  const d = tx - u.x; u.face = d >= 0 ? 1 : -1;
+  u.x += u.face * Math.min(Math.abs(d), spd * dt); u.st = S_WALK;
+  u.x = clamp(u.x, 30, W - 30);
+}
+function stepUnit(u, dt) {
+  const T = UT[u.type], tm = G.teams[u.team], dir = u.team ? -1 : 1;
+  u.cd -= dt;
+  if (u.type === 'miner') return stepMiner(u, dt, dir, tm);
+  const home = STAT[u.team], foeStat = STAT[1 - u.team];
+  const back = T.ranged ? 80 : (u.type === 'giant' ? -25 : u.type === 'spear' ? -12 : 0);
+  let anchor = tm.stance === 2 ? foeStat : tm.stance === 1 ? HOLD[u.team] - dir * back + u.off : home + dir * (150 - back * 0.7) + u.off * 0.6;
+  // hedef: menzildeki en yakın düşman (emre göre ne kadar uzağa gidileceği değişir)
+  const sight = Math.max(T.range + 60, 360);
+  let best = null, bd = 1e9;
+  for (const e of G.units) {
+    if (e.team === u.team || e.hp <= 0) continue;
+    const d = Math.abs(e.x - u.x);
+    if (d > sight) continue;
+    if (tm.stance === 1 && Math.abs(e.x - HOLD[u.team]) > 560) continue;
+    if (tm.stance === 0 && Math.abs(e.x - home) > 650) continue;
+    if (d < bd) { bd = d; best = e; }
+  }
+  let target = null, tx = 0;
+  if (best) { target = best; tx = best.x; }
+  else if (tm.stance === 2 && Math.abs(foeStat - u.x) < T.range + 120) { target = 'statue'; tx = foeStat; }
+  if (target) {
+    const d = Math.abs(tx - u.x) - (target === 'statue' ? 55 : 0);
+    if (d > T.range) { moveToward(u, tx, T.spd, dt); return; }
+    u.face = tx >= u.x ? 1 : -1;
+    if (u.st !== S_ATK) { u.st = S_ATK; u.cd = Math.max(u.cd, T.rate * 0.6); } // kılıcı kaldırma süresi
+    if (u.cd <= 0) { u.cd = T.rate; attack(u, target, tx); }
+    return;
+  }
+  if (Math.abs(anchor - u.x) > 10) moveToward(u, anchor, T.spd * (tm.stance === 2 ? 1 : 0.9), dt);
+  else { u.st = S_IDLE; u.face = dir; }
+}
+function stepMiner(u, dt, dir, tm) {
+  const home = STAT[u.team] + dir * 58;
+  if (u.carry > 0) {
+    if (Math.abs(home - u.x) > 6) { moveToward(u, home, UT.miner.spd, dt); u.st = S_CARRY; return; }
+    const g = Math.round(u.carry * (tm.ai ? tm.ai.mult : 1));
+    tm.gold += g; tm.mined += g; u.carry = 0;
+    ev({ k: 'gold', team: u.team, x: Math.round(u.x), n: g });
+    return;
+  }
+  if (u.mine < 0) {
+    const cnt = [0, 0, 0];
+    for (const o of G.units) if (o.team === u.team && o.type === 'miner' && o.mine >= 0) cnt[o.mine]++;
+    u.mine = cnt.indexOf(Math.min(...cnt));
+  }
+  const mx = MINES[u.team][u.mine] + u.off * 0.25 - dir * 22;
+  if (Math.abs(mx - u.x) > 6) { moveToward(u, mx, UT.miner.spd, dt); return; }
+  u.st = S_MINE; u.face = dir; u.mt += dt;
+  if (u.mt >= 3) { u.mt = 0; u.carry = 50; }
+}
+function attack(u, target, tx) {
+  const T = UT[u.type], isStat = target === 'statue';
+  const ty = isStat ? 0.5 : target.y, th = isStat ? 70 : UT[target.type].h * 0.6;
+  if (u.type === 'archer') {
+    const dur = 0.3 + Math.abs(tx - u.x) / 950;
+    G.pend.push({ t: dur, kind: 'arrow', by: u.team, id: isStat ? 0 : target.id, x: tx, dmg: T.dmg });
+    ev({ k: 'ar', x0: Math.round(u.x + u.face * 10), y0: r2(u.y), x1: Math.round(tx), y1: r2(ty), h1: Math.round(th), d: r2(dur) });
+  } else if (u.type === 'mage') {
+    G.pend.push({ t: 0.55, kind: 'magic', by: u.team, x: tx, dmg: T.dmg, aoe: T.aoe });
+    ev({ k: 'mg', x0: Math.round(u.x + u.face * 14), y0: r2(u.y), x1: Math.round(tx), y1: r2(ty), team: u.team });
+  } else if (T.aoe) {
+    // dev: önündeki herkesi ezer
+    for (const e of G.units) if (e.team !== u.team && e.hp > 0 && Math.abs(e.x - tx) < T.aoe) hurt(e, T.dmg, u.team, 'melee');
+    if (isStat || Math.abs(STAT[1 - u.team] - tx) < T.aoe + 50) hurtStatue(1 - u.team, T.dmg);
+    ev({ k: 'sm', x: Math.round(tx + u.face * 20), y: r2(u.y) });
+  } else {
+    if (isStat) hurtStatue(1 - u.team, T.dmg); else hurt(target, T.dmg, u.team, 'melee');
+  }
+}
+function resolve(p) {
+  if (p.kind === 'arrow') {
+    if (!p.id) { hurtStatue(1 - p.by, p.dmg); return; }
+    const t = G.units.find(e => e.id === p.id);
+    if (t && t.hp > 0 && Math.abs(t.x - p.x) < 50) hurt(t, p.dmg, p.by, 'arrow');
+  } else if (p.kind === 'magic') {
+    for (const e of G.units) if (e.team !== p.by && e.hp > 0 && Math.abs(e.x - p.x) < p.aoe) hurt(e, p.dmg, p.by, 'magic');
+    if (Math.abs(STAT[1 - p.by] - p.x) < p.aoe + 50) hurtStatue(1 - p.by, p.dmg * 0.7);
+  }
+}
+function hurt(e, dmg, by, kind) {
+  if (e.hp <= 0) return;
+  if (kind === 'arrow' && UT[e.type].armor) dmg *= 1 - UT[e.type].armor;
+  e.hp -= dmg;
+  ev({ k: 'hit', x: Math.round(e.x), y: r2(e.y), h: UT[e.type].h, m: e.type === 'spear' ? 1 : 0 });
+  if (e.hp <= 0) {
+    G.teams[by].kills++;
+    ev({ k: 'die', x: Math.round(e.x), y: r2(e.y), type: e.type, team: e.team, f: e.face });
+  }
+}
+function hurtStatue(team, dmg) {
+  const tm = G.teams[team];
+  if (G.over >= 0) return;
+  tm.statue -= dmg;
+  if (tm.shT <= 0) { tm.shT = 0.35; ev({ k: 'sh', team }); }
+  if (tm.statue <= 0) { tm.statue = 0; G.over = 1 - team; ev({ k: 'over', w: 1 - team }); }
+}
+
+// --- bilgisayar rakip
+function pickUnit(team) {
+  const t = G.t, r = Math.random();
+  const heavy = G.units.filter(f => f.team !== team && (f.type === 'giant' || f.type === 'spear')).length;
+  if (t < 70) return r < 0.7 ? 'sword' : 'archer';
+  if (t < 170) return r < 0.35 ? 'sword' : r < 0.68 ? 'archer' : 'spear';
+  if (heavy >= 3 && r < 0.5) return r < 0.22 ? 'mage' : 'archer';
+  return r < 0.2 ? 'sword' : r < 0.42 ? 'archer' : r < 0.64 ? 'spear' : r < 0.83 ? 'mage' : 'giant';
+}
+function stepAI(team, dt) {
+  const tm = G.teams[team], ai = tm.ai;
+  ai.t -= dt; if (ai.t > 0) return;
+  ai.t = ai.diff === 'kolay' ? R(1.4, 2.2) : R(0.6, 1.1);
+  let miners = tm.queue.filter(q => q === 'miner').length, army = 0, foeNear = 0;
+  const home = STAT[team];
+  for (const u of G.units) {
+    if (u.team === team) { if (u.type === 'miner') miners++; else army += UT[u.type].pop; }
+    else if (u.type !== 'miner' && Math.abs(u.x - home) < 950) foeNear += UT[u.type].pop;
+  }
+  const want = Math.min(ai.diff === 'kolay' ? 5 : 8, 3 + Math.floor(G.t / 35));
+  if (miners < want && !(foeNear > army && tm.gold < 300)) train(team, 'miner');
+  else {
+    if (!ai.plan) ai.plan = pickUnit(team);
+    if (foeNear > 0 && tm.gold < UT[ai.plan].cost && tm.gold >= 125) train(team, 'sword'); // saldırı altında beklemeden asker çıkar
+    else if (train(team, ai.plan)) ai.plan = null;
+  }
+  const foeLow = G.teams[1 - team].statue < STATUE_HP * 0.35;
+  if (foeNear > 0 && army < foeNear * 1.3) tm.stance = 0;
+  else if (tm.stance !== 2 && (army >= ai.wave || (foeLow && army >= 4))) { tm.stance = 2; if (team !== me || role === 'demo') {} }
+  else if (tm.stance === 2 && army < Math.max(3, ai.wave * 0.35)) { tm.stance = 1; ai.wave = Math.min(24, ai.wave + 3); }
+  else if (tm.stance === 0 && foeNear === 0) tm.stance = 1;
+}
+
+// ------------------------------------------------------------ çizim
+const cv = $('cv');
+let c = cv.getContext('2d'); // kart simgeleri çizilirken geçici olarak başka tuvale döner
+const mini = $('mini'), mc = mini.getContext('2d');
+let VW = 0, VH = 0, DPR = 1, sc = 1, camX = 0, camTarget = null, shake = 0;
+const r2 = v => Math.round(v * 100) / 100;
+function resize() {
+  DPR = Math.min(2, devicePixelRatio || 1); VW = innerWidth; VH = innerHeight;
+  cv.width = VW * DPR; cv.height = VH * DPR;
+  const mr = mini.getBoundingClientRect(); mini.width = Math.max(1, mr.width * DPR); mini.height = Math.max(1, mr.height * DPR);
+  const bar = $('hud').classList.contains('show') ? $('bottom').offsetHeight : 0;
+  sc = clamp((VH - bar - 4) / (GY + LANE + 30), 0.45, 2.2);
+  if (VW / sc > W) sc = VW / W;
+}
+addEventListener('resize', resize);
+const viewW = () => VW / sc;
+const wx = x => (x - camX) * sc;
+const wy = (lane, h = 0) => (GY + lane * LANE - h) * sc;
+
+// arka plan: gün batımında dağlar, tepeler ve çimen
+function ridge(x, seed, f) { return Math.sin(x * f + seed) * 0.5 + Math.sin(x * f * 2.3 + seed * 1.7) * 0.28 + Math.sin(x * f * 5.1 + seed * 3.1) * 0.12; }
+function layer(par, base, amp, f, seed, fill) {
+  c.fillStyle = fill; c.beginPath(); c.moveTo(0, VH);
+  const off = camX * par;
+  for (let s = 0; s <= VW + 24; s += 24) { const x = s / sc + off; c.lineTo(s, (base - (ridge(x, seed, f) + 1) * amp) * sc); }
+  c.lineTo(VW, VH); c.closePath(); c.fill();
+}
+const clouds = Array.from({ length: 9 }, (_, i) => ({ x: i * 520 + R(0, 300), y: R(40, 170), s: R(0.7, 1.5), v: R(4, 10) }));
+const deco = [];
+for (let x = 260; x < W - 260; x += R(140, 320)) deco.push({ x, k: Math.random() < 0.55 ? 'tree' : 'rock', s: R(0.7, 1.3), lane: R(-0.55, -0.2) });
+function drawBG(t) {
+  const g = c.createLinearGradient(0, 0, 0, GY * sc);
+  g.addColorStop(0, '#20183a'); g.addColorStop(0.45, '#6b3a5e'); g.addColorStop(0.8, '#e0794e'); g.addColorStop(1, '#f6b36a');
+  c.fillStyle = g; c.fillRect(0, 0, VW, VH);
+  // güneş
+  const sx = VW * 0.62 - camX * sc * 0.03, sy = (GY - 150) * sc;
+  const sg = c.createRadialGradient(sx, sy, 0, sx, sy, 220 * sc);
+  sg.addColorStop(0, 'rgba(255,240,200,1)'); sg.addColorStop(0.18, 'rgba(255,214,140,.95)'); sg.addColorStop(0.2, 'rgba(255,180,110,.5)'); sg.addColorStop(1, 'rgba(255,150,90,0)');
+  c.fillStyle = sg; c.beginPath(); c.arc(sx, sy, 220 * sc, 0, 7); c.fill();
+  // bulutlar
+  c.fillStyle = 'rgba(255,214,190,.28)';
+  for (const cl of clouds) {
+    let x = ((cl.x + t * cl.v - camX * 0.2) % (W * 0.6 + 600) + (W * 0.6 + 600)) % (W * 0.6 + 600) - 300;
+    x *= sc; const y = cl.y * sc, s = cl.s * sc;
+    c.beginPath(); c.ellipse(x, y, 90 * s, 18 * s, 0, 0, 7); c.ellipse(x + 40 * s, y - 10 * s, 50 * s, 16 * s, 0, 0, 7); c.ellipse(x - 45 * s, y - 4 * s, 40 * s, 12 * s, 0, 0, 7); c.fill();
+  }
+  layer(0.12, GY - 70, 75, 0.0021, 1.3, '#4a2d55');
+  layer(0.25, GY - 30, 48, 0.0034, 4.1, '#3b2a45');
+  layer(0.5, GY + 2, 26, 0.006, 8.7, '#2e3b2c');
+  // zemin
+  const gg = c.createLinearGradient(0, (GY - 18) * sc, 0, VH);
+  gg.addColorStop(0, '#6f8f3d'); gg.addColorStop(0.08, '#58752f'); gg.addColorStop(0.35, '#6b5232'); gg.addColorStop(1, '#3a2a1c');
+  c.fillStyle = gg; c.fillRect(0, (GY - 18) * sc, VW, VH);
+  // çimen çizgileri
+  c.strokeStyle = 'rgba(160,200,90,.35)'; c.lineWidth = Math.max(1, 1.4 * sc);
+  c.beginPath();
+  const x0 = Math.floor(camX / 37) * 37;
+  for (let x = x0; x < camX + viewW() + 40; x += 37) {
+    const sx2 = wx(x), j = ((x * 7919) % 13) / 13;
+    const y0 = (GY - 14 + j * 18) * sc;
+    c.moveTo(sx2, y0); c.lineTo(sx2 - 3 * sc, y0 - 7 * sc); c.moveTo(sx2 + 4 * sc, y0); c.lineTo(sx2 + 6 * sc, y0 - 6 * sc);
+  }
+  c.stroke();
+  // ağaçlar ve kayalar (birliklerin arkasında)
+  for (const d of deco) {
+    const x = wx(d.x); if (x < -150 || x > VW + 150) continue;
+    const y = wy(d.lane), s = d.s * sc;
+    if (d.k === 'tree') {
+      c.fillStyle = '#2a1d16'; c.fillRect(x - 4 * s, y - 60 * s, 8 * s, 60 * s);
+      c.fillStyle = '#2f4a26'; c.beginPath(); c.ellipse(x, y - 78 * s, 34 * s, 30 * s, 0, 0, 7); c.fill();
+      c.fillStyle = '#3c5c2e'; c.beginPath(); c.ellipse(x - 10 * s, y - 86 * s, 20 * s, 17 * s, 0, 0, 7); c.fill();
+    } else {
+      c.fillStyle = '#4a4148'; c.beginPath(); c.ellipse(x, y - 6 * s, 26 * s, 13 * s, 0, Math.PI, 0); c.fill();
+      c.fillStyle = 'rgba(255,255,255,.08)'; c.beginPath(); c.ellipse(x - 6 * s, y - 12 * s, 10 * s, 4 * s, 0, 0, 7); c.fill();
+    }
+  }
+  // orta saha: yıkık sütunlar
+  for (const px of [W / 2 - 120, W / 2 + 40, W / 2 + 150]) {
+    const x = wx(px); if (x < -80 || x > VW + 80) continue;
+    const h = (px % 3 ? 95 : 140) * sc, y = wy(-0.35);
+    c.fillStyle = '#857a80'; c.fillRect(x - 13 * sc, y - h, 26 * sc, h);
+    c.fillStyle = '#9b9096'; c.fillRect(x - 17 * sc, y - h - 8 * sc, 34 * sc, 9 * sc);
+    c.fillStyle = 'rgba(0,0,0,.18)'; c.fillRect(x + 4 * sc, y - h, 9 * sc, h);
+  }
+}
+function drawMines(t) {
+  for (let tm = 0; tm < 2; tm++) for (const mx of MINES[tm]) {
+    const x = wx(mx); if (x < -80 || x > VW + 80) continue;
+    const y = wy(-0.05), s = sc;
+    c.fillStyle = '#5b4b45'; c.beginPath(); c.ellipse(x, y, 34 * s, 22 * s, 0, Math.PI, 0); c.fill();
+    c.fillStyle = '#6e5d55'; c.beginPath(); c.ellipse(x - 12 * s, y - 4 * s, 18 * s, 15 * s, 0, Math.PI, 0); c.fill();
+    c.fillStyle = '#ffc83d';
+    for (let i = 0; i < 6; i++) {
+      const gx = x + Math.cos(i * 2.1 + mx) * 20 * s, gy = y - 6 * s - Math.abs(Math.sin(i * 1.7 + mx)) * 12 * s;
+      c.beginPath(); c.moveTo(gx, gy - 4 * s); c.lineTo(gx + 4 * s, gy); c.lineTo(gx, gy + 3 * s); c.lineTo(gx - 4 * s, gy); c.fill();
+    }
+    const tw = (Math.sin(t * 3 + mx) + 1) / 2;
+    c.fillStyle = `rgba(255,250,210,${tw * 0.9})`;
+    const sx = x + Math.sin(mx) * 14 * s, sy = y - 18 * s;
+    c.beginPath(); c.moveTo(sx, sy - 7 * s * tw); c.lineTo(sx + 1.5 * s, sy); c.lineTo(sx, sy + 7 * s * tw); c.lineTo(sx - 1.5 * s, sy); c.fill();
+    c.beginPath(); c.moveTo(sx - 7 * s * tw, sy); c.lineTo(sx, sy + 1.5 * s); c.lineTo(sx + 7 * s * tw, sy); c.lineTo(sx, sy - 1.5 * s); c.fill();
+  }
+}
+// taş heykel: kılıcını kaldırmış dev bir çöp adam
+function drawStatue(team, hpF, t) {
+  const x = wx(STAT[team]); if (x < -260 || x > VW + 260) return;
+  const y = wy(0.35), s = sc, f = team ? -1 : 1;
+  c.save(); c.translate(x, y);
+  const glow = c.createRadialGradient(0, 0, 0, 0, 0, 120 * s);
+  glow.addColorStop(0, team ? 'rgba(255,75,75,.35)' : 'rgba(61,139,255,.35)'); glow.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = glow; c.beginPath(); c.ellipse(0, 0, 120 * s, 30 * s, 0, 0, 7); c.fill();
+  // kaide
+  c.fillStyle = '#5d5560'; c.fillRect(-62 * s, -26 * s, 124 * s, 26 * s);
+  c.fillStyle = '#6f6672'; c.fillRect(-50 * s, -46 * s, 100 * s, 22 * s);
+  c.fillStyle = TEAM_D[team]; c.fillRect(-50 * s, -40 * s, 100 * s, 6 * s);
+  // bayrak
+  const px = -f * 72 * s;
+  c.strokeStyle = '#2b2226'; c.lineWidth = 4 * s; c.beginPath(); c.moveTo(px, 0); c.lineTo(px, -250 * s); c.stroke();
+  c.fillStyle = TEAM[team]; c.beginPath(); c.moveTo(px, -248 * s);
+  for (let i = 0; i <= 8; i++) { const k = i / 8; c.lineTo(px - f * k * 70 * s, -248 * s + Math.sin(t * 4 + k * 5) * 5 * s * k); }
+  for (let i = 8; i >= 0; i--) { const k = i / 8; c.lineTo(px - f * k * 70 * s, -212 * s + Math.sin(t * 4 + k * 5) * 5 * s * k); }
+  c.fill();
+  // heykel
+  c.scale(f * s * 3.1, s * 3.1); c.translate(0, -15);
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  const stone = hpF > 0 ? '#b8b0b6' : '#6a6268';
+  for (const [col, lw] of [['#4b4449', 9], [stone, 5.5]]) {
+    c.strokeStyle = col; c.lineWidth = lw;
+    c.beginPath();
+    c.moveTo(0, -25); c.lineTo(-8, 0); c.moveTo(0, -25); c.lineTo(8, 0);
+    c.moveTo(0, -25); c.lineTo(0, -46);
+    c.moveTo(0, -43); c.lineTo(-12, -32);
+    c.moveTo(0, -43); c.lineTo(10, -56); c.lineTo(14, -84);
+    c.stroke();
+    c.fillStyle = col; c.beginPath(); c.arc(0, -54, lw === 9 ? 9 : 7, 0, 7); c.fill();
+  }
+  c.strokeStyle = '#d9dde3'; c.lineWidth = 2.5; c.beginPath(); c.moveTo(14, -84); c.lineTo(14, -60); c.stroke();
+  c.fillStyle = '#ffc83d'; c.beginPath(); c.moveTo(-6, -61); c.lineTo(-4, -67); c.lineTo(0, -63); c.lineTo(4, -67); c.lineTo(6, -61); c.fill();
+  // çatlaklar
+  if (hpF < 0.7) {
+    c.strokeStyle = '#2b2226'; c.lineWidth = 1.2; c.beginPath();
+    c.moveTo(-2, -50); c.lineTo(2, -44); c.lineTo(-1, -36);
+    if (hpF < 0.4) { c.moveTo(1, -30); c.lineTo(-3, -22); c.lineTo(2, -14); c.moveTo(-4, -58); c.lineTo(3, -55); }
+    if (hpF < 0.15) { c.moveTo(8, -50); c.lineTo(3, -46); c.moveTo(-6, -6); c.lineTo(-2, -12); }
+    c.stroke();
+  }
+  c.restore();
+}
+
+// --- çöp adamlar
+const INK = '#16131a';
+function swing(p) { if (p < 0.55) return -Math.sin(p / 0.55 * Math.PI / 2); if (p < 0.72) return -1 + 2 * (p - 0.55) / 0.17; return 1 - (p - 0.72) / 0.28; }
+function seg(x1, y1, x2, y2) { c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); }
+function limb(sx, sy, a, L = 17, bend = 0.25) {
+  const ex = sx + Math.sin(a) * L * 0.5, ey = sy + Math.cos(a) * L * 0.5;
+  const hx = ex + Math.sin(a + bend) * L * 0.5, hy = ey + Math.cos(a + bend) * L * 0.5;
+  c.beginPath(); c.moveTo(sx, sy); c.lineTo(ex, ey); c.lineTo(hx, hy); c.stroke();
+  return [hx, hy];
+}
+function drawFigure(r, t, alpha = 1) {
+  const type = r.type, col = TEAM[r.team], walk = r.st === S_WALK || r.st === S_CARRY, atk = r.st === S_ATK;
+  const sw = walk ? Math.sin(r.ph) : 0, bob = walk ? Math.abs(Math.cos(r.ph)) * 1.6 : Math.sin(t * 2 + r.id) * 0.5;
+  const lean = walk ? 3 : atk ? 1.5 : 0;
+  const p = atk ? swing(r.ap) : 0;
+  c.globalAlpha = alpha;
+  c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = INK; c.fillStyle = INK;
+  c.lineWidth = type === 'giant' ? 4.4 : 3.3;
+  const hipY = -25 - bob * 0.3, shY = -44 - bob * 0.3, sx = lean;
+  // bacaklar
+  for (const k of [1, -1]) {
+    const a = k * sw * 0.7;
+    const kx = Math.sin(a) * 13, ky = hipY + Math.cos(a) * 13;
+    const fa = a - (walk ? Math.max(0, -k * Math.cos(r.ph)) * 0.6 : 0);
+    seg(0, hipY, kx, ky); seg(kx, ky, kx + Math.sin(fa) * 12.5, ky + Math.cos(fa) * 12.5);
+  }
+  seg(0, hipY, sx, shY);
+  const hx = sx + 1, hy = shY - 9;
+  // arka kol / sırt eşyaları
+  if (type === 'archer') { c.fillStyle = TEAM_D[r.team]; c.fillRect(sx - 9, shY - 2, 5, 15); c.fillStyle = INK; }
+  if (type === 'miner' && r.carry) { c.fillStyle = '#e8b923'; c.beginPath(); c.arc(sx - 9, shY + 6, 7, 0, 7); c.fill(); c.strokeStyle = '#8a5a00'; c.lineWidth = 1.5; c.stroke(); c.strokeStyle = INK; c.lineWidth = 3.3; c.fillStyle = INK; }
+  // kafa
+  c.beginPath(); c.arc(hx, hy, 6.8, 0, 7); c.fill();
+  // şapkalar / kasklar
+  c.lineWidth = 2.4;
+  if (type === 'sword') { c.strokeStyle = col; seg(hx - 6.5, hy - 2, hx + 6.5, hy - 2); seg(hx - 6.5, hy - 2, hx - 13, hy + 1 + Math.sin(t * 9 + r.id) * 1.5); }
+  else if (type === 'archer') { c.fillStyle = col; c.beginPath(); c.arc(hx, hy - 1, 7.4, Math.PI, 0); c.fill(); c.beginPath(); c.moveTo(hx - 7.4, hy - 1); c.lineTo(hx - 12, hy + 5); c.lineTo(hx - 5, hy + 1); c.fill(); }
+  else if (type === 'spear') { c.fillStyle = col; c.beginPath(); c.arc(hx, hy, 7.8, Math.PI * 1.05, -0.05); c.lineTo(hx + 7.8, hy + 2); c.lineTo(hx - 7.8, hy + 2); c.fill(); c.fillStyle = '#ffd36b'; c.fillRect(hx - 1.5, hy - 14, 3, 7); }
+  else if (type === 'mage') { c.fillStyle = col; c.beginPath(); c.moveTo(hx - 9, hy - 3); c.lineTo(hx + 9, hy - 3); c.lineTo(hx - 2, hy - 24); c.fill(); }
+  else if (type === 'miner') { c.fillStyle = col; c.beginPath(); c.arc(hx, hy - 1.5, 7, Math.PI, 0); c.fill(); c.fillRect(hx, hy - 3, 9, 2.5); }
+  else if (type === 'giant') { c.strokeStyle = col; c.lineWidth = 3; seg(-4, hipY - 1, 4, hipY - 1); }
+  c.strokeStyle = INK; c.fillStyle = INK; c.lineWidth = type === 'giant' ? 4.4 : 3.3;
+  // kollar ve silahlar
+  if (type === 'sword' || type === 'giant') {
+    limb(sx, shY + 1, -sw * 0.7 - 0.25);
+    const a = 0.55 + (p < 0 ? p * 3.2 : p * 1.0);
+    const [hx2, hy2] = limb(sx, shY + 1, a, 17, 0.2);
+    const bd = a + 1.75 - (p > 0 ? p * 1.6 : 0);
+    if (type === 'sword') {
+      c.strokeStyle = '#dfe4ea'; c.lineWidth = 2.6; seg(hx2, hy2, hx2 + Math.sin(bd) * 21, hy2 + Math.cos(bd) * 21);
+      c.strokeStyle = INK; c.lineWidth = 2.2; seg(hx2 + Math.sin(bd + 1.57) * 3.5, hy2 + Math.cos(bd + 1.57) * 3.5, hx2 - Math.sin(bd + 1.57) * 3.5, hy2 - Math.cos(bd + 1.57) * 3.5);
+      if (p > 0.1 && p < 0.95) { c.strokeStyle = col; c.globalAlpha = alpha * 0.45 * (1 - p); c.lineWidth = 3; c.beginPath(); c.arc(sx, shY, 30, -1.6, -1.6 + p * 2.4); c.stroke(); c.globalAlpha = alpha; }
+    } else {
+      c.strokeStyle = '#6b4424'; c.lineWidth = 5.5; const ex = hx2 + Math.sin(bd) * 26, ey = hy2 + Math.cos(bd) * 26; seg(hx2, hy2, ex, ey);
+      c.fillStyle = '#7d5230'; c.beginPath(); c.arc(ex, ey, 6, 0, 7); c.fill();
+    }
+  } else if (type === 'archer') {
+    const pull = atk && r.ap < 0.7 ? r.ap / 0.7 : 0;
+    const [bx, by] = limb(sx, shY + 1, 1.5, 17, -0.1);
+    const cx = bx - 3, cy = by;
+    c.strokeStyle = '#7a4b22'; c.lineWidth = 2.4; c.beginPath(); c.arc(cx, cy, 13, -1.2, 1.2); c.stroke();
+    const tx = cx + 13 * Math.cos(-1.2), ty = cy + 13 * Math.sin(-1.2), qx = cx + 4.7 - pull * 15;
+    c.strokeStyle = 'rgba(240,230,210,.9)'; c.lineWidth = 0.9; c.beginPath(); c.moveTo(tx, ty); c.lineTo(qx, cy); c.lineTo(tx, cy - (ty - cy)); c.stroke();
+    c.strokeStyle = INK; c.lineWidth = 3.3;
+    c.beginPath(); c.moveTo(sx, shY + 1); c.lineTo((sx + qx) / 2 - 2, shY + 6); c.lineTo(qx, cy); c.stroke();
+    if (pull > 0.15) { c.strokeStyle = '#c9a26b'; c.lineWidth = 1.6; seg(qx, cy, qx + 22, cy); c.fillStyle = '#ddd'; c.beginPath(); c.moveTo(qx + 25, cy); c.lineTo(qx + 20, cy - 2.5); c.lineTo(qx + 20, cy + 2.5); c.fill(); }
+  } else if (type === 'spear') {
+    const o = p > 0 ? p * 17 : p * 6;
+    c.beginPath(); c.moveTo(sx, shY + 1); c.lineTo(sx - 4 + o * 0.4, shY + 9); c.lineTo(8 + o, shY + 6); c.stroke();
+    c.strokeStyle = '#6b4424'; c.lineWidth = 2.6; seg(-16 + o, shY + 7, 40 + o, shY + 4);
+    c.fillStyle = '#dfe4ea'; c.beginPath(); c.moveTo(48 + o, shY + 3.6); c.lineTo(39 + o, shY + 0.5); c.lineTo(39 + o, shY + 7.5); c.fill();
+    c.strokeStyle = INK; c.lineWidth = 3.3;
+    const [kx, ky] = limb(sx, shY + 1, 1.05, 15, 0.3);
+    c.fillStyle = TEAM_D[r.team]; c.beginPath(); c.arc(kx + 4, ky - 2, 11, 0, 7); c.fill();
+    c.strokeStyle = '#2a2226'; c.lineWidth = 2.2; c.stroke();
+    c.fillStyle = '#ffd36b'; c.beginPath(); c.arc(kx + 4, ky - 2, 2.6, 0, 7); c.fill();
+  } else if (type === 'mage') {
+    limb(sx, shY + 1, -sw * 0.6 - 0.3);
+    const raise = atk ? clamp(r.ap / 0.55, 0, 1) * (r.ap < 0.75 ? 1 : 1 - (r.ap - 0.75) / 0.25) : 0;
+    const [mx, my] = limb(sx, shY + 1, lerp(0.85, 2.6, raise), 16, -0.2);
+    c.strokeStyle = '#6b4424'; c.lineWidth = 2.6; seg(mx, my + 12, mx + 2, my - 22);
+    const gr = 7 + raise * 7 + Math.sin(t * 6 + r.id) * 1.2;
+    const og = c.createRadialGradient(mx + 2, my - 25, 0, mx + 2, my - 25, gr * 1.8);
+    og.addColorStop(0, '#fff'); og.addColorStop(0.3, col); og.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = og; c.beginPath(); c.arc(mx + 2, my - 25, gr * 1.8, 0, 7); c.fill();
+  } else if (type === 'miner') {
+    limb(sx, shY + 1, -sw * 0.6 - 0.25);
+    let a, hd;
+    if (r.st === S_MINE) { const m = (t * 1.4 + r.id * 0.37) % 1; const k = m < 0.6 ? m / 0.6 : 1 - (m - 0.6) / 0.4; a = lerp(1.35, -2.3, k); hd = a + 1.6; }
+    else { a = -2.5; hd = 1.2; }
+    const [mx, my] = limb(sx, shY + 1, a, 16, 0.2);
+    const ex = mx + Math.sin(hd) * 15, ey = my + Math.cos(hd) * 15;
+    c.strokeStyle = '#6b4424'; c.lineWidth = 2.4; seg(mx, my, ex, ey);
+    c.strokeStyle = '#a7adb5'; c.lineWidth = 2.8;
+    seg(ex + Math.sin(hd + 1.57) * 7, ey + Math.cos(hd + 1.57) * 7, ex - Math.sin(hd + 1.57) * 7, ey - Math.cos(hd + 1.57) * 7);
+  }
+  c.globalAlpha = 1;
+}
+function drawUnit(r, t) {
+  const T = UT[r.type], s = sc * T.scale;
+  const x = wx(r.x), y = wy(r.y);
+  if (x < -140 * s || x > VW + 140 * s) return;
+  c.fillStyle = 'rgba(0,0,0,.28)'; c.beginPath(); c.ellipse(x, y + s, (r.type === 'giant' ? 15 : 12) * s, 3.2 * s, 0, 0, 7); c.fill();
+  c.save(); c.translate(x, y); c.scale(s * r.face, s);
+  drawFigure(r, t);
+  c.restore();
+  if (r.hpP < 99) {
+    const w = 26 * s, bx = x - w / 2, by = y - (T.h + 16) * s;
+    c.fillStyle = 'rgba(0,0,0,.6)'; c.fillRect(bx - 1, by - 1, w + 2, 5 * s * 0.6 + 2);
+    c.fillStyle = r.hpP > 50 ? '#6be06b' : r.hpP > 25 ? '#ffc83d' : '#ff5555';
+    c.fillRect(bx, by, w * r.hpP / 100, 5 * s * 0.6);
+  }
+}
+
+// --- efektler (her iki tarafta yerel)
+const parts = [], arrows = [], orbs = [], corpses = [], floats = [];
+function puff(x, y, n, cols, sp, life, grav = 300, size = 3) {
+  for (let i = 0; i < n; i++) { const a = R(0, Math.PI * 2), v = R(sp * 0.3, sp); parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - sp * 0.4, life: R(life * 0.5, life), max: life, col: cols[i % cols.length], g: grav, s: R(size * 0.6, size * 1.3) }); }
+}
+let sndLock = {};
+function playEvent(e) {
+  const near = x => clamp(1 - Math.abs(x - (camX + viewW() / 2)) / (viewW() * 0.9), 0.12, 1);
+  const pan = x => clamp((x - (camX + viewW() / 2)) / (viewW() / 2), -1, 1);
+  switch (e.k) {
+    case 'hit': {
+      const wy0 = GY + e.y * LANE - e.h * 0.55;
+      puff(e.x, wy0, e.m ? 6 : 8, e.m ? ['#ffe9a8', '#fff'] : ['#8e1b1b', '#c22a2a', '#5a0f0f'], e.m ? 160 : 120, 0.45, 500, 2.6);
+      sfx(e.m ? 'clang' : 'thud', near(e.x), pan(e.x));
+      break;
+    }
+    case 'die': corpses.push({ x: e.x, y: e.y, type: e.type, team: e.team, face: e.f || 1, t: 0, id: Math.random() * 100 }); sfx('die', near(e.x), pan(e.x)); break;
+    case 'ar': arrows.push({ x0: e.x0, y0: GY + e.y0 * LANE - 40, x1: e.x1, y1: GY + e.y1 * LANE - (e.h1 || 30), d: e.d, t: 0 }); sfx('bow', near(e.x0), pan(e.x0)); break;
+    case 'mg': orbs.push({ x0: e.x0, y0: GY + e.y0 * LANE - 70, x1: e.x1, y1: GY + e.y1 * LANE - 25, d: 0.55, t: 0, team: e.team }); sfx('cast', near(e.x0), pan(e.x0)); break;
+    case 'sm': puff(e.x, GY + e.y * LANE, 16, ['#8a7356', '#b39c7a', '#6a5640'], 180, 0.7, 260, 4); shake = Math.max(shake, 4 * near(e.x)); sfx('smash', near(e.x), pan(e.x)); break;
+    case 'gold':
+      if (e.team === me && role !== 'demo') { floats.push({ x: e.x, y: GY + 0.2 * LANE - 70, text: '+' + e.n, t: 0, col: '#ffc83d' }); sfx('coin', near(e.x) * 0.6, pan(e.x)); }
+      break;
+    case 'sh': {
+      const x = STAT[e.team];
+      puff(x + R(-30, 30), GY - R(60, 220), 8, ['#b8b0b6', '#857a80', '#fff'], 150, 0.6, 400, 3.5);
+      shake = Math.max(shake, 3 * near(x)); sfx('stone', near(x), pan(x));
+      if (e.team === me && role !== 'demo') flashWarn();
+      break;
+    }
+    case 'tr': if (e.team === me && role !== 'demo') sfx('train', 0.5, 0); break;
+    case 'over': {
+      const x = STAT[1 - e.w];
+      for (let i = 0; i < 6; i++) puff(x + R(-50, 50), GY - R(20, 260), 20, ['#b8b0b6', '#857a80', '#5d5560', '#fff'], 260, 1.4, 420, 5);
+      shake = 14;
+      break;
+    }
+  }
+}
+let warnT = 0;
+function flashWarn() { if (performance.now() - warnT > 6000) { warnT = performance.now(); toast('⚠️ HEYKELİN SALDIRI ALTINDA!'); } }
+function updateFx(dt) {
+  for (let i = parts.length - 1; i >= 0; i--) { const p = parts[i]; p.life -= dt; if (p.life <= 0) { parts.splice(i, 1); continue; } p.vy += p.g * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.y > GY + LANE + 10) { p.y = GY + LANE + 10; p.vy *= -0.3; p.vx *= 0.6; } }
+  for (let i = arrows.length - 1; i >= 0; i--) { const a = arrows[i]; a.t += dt; if (a.t >= a.d) { arrows.splice(i, 1); puff(a.x1, a.y1, 3, ['#c9a26b', '#fff'], 60, 0.25, 300, 2); } }
+  for (let i = orbs.length - 1; i >= 0; i--) {
+    const o = orbs[i]; o.t += dt;
+    if (o.t >= o.d) {
+      orbs.splice(i, 1);
+      puff(o.x1, o.y1, 34, [TEAM[o.team], '#ffffff', '#ffe08a'], 260, 0.7, 120, 4.5);
+      floats.push({ x: o.x1, y: o.y1, ring: 1, t: 0, team: o.team });
+      shake = Math.max(shake, 3); sfx('boom', 1, 0);
+    }
+  }
+  for (let i = corpses.length - 1; i >= 0; i--) { corpses[i].t += dt; if (corpses[i].t > 4) corpses.splice(i, 1); }
+  for (let i = floats.length - 1; i >= 0; i--) { floats[i].t += dt; if (floats[i].t > (floats[i].ring ? 0.45 : 1.1)) floats.splice(i, 1); }
+}
+function drawFx(t) {
+  for (const k of corpses) {
+    const s = sc * UT[k.type].scale, x = wx(k.x), y = wy(k.y);
+    if (x < -150 || x > VW + 150) continue;
+    const fall = Math.min(1, k.t / 0.35), a = k.t > 2.5 ? 1 - (k.t - 2.5) / 1.5 : 1;
+    c.save(); c.translate(x, y); c.scale(s * k.face, s); c.rotate(-fall * Math.PI / 2);
+    drawFigure({ type: k.type, team: k.team, st: S_IDLE, ph: 0, ap: 0, id: k.id, carry: 0 }, 0, a * 0.85);
+    c.restore();
+  }
+  for (const a of arrows) {
+    const u = a.t / a.d, x = lerp(a.x0, a.x1, u), hgt = Math.abs(a.x1 - a.x0) * 0.12;
+    const y = lerp(a.y0, a.y1, u) - Math.sin(Math.PI * u) * hgt;
+    const dx = (a.x1 - a.x0) / a.d, dy = (a.y1 - a.y0) / a.d - Math.cos(Math.PI * u) * Math.PI * hgt / a.d;
+    const ang = Math.atan2(dy, dx);
+    c.save(); c.translate(wx(x), y * sc); c.rotate(ang);
+    c.strokeStyle = '#3a2614'; c.lineWidth = 1.8 * sc; seg(-10 * sc, 0, 8 * sc, 0);
+    c.fillStyle = '#ddd'; c.beginPath(); c.moveTo(11 * sc, 0); c.lineTo(6 * sc, -2.5 * sc); c.lineTo(6 * sc, 2.5 * sc); c.fill();
+    c.restore();
+  }
+  for (const o of orbs) {
+    const u = o.t / o.d, x = lerp(o.x0, o.x1, u), y = lerp(o.y0, o.y1, u) - Math.sin(Math.PI * u) * 40;
+    const g = c.createRadialGradient(wx(x), y * sc, 0, wx(x), y * sc, 18 * sc);
+    g.addColorStop(0, '#fff'); g.addColorStop(0.35, TEAM[o.team]); g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g; c.beginPath(); c.arc(wx(x), y * sc, 18 * sc, 0, 7); c.fill();
+  }
+  for (const p of parts) { c.globalAlpha = clamp(p.life / p.max * 1.5, 0, 1); c.fillStyle = p.col; c.fillRect(wx(p.x) - p.s * sc / 2, p.y * sc - p.s * sc / 2, p.s * sc, p.s * sc); }
+  c.globalAlpha = 1;
+  for (const f of floats) {
+    if (f.ring) {
+      const k = f.t / 0.45; c.strokeStyle = TEAM[f.team]; c.globalAlpha = 1 - k; c.lineWidth = 4 * sc * (1 - k) + 1;
+      c.beginPath(); c.ellipse(wx(f.x), f.y * sc, (20 + k * 90) * sc, (8 + k * 30) * sc, 0, 0, 7); c.stroke(); c.globalAlpha = 1;
+    } else {
+      c.globalAlpha = 1 - f.t / 1.1; c.fillStyle = f.col; c.font = `700 ${Math.round(18 * sc)}px Bungee, sans-serif`; c.textAlign = 'center';
+      c.fillText(f.text, wx(f.x), (f.y - f.t * 40) * sc); c.globalAlpha = 1;
+    }
+  }
+}
+
+// --- ekrandaki birlikler: kaynaktan (simülasyon ya da oda sahibinin anlık görüntüsü) yumuşakça izlenir
+const RM = new Map();
+function srcUnits() {
+  if (role === 'client') return CS ? CS.units : [];
+  return G ? G.units : [];
+}
+function syncRender(dt) {
+  const k = 1 - Math.exp(-dt * (role === 'client' ? 12 : 22)), seen = new Set();
+  for (const u of srcUnits()) {
+    seen.add(u.id);
+    let r = RM.get(u.id);
+    if (!r) { r = { id: u.id, type: u.type, team: u.team, x: u.x, y: u.y, ph: Math.random() * 6, ap: 0, st: 0, face: 1, carry: 0, hpP: 100 }; RM.set(u.id, r); }
+    const ox = r.x;
+    r.x = Math.abs(u.x - r.x) > 200 ? u.x : lerp(r.x, u.x, k); r.y = u.y;
+    if (u.st === S_ATK && r.st !== S_ATK) r.ap = 0;
+    r.st = u.st; r.face = u.face; r.carry = u.carry;
+    r.hpP = u.hpP != null ? u.hpP : u.hp / u.max * 100;
+    if (r.st === S_WALK || r.st === S_CARRY) r.ph += dt * UT[r.type].spd * 0.16 / UT[r.type].scale;
+    if (r.st === S_ATK) r.ap = (r.ap + dt / UT[r.type].rate) % 1;
+    if (r.type === 'giant' && (r.st === S_WALK) && Math.floor(r.ph / Math.PI) !== Math.floor((r.ph - dt * 4) / Math.PI)) puff(r.x, GY + r.y * LANE, 3, ['#8a7356', '#a8916d'], 50, 0.5, 100, 3);
+    void ox;
+  }
+  for (const id of [...RM.keys()]) if (!seen.has(id)) RM.delete(id);
+}
+function drawMini() {
+  const w = mini.width, h = mini.height; mc.clearRect(0, 0, w, h);
+  const fx = x => x / W * w;
+  mc.fillStyle = 'rgba(111,143,61,.5)'; mc.fillRect(0, h * 0.62, w, h * 0.38);
+  for (let tm = 0; tm < 2; tm++) { mc.fillStyle = TEAM[tm]; mc.fillRect(fx(STAT[tm]) - 3 * DPR, h * 0.15, 6 * DPR, h * 0.7); }
+  mc.fillStyle = '#ffc83d'; for (const m of MINES.flat()) mc.fillRect(fx(m) - DPR, h * 0.7, 2 * DPR, h * 0.2);
+  for (const r of RM.values()) { mc.fillStyle = TEAM[r.team]; const s = (r.type === 'giant' ? 4 : 2.4) * DPR; mc.fillRect(fx(r.x) - s / 2, h * (0.35 + r.y * 0.35), s, s); }
+  mc.strokeStyle = 'rgba(255,255,255,.85)'; mc.lineWidth = 1.5 * DPR; mc.strokeRect(fx(camX), 1, fx(viewW()), h - 2);
+}
+
+// ------------------------------------------------------------ ses
+const AU = { ctx: null, master: null, on: store.get('cas_snd', true), nb: null, beat: 0 };
+function initAudio() {
+  if (AU.ctx) { AU.ctx.resume(); return; }
+  try {
+    const C = window.AudioContext || window.webkitAudioContext; AU.ctx = new C();
+    AU.master = AU.ctx.createGain(); AU.master.gain.value = AU.on ? 0.55 : 0; AU.master.connect(AU.ctx.destination);
+    const n = AU.ctx.sampleRate; AU.nb = AU.ctx.createBuffer(1, n, n); const d = AU.nb.getChannelData(0); for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    AU.beat = AU.ctx.currentTime + 0.2;
+  } catch (e) {}
+}
+function out(vol, pan) {
+  const g = AU.ctx.createGain(); g.gain.value = vol;
+  if (AU.ctx.createStereoPanner) { const p = AU.ctx.createStereoPanner(); p.pan.value = pan; g.connect(p); p.connect(AU.master); } else g.connect(AU.master);
+  return g;
+}
+function tone(f, d, type, vol, pan = 0, f2 = null, at = 0) {
+  const t0 = AU.ctx.currentTime + at, o = AU.ctx.createOscillator(), g = out(0, pan);
+  o.type = type; o.frequency.setValueAtTime(f, t0); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t0 + d);
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
+  o.connect(g); o.start(t0); o.stop(t0 + d + 0.02);
+}
+function noise(d, vol, freq, pan = 0, q = 1, at = 0) {
+  const t0 = AU.ctx.currentTime + at, s = AU.ctx.createBufferSource(), f = AU.ctx.createBiquadFilter(), g = out(0, pan);
+  s.buffer = AU.nb; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q;
+  g.gain.setValueAtTime(vol, t0); g.gain.exponentialRampToValueAtTime(0.001, t0 + d);
+  s.connect(f); f.connect(g); s.start(t0, Math.random() * 0.5); s.stop(t0 + d + 0.02);
+}
+function sfx(k, v = 1, pan = 0) {
+  if (!AU.ctx || !AU.on || role === 'demo') return;
+  const now = performance.now(); if (now - (sndLock[k] || 0) < 45) return; sndLock[k] = now;
+  switch (k) {
+    case 'clang': tone(R(1300, 1700), 0.12, 'square', 0.05 * v, pan); noise(0.06, 0.12 * v, 3000, pan, 2); break;
+    case 'thud': noise(0.09, 0.22 * v, 500, pan, 0.8); tone(140, 0.08, 'sine', 0.12 * v, pan, 70); break;
+    case 'die': tone(220, 0.25, 'triangle', 0.08 * v, pan, 90); break;
+    case 'bow': tone(420, 0.12, 'triangle', 0.08 * v, pan, 160); noise(0.05, 0.05 * v, 2400, pan, 3); break;
+    case 'cast': tone(500, 0.5, 'sine', 0.07 * v, pan, 1400); break;
+    case 'boom': noise(0.5, 0.35 * v, 260, pan, 0.6); tone(90, 0.4, 'sine', 0.25 * v, pan, 40); break;
+    case 'smash': noise(0.3, 0.3 * v, 180, pan, 0.6); tone(70, 0.3, 'sine', 0.3 * v, pan, 35); break;
+    case 'stone': noise(0.18, 0.22 * v, 900, pan, 1); tone(110, 0.15, 'sine', 0.12 * v, pan, 60); break;
+    case 'coin': tone(1320, 0.08, 'sine', 0.08 * v, pan); tone(1760, 0.12, 'sine', 0.07 * v, pan, null, 0.06); break;
+    case 'train': tone(660, 0.08, 'triangle', 0.1, 0); tone(990, 0.12, 'triangle', 0.09, 0, null, 0.07); break;
+    case 'click': tone(900, 0.05, 'square', 0.04); break;
+    case 'horn': tone(196, 0.5, 'sawtooth', 0.06); tone(294, 0.6, 'sawtooth', 0.05, 0, null, 0.12); break;
+    case 'win': [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.35, 'triangle', 0.12, 0, null, i * 0.14)); break;
+    case 'lose': [392, 330, 262, 196].forEach((f, i) => tone(f, 0.45, 'triangle', 0.11, 0, null, i * 0.2)); break;
+  }
+}
+// savaş davulu (maç sürerken)
+function drums() {
+  if (!AU.ctx || !AU.on || role === 'demo' || paused || overShown) return;
+  const now = AU.ctx.currentTime;
+  if (AU.beat < now) AU.beat = now + 0.05;
+  while (AU.beat < now + 0.25) {
+    const i = Math.round(AU.beat / 0.42) % 8, at = AU.beat - now;
+    if (i % 4 === 0) tone(70, 0.3, 'sine', 0.16, 0, 38, at);
+    if (i === 2 || i === 6) noise(0.12, 0.06, 900, 0, 1, at);
+    if (i === 7) tone(110, 0.18, 'sine', 0.08, 0, 70, at);
+    AU.beat += 0.42;
+  }
+}
+
+// ------------------------------------------------------------ arayüz
+const cards = {};
+function buildCards() {
+  $('cards').textContent = '';
+  TYPES.forEach((type, i) => {
+    const b = document.createElement('button'); b.className = 'uc';
+    b.innerHTML = `<kbd>${i + 1}</kbd><canvas width="108" height="108"></canvas><span class="nm">${UT[type].n}</span><span class="cs"><span class="coin"></span>${UT[type].cost}</span><span class="qn"></span><span class="pg"></span>`;
+    b.onclick = () => order('train', type);
+    $('cards').append(b);
+    const cc = b.querySelector('canvas').getContext('2d');
+    const sz = type === 'giant' ? 0.8 : 1.6;
+    cc.translate(type === 'spear' ? 44 : 54, 102); cc.scale(sz, sz);
+    drawFigureOn(cc, { type, team: me, st: S_IDLE, ph: 0, ap: 0, id: i, carry: type === 'miner' ? 1 : 0 });
+    cards[type] = { b, qn: b.querySelector('.qn'), pg: b.querySelector('.pg') };
+  });
+}
+// kart simgeleri için aynı çizim fonksiyonunu başka tuvalde kullan
+function drawFigureOn(ctx2, r) { const saved = c; c = ctx2; try { drawFigure(r, 0); } finally { c = saved; } }
+document.querySelectorAll('#stances button').forEach(b => b.onclick = () => order('stance', +b.dataset.s));
+function order(kind, v) {
+  if (role === 'demo' || overShown) return;
+  initAudio();
+  if (role === 'client') { if (NET.conn && NET.conn.open) NET.conn.send({ t: kind, v }); if (kind === 'stance') pendingStance = { v, t: performance.now() }; }
+  else if (kind === 'train') { if (!train(me, v)) { sfx('click'); return; } }
+  else setStance(me, v);
+  if (kind === 'stance' && v === 2) sfx('horn'); else sfx('click');
+}
+let pendingStance = null;
+function uiState() {
+  if (role === 'client') {
+    if (!CS) return null;
+    const st = pendingStance && performance.now() - pendingStance.t < 600 ? pendingStance.v : CS.stance[me];
+    return { gold: CS.gold[me], pop: CS.pop[me], queue: CS.queue[me], qp: CS.qp[me], statue: CS.statue, stance: st, t: CS.t };
+  }
+  if (!G) return null;
+  const tm = G.teams[me];
+  return { gold: Math.floor(tm.gold), pop: popOf(me), queue: tm.queue, qp: tm.queue.length ? tm.qT / UT[tm.queue[0]].time : 0, statue: G.teams.map(x => x.statue), stance: tm.stance, t: G.t };
+}
+let uiT = 0;
+function updateUI(dt) {
+  uiT -= dt; if (uiT > 0) return; uiT = 0.1;
+  const s = uiState(); if (!s) return;
+  $('gold').textContent = s.gold; $('pop').textContent = `${s.pop}/${POPCAP}`;
+  for (let i = 0; i < 2; i++) $('hp' + i).style.transform = `scaleX(${clamp(s.statue[i] / STATUE_HP, 0, 1)})`;
+  const m = Math.floor(s.t / 60); $('clock').textContent = m + ':' + String(Math.floor(s.t % 60)).padStart(2, '0');
+  TYPES.forEach(type => {
+    const cd = cards[type], n = s.queue.filter(q => q === type).length;
+    cd.b.classList.toggle('off', s.gold < UT[type].cost || s.pop + UT[type].pop > POPCAP);
+    cd.qn.textContent = n; cd.qn.classList.toggle('on', n > 0);
+    cd.pg.style.transform = `scaleX(${s.queue[0] === type ? clamp(s.qp, 0, 1) : 0})`;
+  });
+  document.querySelectorAll('#stances button').forEach(b => b.classList.toggle('on', +b.dataset.s === s.stance));
+}
+let toastT = null;
+function toast(t, ms = 2600) { $('toast').textContent = t; $('toast').classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => $('toast').classList.remove('on'), ms); }
+let bannerT = null;
+function banner(t, sub, ms = 2200) { $('banner').innerHTML = t + (sub ? `<small>${sub}</small>` : ''); $('banner').style.opacity = 1; clearTimeout(bannerT); bannerT = setTimeout(() => $('banner').style.opacity = 0, ms); }
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.toggle('show', s.id === id)); }
+
+// --- kamera
+const K = {};
+let drag = null;
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') { if (e.code === 'Enter' && e.target.id === 'code') $('join').click(); return; }
+  K[e.code] = true;
+  if (role === 'demo' || overShown) return;
+  const d = /^Digit([1-6])$/.exec(e.code) || /^Numpad([1-6])$/.exec(e.code);
+  if (d) order('train', TYPES[+d[1] - 1]);
+  if (e.code === 'KeyQ') order('stance', 0);
+  if (e.code === 'KeyW') order('stance', 1);
+  if (e.code === 'KeyE') order('stance', 2);
+  if (e.code === 'Home' || e.code === 'KeyH') camTarget = STAT[me] - viewW() / 2;
+  if (e.code === 'Escape' || e.code === 'KeyP') { if ($('pause').classList.contains('show')) doResume(); else doPause(); }
+});
+addEventListener('keyup', e => { K[e.code] = false; });
+cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, cam: camX, moved: false }; camTarget = null; });
+addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x; if (Math.abs(dx) > 4) drag.moved = true; camX = drag.cam - dx / sc; });
+addEventListener('pointerup', () => { drag = null; });
+cv.addEventListener('wheel', e => { camX += (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) / sc; camTarget = null; e.preventDefault(); }, { passive: false });
+function miniJump(e) { const r = mini.getBoundingClientRect(); camTarget = null; camX = (e.clientX - r.left) / r.width * W - viewW() / 2; }
+let miniDrag = false;
+mini.addEventListener('pointerdown', e => { miniDrag = true; miniJump(e); e.stopPropagation(); });
+addEventListener('pointermove', e => { if (miniDrag) miniJump(e); });
+addEventListener('pointerup', () => { miniDrag = false; });
+function updateCam(dt) {
+  if (role === 'demo') {
+    // menü arkasında savaşın ortasını izle
+    let sum = 0, n = 0; for (const r of RM.values()) if (r.type !== 'miner') { sum += r.x; n++; }
+    const tgt = (n ? sum / n : W / 2) - viewW() / 2;
+    camX = lerp(camX, tgt, 1 - Math.exp(-dt * 0.6));
+  } else {
+    const v = ((K.KeyD || K.ArrowRight) ? 1 : 0) - ((K.KeyA || K.ArrowLeft) ? 1 : 0);
+    if (v) { camX += v * 1100 * dt; camTarget = null; }
+    if (camTarget != null) camX = lerp(camX, camTarget, 1 - Math.exp(-dt * 6));
+  }
+  camX = clamp(camX, 0, Math.max(0, W - viewW()));
+}
+
+// ------------------------------------------------------------ maç akışı
+let overShown = false;
+function startMatch(r, opts = {}) {
+  role = r; paused = false; overShown = false;
+  me = r === 'client' ? 1 : 0;
+  RM.clear(); parts.length = arrows.length = orbs.length = corpses.length = floats.length = 0; outbox.length = 0;
+  CS = null; pendingStance = null;
+  const myName = cleanName($('pname').value);
+  if (r === 'solo') { newGame(null, opts.diff || 'normal'); names = [myName, 'BİLGİSAYAR · ' + ({ kolay: 'KOLAY', normal: 'NORMAL', zor: 'ZOR' }[opts.diff] || 'NORMAL')]; }
+  else if (r === 'host') { newGame(null, null); names = [myName, opts.opp || 'RAKİP']; }
+  else { G = null; names = [opts.opp || 'RAKİP', myName]; }
+  $('n0').textContent = names[0] + (me === 0 ? ' (SEN)' : ''); $('n1').textContent = names[1] + (me === 1 ? ' (SEN)' : '');
+  $('hud').classList.add('show'); showScreen(null);
+  buildCards(); resize();
+  camX = STAT[me] - viewW() / 2 + (me ? -120 : 120); camTarget = null;
+  initAudio(); sfx('horn');
+  banner(r === 'solo' ? 'SAVAŞ BAŞLIYOR' : 'RAKİP BULUNDU', `${names[0]}  ⚔  ${names[1]}`, 2600);
+  setTimeout(() => toast(me === 0 ? 'Sen MAVİ taraftasın (solda). Madencilerle altın kaz, ordunu kur!' : 'Sen KIRMIZI taraftasın (sağda). Madencilerle altın kaz, ordunu kur!', 4200), 1800);
+}
+function finish(winner, stats) {
+  if (overShown) return;
+  overShown = true;
+  const won = winner === me;
+  setTimeout(() => {
+    $('endTitle').textContent = won ? 'ZAFER!' : 'YENİLGİ';
+    $('endTitle').className = won ? 'win' : 'lose';
+    $('endSub').textContent = won ? 'Düşman heykeli yerle bir oldu.' : 'Heykelin yıkıldı.';
+    if (stats) {
+      const s = stats[me], o = stats[1 - me], tt = (CS && CS.t) || (G && G.t) || 0;
+      $('endStats').innerHTML = `Süre: <b>${Math.floor(tt / 60)}:${String(Math.floor(tt % 60)).padStart(2, '0')}</b><br>Eğittiğin asker: <b>${s[0]}</b> · rakip: <b>${o[0]}</b><br>İndirdiğin düşman: <b>${s[1]}</b> · rakip: <b>${o[1]}</b><br>Kazdığın altın: <b>${s[2]}</b>`;
+    } else $('endStats').textContent = '';
+    $('again').style.display = role === 'solo' ? '' : 'none';
+    showScreen('end'); sfx(won ? 'win' : 'lose');
+  }, 1800);
+  banner(won ? 'ZAFER!' : 'YENİLGİ', '', 1700);
+}
+function teamStats() { return G.teams.map(t => [t.trained, t.kills, t.mined]); }
+let lastDiff = 'normal';
+function toMenu(msg) {
+  netClose();
+  role = 'demo'; paused = false; overShown = false; me = 0; CS = null;
+  $('hud').classList.remove('show'); showScreen('menu');
+  RM.clear(); parts.length = arrows.length = orbs.length = corpses.length = floats.length = 0;
+  newGame('normal', 'normal'); resize();
+  setMsg(msg || '', !!msg);
+}
+function doPause() {
+  if (role === 'demo' || overShown) return;
+  $('pauseTitle').textContent = role === 'solo' ? 'DURAKLATILDI' : 'ONLINE MAÇ';
+  $('resume').textContent = role === 'solo' ? 'DEVAM ET' : 'SAVAŞA DÖN';
+  $('toggleSnd').textContent = 'SES: ' + (AU.on ? 'AÇIK' : 'KAPALI');
+  if (role === 'solo') paused = true;
+  showScreen('pause');
+}
+function doResume() { paused = false; showScreen(null); }
+$('menuBtn').onclick = doPause;
+$('resume').onclick = doResume;
+$('quit').onclick = () => toMenu();
+$('toggleSnd').onclick = () => { AU.on = !AU.on; store.set('cas_snd', AU.on); if (AU.master) AU.master.gain.value = AU.on ? 0.55 : 0; $('toggleSnd').textContent = 'SES: ' + (AU.on ? 'AÇIK' : 'KAPALI'); };
+$('again').onclick = () => startMatch('solo', { diff: lastDiff });
+$('toMenu').onclick = () => toMenu();
+$('helpBtn').onclick = () => showScreen('help');
+$('helpBack').onclick = () => showScreen('menu');
+document.querySelectorAll('#diff b').forEach(b => b.onclick = () => { document.querySelectorAll('#diff b').forEach(x => x.classList.toggle('on', x === b)); lastDiff = b.dataset.d; store.set('cas_diff', lastDiff); });
+lastDiff = store.get('cas_diff', 'normal');
+document.querySelectorAll('#diff b').forEach(x => x.classList.toggle('on', x.dataset.d === lastDiff));
+$('solo').onclick = () => { initAudio(); startMatch('solo', { diff: lastDiff }); };
+
+// ------------------------------------------------------------ online (PeerJS: tarayıcıdan tarayıcıya, oda sahibi simülasyonu çalıştırır)
+const PREFIX = 'copadam-tr-v1-';
+const PUBLIC = Array.from({ length: 6 }, (_, i) => 'ACIK' + (i + 1));
+const NET = { peer: null, conn: null, code: '', busy: false, last: 0, waitT: 0, waitTimer: null, pub: false };
+let CS = null;
+const cleanName = s => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 14) || 'Komutan';
+$('pname').value = store.get('cas_name', 'Komutan' + Math.floor(R(10, 99)));
+$('pname').oninput = () => store.set('cas_name', $('pname').value);
+function setMsg(t, bad) { $('msg').textContent = t; $('msg').className = bad ? 'bad' : ''; }
+function makeCode() { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 5; i++) s += A[Math.floor(Math.random() * A.length)]; return s; }
+function peerOk() {
+  if (!window.Peer) { setMsg('Online bileşen yüklenemedi. İnternetini kontrol edip sayfayı yenile.', true); return false; }
+  return !NET.busy && !NET.peer;
+}
+function netClose() {
+  clearInterval(NET.waitTimer); NET.waitTimer = null;
+  try { if (NET.conn) NET.conn.close(); } catch (e) {}
+  try { if (NET.peer) NET.peer.destroy(); } catch (e) {}
+  Object.assign(NET, { peer: null, conn: null, code: '', busy: false, pub: false });
+}
+function netFail(err) {
+  const t = err && err.type;
+  const map = { 'peer-unavailable': 'Bu kodla açık bir oda yok. Kodu kontrol et.', network: 'Bağlantı sunucusuna ulaşılamadı. İnternetini kontrol et.',
+    'server-error': 'Bağlantı sunucusu yanıt vermiyor, biraz sonra tekrar dene.', timeout: 'Odaya bağlanılamadı (zaman aşımı).', full: 'Bu odada maç zaten başlamış.',
+    'browser-incompatible': 'Bu tarayıcı online oyunu desteklemiyor.' };
+  const msg = map[t] || ('Bağlantı hatası: ' + (t || 'bilinmiyor'));
+  if (role === 'demo') { netClose(); showScreen('menu'); setMsg(msg, true); } else toMenu(msg);
+}
+// oda kur: pub = rastgele eşleşme odası (20 sn içinde kimse gelmezse bilgisayarla başlar)
+function hostRoom(fixed, pub, onTaken) {
+  NET.busy = true;
+  const code = fixed || makeCode(), peer = new Peer(PREFIX + code, { debug: 0 });
+  NET.peer = peer;
+  peer.on('open', () => {
+    NET.busy = false; NET.code = code; NET.pub = !!pub;
+    $('waitCode').textContent = pub ? 'RASTGELE' : code;
+    $('copyCode').style.display = pub ? 'none' : '';
+    $('waitTitle').textContent = pub ? 'RAKİP ARANIYOR' : 'RAKİP BEKLENİYOR';
+    showScreen('wait');
+    if (pub) {
+      NET.waitT = 20;
+      const tick = () => {
+        $('waitTxt').textContent = `Açık maç bulunamadı, oda açtık. Biri gelirse maç hemen başlar. ${NET.waitT} sn sonra bilgisayar rakibin olacak.`;
+        if (NET.waitT-- <= 0) { netClose(); startMatch('solo', { diff: 'normal' }); toast('Rakip bulunamadı, bilgisayara karşı oynuyorsun.'); }
+      };
+      tick(); NET.waitTimer = setInterval(tick, 1000);
+    } else $('waitTxt').textContent = 'Arkadaşın oyunu açıp bu kodu yazsın ve KATIL\'a bassın.';
+  });
+  peer.on('connection', conn => {
+    conn.on('data', m => {
+      if (!m || typeof m !== 'object') return;
+      if (m.t === 'hello') {
+        if (NET.conn || role !== 'demo') { conn.send({ t: 'full' }); setTimeout(() => { try { conn.close(); } catch (e) {} }, 400); return; }
+        clearInterval(NET.waitTimer); NET.waitTimer = null;
+        NET.conn = conn; NET.last = performance.now();
+        conn.send({ t: 'welcome', name: cleanName($('pname').value) });
+        startMatch('host', { opp: cleanName(m.name) });
+        return;
+      }
+      if (conn !== NET.conn || role !== 'host') return;
+      NET.last = performance.now();
+      if (m.t === 'train' && TYPES.includes(m.v)) train(1, m.v);
+      else if (m.t === 'stance') setStance(1, m.v | 0);
+    });
+    conn.on('close', () => { if (conn === NET.conn) oppLeft(); });
+  });
+  peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
+  peer.on('error', err => {
+    if (err.type === 'unavailable-id' && onTaken) { try { peer.destroy(); } catch (e) {} NET.peer = null; NET.busy = false; onTaken(); return; }
+    if (err.type === 'unavailable-id' && !fixed) { try { peer.destroy(); } catch (e) {} NET.peer = null; hostRoom(); return; }
+    if (role === 'host' && /network|server-error|socket|disconnected|peer-unavailable/.test(err.type)) return;
+    netFail(err);
+  });
+}
+// rakip ayrılınca maç bitmesin: yerine bilgisayar geçer
+function oppLeft() {
+  if (role !== 'host') return;
+  NET.conn = null;
+  if (G && G.over < 0) { G.teams[1].ai = makeAI('normal'); role = 'solo'; names[1] += ' (BİLGİSAYAR)'; $('n1').textContent = names[1]; toast('Rakip ayrıldı, yerine bilgisayar geçti.', 3500); }
+  netClose(); role = 'solo';
+}
+function clientConn(peer, code, onMiss, wait) {
+  const conn = peer.connect(PREFIX + code, { reliable: true, serialization: 'json' });
+  let done = false;
+  const timer = setTimeout(() => { if (!done) { done = true; try { conn.close(); } catch (e) {} onMiss({ type: 'timeout' }); } }, wait);
+  conn.on('open', () => conn.send({ t: 'hello', name: cleanName($('pname').value) }));
+  conn.on('data', m => {
+    if (!m || typeof m !== 'object') return;
+    if (m.t === 'welcome' && !done) { done = true; clearTimeout(timer); NET.conn = conn; NET.last = performance.now(); startMatch('client', { opp: cleanName(m.name) }); return; }
+    if (m.t === 'full' && !done) { done = true; clearTimeout(timer); onMiss({ type: 'full' }); return; }
+    if (conn === NET.conn && role === 'client') { NET.last = performance.now(); if (m.t === 's') onSnap(m); }
+  });
+  conn.on('close', () => { if (conn === NET.conn && role === 'client' && !overShown) toMenu('Bağlantı koptu: rakip oyundan çıktı.'); });
+  return () => { done = true; clearTimeout(timer); };
+}
+function joinRoom(code) {
+  if (!peerOk()) return;
+  NET.busy = true; setMsg('Odaya bağlanılıyor…');
+  const peer = new Peer(PREFIX + 'p' + Math.random().toString(36).slice(2, 12), { debug: 0 });
+  NET.peer = peer;
+  let cancel = () => {};
+  peer.on('open', () => { cancel = clientConn(peer, code, err => netFail(err), 12000); });
+  peer.on('error', err => { if (role === 'client' && /network|server-error|socket|disconnected/.test(err.type)) return; cancel(); netFail(err); });
+}
+function quickMatch() {
+  if (!peerOk()) return;
+  NET.busy = true; setMsg('Rakip aranıyor…');
+  const peer = new Peer(PREFIX + 'p' + Math.random().toString(36).slice(2, 12), { debug: 0 });
+  NET.peer = peer;
+  const empty = [];
+  let k = -1, cur = null, cancel = () => {};
+  const next = () => {
+    cancel();
+    if (role !== 'demo' || NET.peer !== peer) return;
+    k++;
+    if (k >= PUBLIC.length) {
+      const slot = empty.sort((a, b) => PUBLIC.indexOf(a) - PUBLIC.indexOf(b))[0];
+      try { peer.destroy(); } catch (e) {} NET.peer = null; NET.busy = false;
+      if (!slot) { setMsg('Tüm açık odalar dolu. Biraz sonra tekrar dene.', true); return; }
+      setMsg('');
+      hostRoom(slot, true, () => joinRoom(slot));
+      return;
+    }
+    cur = PUBLIC[k];
+    setMsg(`Rakip aranıyor… (${k + 1}/${PUBLIC.length})`);
+    cancel = clientConn(peer, cur, () => next(), 5000);
+  };
+  peer.on('open', () => next());
+  peer.on('error', err => {
+    if (err.type === 'peer-unavailable') { if (role === 'demo' && cur && String(err.message || '').includes(PREFIX + cur)) { empty.push(cur); next(); } return; }
+    if (role === 'client' && /network|server-error|socket|disconnected/.test(err.type)) return;
+    cancel(); netFail(err);
+  });
+}
+$('quick').onclick = () => { initAudio(); quickMatch(); };
+$('host').onclick = () => { initAudio(); if (peerOk()) { setMsg('Oda kuruluyor…'); hostRoom(); } };
+$('join').onclick = () => {
+  initAudio();
+  const code = $('code').value.trim().toUpperCase();
+  if (!/^[A-Z0-9]{5}$/.test(code)) return setMsg('Arkadaşının verdiği 5 haneli kodu yaz.', true);
+  joinRoom(code);
+};
+$('waitAI').onclick = () => { netClose(); startMatch('solo', { diff: lastDiff }); };
+$('waitCancel').onclick = () => { netClose(); showScreen('menu'); setMsg(''); };
+$('copyCode').onclick = () => { try { navigator.clipboard.writeText(NET.code).then(() => { $('copyCode').textContent = 'KOPYALANDI ✓'; setTimeout(() => $('copyCode').textContent = 'KODU KOPYALA', 1500); }, () => {}); } catch (e) {} };
+addEventListener('beforeunload', () => { try { if (NET.peer) NET.peer.destroy(); } catch (e) {} });
+
+// oda sahibi → oyuncu: 15 Hz anlık görüntü
+function snapshot() {
+  return { t: 's', tt: Math.round(G.t * 10) / 10, o: G.over,
+    u: G.units.map(u => [u.id, TI[u.type], u.team, Math.round(u.x), Math.round(u.y * 100), Math.max(1, Math.round(u.hp / u.max * 100)), u.st, u.face, u.carry ? 1 : 0]),
+    g: G.teams.map(t => Math.floor(t.gold)), q: G.teams.map(t => t.queue.map(q => TI[q])),
+    qp: G.teams.map(t => t.queue.length ? r2(t.qT / UT[t.queue[0]].time) : 0),
+    s: G.teams.map(t => Math.round(t.statue)), m: G.teams.map(t => t.stance), p: [popOf(0), popOf(1)],
+    st: G.over >= 0 ? teamStats() : undefined, e: outbox.splice(0, outbox.length) };
+}
+function onSnap(m) {
+  CS = { t: +m.tt || 0, over: m.o | 0, gold: m.g, pop: m.p, stance: m.m, statue: m.s, qp: m.qp,
+    queue: (m.q || [[], []]).map(l => l.map(i => TYPES[i]).filter(Boolean)),
+    units: (m.u || []).filter(a => TYPES[a[1]]).map(a => ({ id: a[0], type: TYPES[a[1]], team: a[2], x: a[3], y: a[4] / 100, hpP: a[5], st: a[6], face: a[7] || 1, carry: a[8] })) };
+  for (const e of m.e || []) playEvent(e);
+  if (CS.over >= 0) finish(CS.over, m.st);
+}
+setInterval(() => {
+  const now = performance.now();
+  if (role === 'host' && NET.conn && G) {
+    if (NET.conn.open) NET.conn.send(snapshot());
+    if (now - NET.last > 9000) oppLeft();
+  } else if (role === 'client' && NET.conn) {
+    if (NET.conn.open && Math.random() < 0.1) NET.conn.send({ t: 'ping' });
+    if (now - NET.last > 9000 && !overShown) toMenu('Bağlantı koptu: oda sahibine ulaşılamıyor.');
+  }
+}, 66);
+
+// ------------------------------------------------------------ döngüler
+// simülasyon sabit adımla ve rAF dışında çalışır: sekme arkadayken de maç sürer
+const STEP = 1 / 30;
+let acc = 0, lastSim = performance.now(), demoEnd = 0;
+setInterval(() => {
+  const now = performance.now(); let dt = (now - lastSim) / 1000; lastSim = now;
+  if (dt > 3) dt = 3;
+  if (!G || role === 'client' || paused) return;
+  acc += dt; let n = 0;
+  while (acc >= STEP && n < 90) { step(STEP); acc -= STEP; n++; }
+  if (n >= 90) acc = 0;
+  if (G.over >= 0) {
+    if (role === 'demo') { if (!demoEnd) demoEnd = now + 3500; else if (now > demoEnd) { demoEnd = 0; RM.clear(); newGame('normal', 'normal'); } }
+    else finish(G.over, teamStats());
+  }
+}, 1000 / 30);
+
+let last = performance.now(), T = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; T += dt;
+  syncRender(dt); updateFx(dt); updateCam(dt);
+  c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  let sx = 0, sy = 0;
+  if (shake > 0) { sx = R(-shake, shake); sy = R(-shake, shake); shake = Math.max(0, shake - dt * 20); }
+  c.translate(sx, sy);
+  drawBG(T); drawMines(T);
+  const st = role === 'client' ? (CS ? CS.statue : [STATUE_HP, STATUE_HP]) : G ? G.teams.map(t => t.statue) : [STATUE_HP, STATUE_HP];
+  drawStatue(0, st[0] / STATUE_HP, T); drawStatue(1, st[1] / STATUE_HP, T);
+  const list = [...RM.values()].sort((a, b) => a.y - b.y);
+  for (const r of list) drawUnit(r, T);
+  drawFx(T);
+  if (role !== 'demo') { drawMini(); updateUI(dt); drums(); }
+  requestAnimationFrame(frame);
+}
+toMenu();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
