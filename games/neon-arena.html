@@ -1662,6 +1662,7 @@ function hostRoom(retry = 0, fixed = null, onTaken = null) {
     Object.assign(NET, { on: true, host: true, busy: false, id, code, ended: false, roundEnd: performance.now() + ROUND_TIME * 1000 });
     if (mapIdx !== selMap) buildMap(selMap);
     NET.roster = [{ id, name: cleanName($('pname').value), k: 0, d: 0, c: COLORS[0] }];
+    syncBots();
     netMsg('');
     startGame('dm');
   });
@@ -1766,6 +1767,7 @@ function netFail(err) {
 function netLeave() {
   try { if (NET.peer) NET.peer.destroy(); } catch (e) {}
   for (const id of [...remotes.keys()]) removeRemote(id);
+  bots.clear();
   rockets.forEach(r => scene.remove(r.g)); rockets.length = 0;
   Object.assign(NET, { on: false, host: false, busy: false, peer: null, conn: null, conns: new Map(), seen: new Map(), id: null, code: '', roster: [], ended: false });
 }
@@ -1792,11 +1794,13 @@ function hostConn(conn) {
     if (!m || typeof m !== 'object' || typeof m.t !== 'string') return;
     if (m.t === 'hello') {
       if (NET.conns.has(conn.peer)) return;
-      if (NET.roster.length >= MAX_PLAYERS) { conn.send({ t: 'full' }); setTimeout(() => conn.close(), 500); return; }
+      if (NET.roster.filter(p => !p.bot).length >= MAX_PLAYERS) { conn.send({ t: 'full' }); setTimeout(() => conn.close(), 500); return; }
+      // gerçek oyuncu gelince bir bot yer açar (renk ve skor yerini de)
+      syncBots(1);
       const used = NET.roster.map(p => p.c), c = COLORS.find(x => !used.includes(x)) || COLORS[NET.roster.length % COLORS.length];
       const name = cleanName(m.name);
       NET.conns.set(conn.peer, conn); NET.seen.set(conn.peer, performance.now());
-      NET.roster.push({ id: conn.peer, name, k: 0, d: 0, c });
+      NET.roster.push({ id: conn.peer, name, k: 0, d: 0, c }); syncBots();
       conn.send({ t: 'welcome', roster: NET.roster, left: Math.max(0, (NET.roundEnd - performance.now()) / 1000), ended: NET.ended, map: mapIdx });
       broadcast({ t: 'roster', roster: NET.roster, note: `${name} arenaya katıldı` });
       return;
@@ -1811,7 +1815,8 @@ function hostConn(conn) {
 }
 function route(m, from) {
   if (m.t === 'dmg') {
-    if (m.to === NET.id) onMsg(m);
+    if (isBot(m.to)) botHurt(bots.get(m.to), m);
+    else if (m.to === NET.id) onMsg(m);
     else { const c = NET.conns.get(m.to); if (c && c.open) c.send(m); }
     return;
   }
@@ -1833,6 +1838,7 @@ function dropPeer(id) {
   try { c.close(); } catch (e) {}
   const p = rosterOf(id);
   NET.roster = NET.roster.filter(q => q.id !== id);
+  syncBots();
   broadcast({ t: 'roster', roster: NET.roster, note: p ? `${p.name} ayrıldı` : '' });
 }
 function processDeath(m) {
@@ -1849,6 +1855,149 @@ function newRound() {
   NET.roundEnd = performance.now() + ROUND_TIME * 1000;
   // her turda sıradaki haritaya geç
   broadcast({ t: 'round', roster: NET.roster, left: ROUND_TIME, map: (mapIdx + 1) % MAPS.length });
+  bots.forEach(b => { botRespawn(b); b.think = 2; }); // yeni haritada yeni doğuş noktaları
+}
+
+// --- botlar: oda sahibi çalıştırır. Arena BOT_FILL kişiden azsa botlar tamamlar, gerçek oyuncu girdikçe bir bot çıkar.
+// Diğerlerine sıradan oyuncu gibi görünürler: aynı durum, efekt, hasar ve ölüm mesajları.
+const BOT_FILL = 4, BOT_NAMES = ['BOT Kaan', 'BOT Ece', 'BOT Mert', 'BOT Duru', 'BOT Arda', 'BOT Lina', 'BOT Efe'];
+const bots = new Map();
+const isBot = id => bots.has(id);
+const botEye = new THREE.Vector3(), botAim = new THREE.Vector3(), botMove = new THREE.Vector3();
+// coming: o an katılmakta olan, henüz listede olmayan oyuncu sayısı
+function syncBots(coming = 0) {
+  if (!NET.host) return;
+  const humans = NET.roster.filter(p => !p.bot).length + coming, want = Math.max(0, Math.min(BOT_FILL, MAX_PLAYERS) - humans);
+  let have = NET.roster.filter(p => p.bot);
+  while (have.length > want) { const b = have.pop(); bots.delete(b.id); NET.roster = NET.roster.filter(p => p !== b); }
+  while (have.length < want) {
+    const used = NET.roster.map(p => p.c), c = COLORS.find(x => !used.includes(x)) || COLORS[NET.roster.length % COLORS.length];
+    const names = NET.roster.map(p => p.name), name = BOT_NAMES.find(n => !names.includes(n)) || 'BOT ' + (have.length + 1);
+    const id = 'bot-' + Math.random().toString(36).slice(2, 8), p = { id, name, k: 0, d: 0, c, bot: 1 };
+    NET.roster.push(p); have.push(p);
+    const b = { id, pos: new THREE.Vector3(), prev: new THREE.Vector3(), vel: new THREE.Vector3(), yaw: 0, pitch: 0, ground: true,
+      w: choice([0, 0, 2]), hp: 100, dead: false, respawnT: 0, inv: 0, hurtT: -9, lastBy: null, lastW: null,
+      target: null, react: 0, cd: 0, mag: 0, reload: 0, goal: null, goalT: 0, strafe: 1, strafeT: 0, stuckT: 0, stuckP: new THREE.Vector3(), think: 3 };
+    botRespawn(b); bots.set(id, b);
+  }
+}
+function botSpawn() {
+  // herkesten (oda sahibi dahil) en uzak doğuş noktası
+  const others = [...bots.values()].filter(b => !b.dead).map(b => b.pos);
+  if (!P.dead) others.push(P.pos);
+  for (const r of remotes.values()) if (r.alive && r.tgt && !isBot(r.id)) others.push(r.tgt.pos);
+  let best = spawnPoints[0], bd = -1;
+  for (const s of spawnPoints) {
+    let m = 80; for (const o of others) m = Math.min(m, s.distanceTo(o));
+    m += Math.random() * 8; if (m > bd) { bd = m; best = s; }
+  }
+  return best.clone();
+}
+function botRespawn(b) {
+  Object.assign(b, { dead: false, hp: 100, inv: 1.5, lastBy: null, lastW: null, target: null, goal: null, reload: 0, mag: WEAPONS[b.w].mag, pitch: 0 });
+  b.pos.copy(botSpawn()); b.prev.copy(b.pos); b.vel.set(0, 0, 0); b.yaw = Math.atan2(b.pos.x, b.pos.z); b.stuckP.copy(b.pos);
+}
+function botHurt(b, m) {
+  if (b.dead || b.inv > 0 || NET.ended) return;
+  b.hp -= clamp(+m.dmg || 0, 0, 400); b.hurtT = performance.now();
+  b.lastBy = m.id; b.lastW = m.w;
+  if (m.id !== b.id && (!b.target || Math.random() < 0.6)) { b.target = m.id; b.react = R(0.15, 0.35); } // vurulunca saldırana döner
+  if (b.hp <= 0) {
+    b.dead = true; b.respawnT = 3.5;
+    processDeath({ id: b.id, by: b.lastBy || b.id, w: b.lastW == null ? -1 : b.lastW });
+    sendBotState(b);
+  }
+}
+// hasarı hedefine ulaştırır: oda sahibi, başka bir bot ya da bağlı bir oyuncu
+function botDeliver(m) {
+  if (m.to === NET.id) onMsg(m);
+  else if (isBot(m.to)) botHurt(bots.get(m.to), m);
+  else { const c = NET.conns.get(m.to); if (c && c.open) c.send(m); }
+}
+// görülebilen en yakın rakibin kimliği ve baş konumu
+function botTargets(b) {
+  const list = [];
+  if (!P.dead && state === 'play') list.push({ id: NET.id, p: tmpC2.set(P.pos.x, P.pos.y + 1.4, P.pos.z).clone() });
+  for (const r of remotes.values()) if (r.alive && r.tgt && !isBot(r.id)) list.push({ id: r.id, p: new THREE.Vector3(r.tgt.pos.x, r.tgt.pos.y + 1.4, r.tgt.pos.z) });
+  for (const o of bots.values()) if (o !== b && !o.dead) list.push({ id: o.id, p: new THREE.Vector3(o.pos.x, o.pos.y + 1.4, o.pos.z) });
+  return list;
+}
+function botTick(b, dt) {
+  if (b.dead) { b.respawnT -= dt; if (b.respawnT <= 0 && !NET.ended) botRespawn(b); return; }
+  b.inv = Math.max(0, b.inv - dt); b.think -= dt;
+  if (performance.now() - b.hurtT > 4000 && b.hp < 100) b.hp = Math.min(100, b.hp + 20 * dt);
+  botEye.set(b.pos.x, b.pos.y + 1.55, b.pos.z);
+  // hedef seçimi: mevcut hedef görünüyorsa ona devam, yoksa en yakın görünen
+  const cands = botTargets(b);
+  let tg = cands.find(c => c.id === b.target && c.p.distanceTo(botEye) < 70 && hasLos(botEye, c.p));
+  if (!tg) {
+    let bd = 60;
+    for (const c of cands) { const d = c.p.distanceTo(botEye); if (d < bd && hasLos(botEye, c.p)) { bd = d; tg = c; } }
+    if (tg && tg.id !== b.target) b.react = R(0.35, 0.7); // yeni rakibi fark etme süresi
+    b.target = tg ? tg.id : null;
+  }
+  // hareket
+  botMove.set(0, 0, 0);
+  if (tg) {
+    const dx = tg.p.x - b.pos.x, dz = tg.p.z - b.pos.z, d = Math.hypot(dx, dz) || 1;
+    const want = d > 18 ? 1 : d < 8 ? -0.7 : 0;
+    b.strafeT -= dt; if (b.strafeT <= 0) { b.strafe = -b.strafe; b.strafeT = R(0.8, 2.2); }
+    botMove.set(dx / d * want - dz / d * b.strafe * 0.8, 0, dz / d * want + dx / d * b.strafe * 0.8);
+    b.goal = tg.p.clone(); b.goalT = 5;
+  } else {
+    b.goalT -= dt;
+    if (!b.goal || b.goalT <= 0 || Math.hypot(b.goal.x - b.pos.x, b.goal.z - b.pos.z) < 2) {
+      // kimseyi görmüyorsa ya rastgele bir rakibin yanına ya da rastgele bir doğuş noktasına yürür
+      const far = cands.filter(c => c.id !== b.id);
+      b.goal = (far.length && Math.random() < 0.6 ? choice(far).p : choice(spawnPoints)).clone(); b.goalT = R(5, 9);
+    }
+    const dx = b.goal.x - b.pos.x, dz = b.goal.z - b.pos.z, d = Math.hypot(dx, dz) || 1;
+    botMove.set(dx / d, 0, dz / d);
+  }
+  if (botMove.lengthSq() > 1) botMove.normalize();
+  const sp = 7, acc = b.ground ? 10 : 2;
+  b.vel.x = lerp(b.vel.x, botMove.x * sp, 1 - Math.exp(-acc * dt)); b.vel.z = lerp(b.vel.z, botMove.z * sp, 1 - Math.exp(-acc * dt));
+  // takıldıysa zıpla ve yeni yol seç
+  b.stuckT += dt;
+  if (b.stuckT > 1) {
+    if (b.stuckP.distanceTo(b.pos) < 1.5 && botMove.lengthSq() > 0.1) { if (b.ground) { b.vel.y = 8.2; b.ground = false; } b.goal = null; b.strafe = -b.strafe; }
+    b.stuckT = 0; b.stuckP.copy(b.pos);
+  }
+  b.prev.copy(b.pos);
+  b.vel.y -= 24 * dt;
+  b.pos.x += b.vel.x * dt; b.pos.z += b.vel.z * dt;
+  resolve(b.pos, 0.4, b.ground, b.prev);
+  b.pos.y += b.vel.y * dt;
+  const g = groundAt(b.pos.x, b.pos.z, b.pos.y, 0.4);
+  if (b.pos.y <= g) { b.pos.y = g; b.vel.y = 0; b.ground = true; } else if (b.pos.y - g > 0.05) b.ground = false;
+  b.pos.x = clamp(b.pos.x, -ARENA + 0.5, ARENA - 0.5); b.pos.z = clamp(b.pos.z, -ARENA + 0.5, ARENA - 0.5);
+  // nişan: hedefe dön, yürürken yürüdüğü yöne bak
+  const look = tg ? tg.p : (botMove.lengthSq() > 0.01 ? botAim.set(b.pos.x + botMove.x, botEye.y, b.pos.z + botMove.z) : null);
+  if (look) {
+    const ty = Math.atan2(-(look.x - b.pos.x), -(look.z - b.pos.z));
+    b.yaw += Math.atan2(Math.sin(ty - b.yaw), Math.cos(ty - b.yaw)) * (1 - Math.exp(-dt * (tg ? 9 : 5)));
+    b.pitch = tg ? clamp(Math.atan2(look.y - botEye.y, Math.hypot(look.x - b.pos.x, look.z - b.pos.z)), -1.2, 1.2) : lerp(b.pitch, 0, 0.2);
+  }
+  // ateş
+  const w = WEAPONS[b.w];
+  if (b.reload > 0) { b.reload -= dt; if (b.reload <= 0) b.mag = w.mag; }
+  b.cd -= dt; b.react -= dt;
+  if (!tg || b.react > 0 || b.reload > 0 || b.think > 0 || NET.ended) { b.cd = Math.max(b.cd, 0); return; }
+  const ends = [];
+  while (b.cd <= 0 && b.mag > 0) {
+    b.cd += 1 / (w.rate * 0.6); b.mag--;
+    const d = tg.p.distanceTo(botEye);
+    const hit = Math.random() < clamp(0.27 * (1 - d / 75), 0.05, 0.27);
+    const end = tg.p.clone();
+    if (hit) botDeliver({ t: 'dmg', id: b.id, to: tg.id, dmg: Math.round(w.dmg * w.pvp), w: b.w, src: v3(botEye) });
+    else end.add(botAim.set(R(-1, 1), R(-0.8, 0.8), R(-1, 1)).multiplyScalar(1.4)).addScaledVector(end.clone().sub(botEye).normalize(), 6);
+    ends.push(v3(end));
+  }
+  if (b.mag <= 0 && b.reload <= 0) b.reload = w.reload;
+  if (ends.length) route({ t: 'fx', id: b.id, k: 'h', w: b.w, b: ends.slice(0, 4) }, b.id);
+}
+function sendBotState(b) {
+  route({ t: 's', id: b.id, p: v3(b.pos), y: r3(b.yaw), pi: r3(b.pitch), w: b.w, v: r2(Math.hypot(b.vel.x, b.vel.z)), sl: 0, a: b.dead ? 0 : 1, hp: Math.ceil(b.hp) }, b.id);
 }
 
 // --- 20 Hz durum gönderimi ve oda bakımı (rAF dışında: sekme arkadayken de bağlantı canlı kalır)
@@ -1863,6 +2012,7 @@ setInterval(() => {
     if (!NET.ended && now > NET.roundEnd) endRound();
     if (NET.ended && now > NET.endAt) newRound();
     for (const [id, t] of NET.seen) if (now - t > 20000) dropPeer(id);
+    for (const b of bots.values()) { botTick(b, 0.05); sendBotState(b); }
   } else if (now - NET.hostSeen > 20000) toMenu('Oda sahibiyle bağlantı koptu.');
 }, 50);
 
