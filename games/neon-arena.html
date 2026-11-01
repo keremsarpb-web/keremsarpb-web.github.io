@@ -246,9 +246,10 @@
       <div class="mdesc">Rastgele Katıl ile açık bir maça gir ya da oda kurup kodu arkadaşlarına gönder. En fazla 8 kişi.</div>
     </div>
     <div class="mode">
-      <div class="mt">TEK BAŞINA</div>
-      <button id="start">DALGA MODU</button>
-      <div class="mdesc">Robot dalgalarına karşı hayatta kal.</div>
+      <div class="mt">DALGA MODU · ROBOTLARA KARŞI</div>
+      <button id="start">TEK BAŞINA</button>
+      <button id="hostCoop">ARKADAŞLA</button>
+      <div class="mdesc">Robot dalgalarına karşı hayatta kal. ARKADAŞLA bir oda kurar; arkadaşın kodu soldaki KATIL ile girip yanına gelir.</div>
     </div>
   </div>
   <div id="netMsg"></div>
@@ -943,7 +944,7 @@ function scheduleMusic() {
   if (!A.ctx) return;
   const c = A.ctx;
   while (A.nextStep < c.currentTime + 0.12) {
-    const t = A.nextStep, s = A.step % 16, bar = Math.floor(A.step / 16) % 4, ch = PROG[bar], intense = inWave || mode === 'dm';
+    const t = A.nextStep, s = A.step % 16, bar = Math.floor(A.step / 16) % 4, ch = PROG[bar], intense = inWave || online();
     if (s % 4 === 0) { tone(A.music, t, 'sine', 140, 40, 0.9, 0.002, 0.22); }
     if (intense && s % 4 === 2) noiseHit(A.music, t, 'highpass', 8000, 1, 0.12, 0.001, 0.04);
     if (intense && s % 8 === 4) noiseHit(A.music, t, 'bandpass', 1800, 0.8, 0.35, 0.002, 0.14);
@@ -1001,11 +1002,13 @@ function makeEnemyMesh(type) {
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   return { g, parts, mats };
 }
+let enemyNid = 0;
 function spawnEnemy(type, pos) {
   const { g, parts, mats } = makeEnemyMesh(type);
   const T0 = TYPES[type];
-  const hpMul = 1 + (wave - 1) * 0.08;
-  const e = { type, g, parts, mats, hp: T0.hp * hpMul, maxHp: T0.hp * hpMul, pos: pos.clone(), vel: new THREE.Vector3(), r: T0.r,
+  // beraber modda kalabalık takıma karşı robotlar daha dayanıklı
+  const hpMul = (1 + (wave - 1) * 0.08) * (mode === 'coop' ? 1 + 0.4 * (NET.roster.length - 1) : 1);
+  const e = { nid: ++enemyNid, type, g, parts, mats, hp: T0.hp * hpMul, maxHp: T0.hp * hpMul, pos: pos.clone(), vel: new THREE.Vector3(), r: T0.r,
     cd: R(1.5, 3), orbit: Math.random() * 6.28, dir: Math.random() < 0.5 ? 1 : -1, alt: R(3.2, 6), ph: Math.random() * 6.28, flash: 0, burst: 0, scale: 0.01 };
   if (type === 'drone') e.pos.y = e.alt;
   g.position.copy(e.pos); scene.add(g);
@@ -1043,7 +1046,7 @@ addEventListener('keydown', e => {
   }
   if (e.target && e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
   K[e.code] = true;
-  const inMatch = mode === 'dm' && (state === 'play' || state === 'pause');
+  const inMatch = online() && (state === 'play' || state === 'pause');
   if (e.code === 'Tab' && inMatch) { e.preventDefault(); boardHeld = true; renderBoard(); $('board').classList.add('show'); }
   if (state !== 'play') return;
   if (inMatch && (e.code === 'KeyT' || e.code === 'Enter')) { e.preventDefault(); openChat(); return; }
@@ -1101,13 +1104,13 @@ function pause() {
   state = 'pause'; mouseDown = false; adsDown = false;
   if (chatOpen) closeChat(false);
   // çevrim içi maç durdurulamaz: menü açıkken de oyun ve sesler sürer
-  const online = mode === 'dm';
-  $('pauseTitle').textContent = online ? 'ÇEVRİM İÇİ ARENA' : 'DURAKLATILDI';
-  $('pauseOnline').style.display = online ? 'block' : 'none';
+  const net = online();
+  $('pauseTitle').textContent = mode === 'coop' ? 'BERABER DALGA' : net ? 'ÇEVRİM İÇİ ARENA' : 'DURAKLATILDI';
+  $('pauseOnline').style.display = net ? 'block' : 'none';
   $('pauseCode').textContent = NET.code || '-----';
-  $('resume').textContent = online ? 'SAVAŞA DÖN' : 'DEVAM ET';
+  $('resume').textContent = net ? 'SAVAŞA DÖN' : 'DEVAM ET';
   $('pause').classList.add('show');
-  if (A.ctx && !online) A.ctx.suspend();
+  if (A.ctx && !net) A.ctx.suspend();
 }
 function resume() { $('pause').classList.remove('show'); state = 'play'; if (A.ctx) { A.ctx.resume(); A.nextStep = A.ctx.currentTime + 0.05; } if (!touchMode && !PAD.on) lock(); }
 $('resume').onclick = () => { enterFS(); resume(); };
@@ -1141,16 +1144,18 @@ function startGame(m = 'solo') {
   $('death').classList.remove('show'); $('board').classList.remove('show', 'final');
   $('feed').textContent = ''; $('chatLog').textContent = '';
   $('hud').classList.add('show');
-  $('roomTag').style.display = mode === 'dm' ? 'block' : 'none';
+  $('roomTag').style.display = online() ? 'block' : 'none';
   state = 'play';
-  A.music.gain.setTargetAtTime(mode === 'dm' ? 0.22 : 0.32, A.ctx.currentTime, 1);
-  if (mode === 'dm') {
-    breakT = 1e9;
+  A.music.gain.setTargetAtTime(online() ? 0.22 : 0.32, A.ctx.currentTime, 1);
+  if (online()) {
+    breakT = mode === 'coop' ? 4 : 1e9; coopLeft = 0;
+    if (mode === 'coop') $('top').innerHTML = TOP0;
     P.pos.copy(pickSpawn()); P.prev.copy(P.pos); P.yaw = Math.atan2(P.pos.x, P.pos.z);
     updateHud();
     // kilit isteği bağlantı kurulduktan sonra (tıklamadan uzakta) reddedilebilir: önce oda kodunu gösteren menüyü aç
     pause();
-    banner('ARENAYA GİRDİN', `${FRAG_LIMIT} İNDİRMEYE ULAŞAN KAZANIR`, 3);
+    if (mode === 'coop') banner('BERABER DALGA', 'ROBOTLAR GELİYOR · BİRBİRİNİZİ KORUYUN', 3);
+    else banner('ARENAYA GİRDİN', `${FRAG_LIMIT} İNDİRMEYE ULAŞAN KAZANIR`, 3);
     return;
   }
   $('top').innerHTML = TOP0;
@@ -1182,7 +1187,7 @@ function damageDir(src) {
 }
 let topCache = '';
 function updateHud() {
-  if (mode === 'dm') updateHudDM();
+  if (online()) updateHudDM();
   $('hpNum').textContent = Math.ceil(P.hp);
   $('hpFill').style.width = P.hp + '%';
   $('hpFill').style.background = P.hp < 30 ? 'linear-gradient(90deg,#ff3a6a,#ff8aa0)' : '';
@@ -1194,7 +1199,7 @@ function updateHud() {
   if (mode !== 'dm') {
     $('wave').textContent = wave || '-';
     $('score').textContent = score;
-    $('left').textContent = enemies.length + toSpawn.length + pending.length;
+    $('left').textContent = mode === 'coop' && !NET.host ? coopLeft : enemies.length + toSpawn.length + pending.length;
   }
   $('reloadTxt').textContent = reloading > 0 ? 'DOLDURULUYOR' : (ammo[cur] === 0 ? '[R] DOLDUR' : '');
   $('lowhp').style.opacity = P.hp < 35 ? (0.4 + Math.sin(T * 5) * 0.2) : 0;
@@ -1248,7 +1253,7 @@ function tryFire(click) {
     const start = camera.position.clone().addScaledVector(right, 0.15).addScaledVector(up, -0.1).addScaledVector(fwd, 0.5);
     const rdir = target.sub(start).normalize();
     fireRocket(start, rdir);
-    if (mode === 'dm') netSend({ t: 'fx', k: 'k', w: cur, a: v3(start), d: v3(rdir) });
+    if (online()) netSend({ t: 'fx', k: 'k', w: cur, a: v3(start), d: v3(rdir) });
   } else if (w.kind === 'rail') {
     const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * sp;
     dirV.copy(fwd).addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r).normalize();
@@ -1267,7 +1272,7 @@ function tryFire(click) {
       emit(sparks, h.point, 25, 9, ['#9ffcff', '#ffffff'], 0.6, 6);
     }
     beam(muzzleW, end, w.color);
-    if (mode === 'dm') netSend({ t: 'fx', k: 'r', w: cur, b: [v3(end)] });
+    if (online()) netSend({ t: 'fx', k: 'r', w: cur, b: [v3(end)] });
   }
   const ends = [];
   for (let k = 0; k < (w.kind === 'hit' ? w.pellets : 0); k++) {
@@ -1293,7 +1298,7 @@ function tryFire(click) {
       }
     }
   }
-  if (ends.length && mode === 'dm') netSend({ t: 'fx', k: 'h', w: cur, b: ends });
+  if (ends.length && online()) netSend({ t: 'fx', k: 'h', w: cur, b: ends });
   for (const [rp, o] of pvp) if (damageRemote(rp, o.dmg, o.weak, null, cur)) killed = true;
   if (anyHit) { hits++; sfxHit(head); hitmarker(killed); }
   spread = Math.min(w.maxSpread, spread + w.bloom);
@@ -1310,32 +1315,50 @@ function tryFire(click) {
   updateHud();
 }
 
-function damageEnemy(e, dmg, weak) {
+// by: vuran oyuncu (tek başına modda NET.id = null, yani ben)
+function damageEnemy(e, dmg, weak, by = NET.id) {
   if (e.hp <= 0) return false;
+  if (mode === 'coop' && !NET.host) {
+    // beraber modda robotların canını oda sahibi tutar: hasarı ona gönder, öldü mü tahmin et
+    netSend({ t: 'edmg', n: e.nid, dmg: Math.round(dmg), weak: !!weak });
+    e.flash = 0.08; e.guess -= dmg;
+    return e.guess <= 0;
+  }
   e.hp -= dmg; e.flash = 0.08;
-  if (e.hp <= 0) { killEnemy(e, weak); return true; }
+  if (e.hp <= 0) { killEnemy(e, weak, by); return true; }
   return false;
 }
-function killEnemy(e, weak) {
-  kills++;
-  if (comboT > 0) combo = Math.min(combo + 1, 8); else combo = 1;
-  comboT = 3;
-  const pts = Math.round(TYPES[e.type].score * (weak ? 1.5 : 1) * combo);
+function killEnemy(e, weak, by = NET.id) {
+  const mine = by === NET.id;
+  let pts = Math.round(TYPES[e.type].score * (weak ? 1.5 : 1));
+  if (mine) {
+    kills++;
+    if (comboT > 0) combo = Math.min(combo + 1, 8); else combo = 1;
+    comboT = 3; pts *= combo;
+    pop(`+${pts}${weak ? ' KRİTİK' : ''}`, weak);
+    if (combo > 1) { $('combo').textContent = `KOMBO x${combo}`; $('combo').style.opacity = 1; }
+  }
   score += pts;
-  pop(`+${pts}${weak ? ' KRİTİK' : ''}`, weak);
-  if (combo > 1) { $('combo').textContent = `KOMBO x${combo}`; $('combo').style.opacity = 1; }
+  enemyBoom(e, mine);
+  const pk = Math.random() < (e.type === 'tank' ? 1 : 0.18);
+  if (pk) spawnPickup(new THREE.Vector3(e.pos.x, 0, e.pos.z));
+  if (mode === 'coop' && NET.host) {
+    const p = rosterOf(by); if (p) p.k++;
+    sendCoop({ t: 'ek', n: e.nid, by, pts, pk: pk ? 1 : 0, weak: weak ? 1 : 0, roster: NET.roster });
+  }
+  removeEnemy(e);
+  updateHud();
+}
+function enemyBoom(e, mine) {
   const c = e.pos.clone(); if (e.type !== 'drone') c.y += 0.8;
   const big = e.type === 'tank' ? 2 : 1;
   emit(blasts, c, 70 * big, 9 * big, ['#ff8a3d', '#ffd36b', '#ff3fa4', '#ffffff'], 0.9, 3);
   emit(sparks, c, 60 * big, 16, ['#ffe14a', '#ffffff', '#38f9ff'], 1.2, 18);
-  sfxBoom(c, big); sfxKill();
+  sfxBoom(c, big); if (mine) sfxKill();
   const d = c.distanceTo(P.pos); shake = Math.max(shake, clamp(1.2 - d / 15, 0, 0.6) * big);
-  if (Math.random() < (e.type === 'tank' ? 1 : 0.18)) spawnPickup(new THREE.Vector3(e.pos.x, 0, e.pos.z));
-  removeEnemy(e);
-  updateHud();
 }
 function hurt(dmg, src) {
-  if (state !== 'play' && !(mode === 'dm' && state === 'pause')) return;
+  if (state !== 'play' && !(online() && state === 'pause')) return;
   if (P.dead || P.inv > 0) return;
   P.hp = Math.max(0, P.hp - dmg); P.hurtT = T;
   dmgFx = Math.min(1, dmgFx + dmg / 30); rumble(0.3 + dmg / 60, 140);
@@ -1343,7 +1366,7 @@ function hurt(dmg, src) {
   requestAnimationFrame(() => { $('dmg').style.transition = 'opacity .6s'; $('dmg').style.opacity = 0; });
   damageDir(src); sfxHurt(); shake = Math.max(shake, 0.25);
   updateHud();
-  if (P.hp <= 0) { if (mode === 'dm') localDie(); else gameOver(); }
+  if (P.hp <= 0) { if (online()) localDie(); else gameOver(); }
 }
 function spawnPickup(pos) {
   const g = new THREE.Group();
@@ -1367,6 +1390,7 @@ function startWave() {
   spawnT = 0.5;
   banner(`DALGA ${wave}`, wave === 1 ? 'ROBOTLAR GELİYOR' : `${toSpawn.length} DÜŞMAN`, 2.4);
   sfxWave(); updateHud();
+  if (mode === 'coop') sendCoop({ t: 'wave', w: wave, n: toSpawn.length });
 }
 function queueSpawn(type) {
   const pts = spawnPoints.filter(p => p.distanceTo(P.pos) > 14);
@@ -1461,29 +1485,62 @@ function hasLos(from, to) {
   losRay.set(from, tmp); losRay.far = d - 0.5;
   return losRay.intersectObjects(levelMeshes, false).length === 0;
 }
-function fireProjectile(from, speed, dmg, spreadAmt = 0) {
-  headPos.set(P.pos.x, P.pos.y + 1.3, P.pos.z);
-  const lead = headPos.clone().addScaledVector(P.vel, from.distanceTo(headPos) / speed * 0.6);
+// tg: hedef oyuncu (ayak konumu ve hızı); headPos hedefin başı olarak ayarlı olmalı
+function fireProjectile(from, speed, dmg, spreadAmt = 0, tg = null) {
+  const lead = headPos.clone().addScaledVector(tg ? tg.v : P.vel, from.distanceTo(headPos) / speed * 0.6);
   const v = lead.sub(from).normalize();
   v.x += R(-spreadAmt, spreadAmt); v.y += R(-spreadAmt, spreadAmt); v.z += R(-spreadAmt, spreadAmt);
   v.normalize().multiplyScalar(speed);
+  addProjectile(from, v, dmg, false);
+  if (mode === 'coop') sendCoop({ t: 'ep', a: v3(from), v: v3(v) });
+}
+// vis: yalnızca görüntü (beraber modda oyuncu tarafı; hasarı oda sahibi hesaplar)
+function addProjectile(from, v, dmg, vis) {
   const s = new THREE.Sprite(projMat); s.scale.setScalar(0.75); s.position.copy(from); scene.add(s);
-  projectiles.push({ s, v, dmg, life: 4 });
+  projectiles.push({ s, v, dmg, life: 4, vis });
   sfxEnemyShot(from);
+}
+// robotların saldırabileceği canlı oyuncular. Tek başına modda yalnızca ben.
+const ZERO = new THREE.Vector3();
+function robotTargets() {
+  const l = [];
+  if (!P.dead) l.push({ id: NET.id, p: P.pos, v: P.vel });
+  if (mode === 'coop') for (const r of remotes.values()) if (r.alive && r.tgt) l.push({ id: r.id, p: r.pos, v: ZERO });
+  return l;
+}
+// robot saldırısı: bana ise doğrudan, takım arkadaşına ise mesajla
+function robotHit(id, dmg, src) {
+  if (id === NET.id) { if (mode === 'coop') { P.lastBy = 'robot'; P.lastW = -1; } hurt(dmg, src); return; }
+  const c = NET.conns.get(id); if (c && c.open) c.send({ t: 'dmg', id: 'robot', to: id, dmg: Math.round(dmg), src: v3(src) });
+}
+// beraber modda oyuncu tarafı: robotlar oda sahibinden gelen konumlara kayar
+function mirrorEnemy(e, dt) {
+  const k = 1 - Math.exp(-dt * 12);
+  if (e.tp) { if (e.pos.distanceTo(e.tp) > 8) e.pos.copy(e.tp); else e.pos.lerp(e.tp, k); }
+  e.g.position.copy(e.pos);
+  if (e.type === 'drone') { e.g.lookAt(headPos.set(P.pos.x, P.pos.y + 1.3, P.pos.z)); e.parts.ring.rotation.z += dt * 4; return; }
+  const df = (e.try || 0) - e.g.rotation.y; e.g.rotation.y += Math.atan2(Math.sin(df), Math.cos(df)) * k;
+  if (e.type === 'rusher') { e.parts.body.rotation.x += dt * 8; e.parts.body.position.y = 0.65 + Math.abs(Math.sin(T * 10 + e.ph)) * 0.12; }
 }
 
 function updateEnemies(dt) {
-  headPos.set(P.pos.x, P.pos.y + 1.3, P.pos.z);
   const speedMul = 1 + Math.min(0.5, (wave - 1) * 0.05);
+  const mirror = mode === 'coop' && !NET.host, targets = mirror ? [] : robotTargets();
   for (const e of [...enemies]) {
     e.scale = Math.min(1, e.scale + dt * 3); e.g.scale.setScalar(e.scale);
     e.flash -= dt;
     e.mats.forEach(m => m.emissive.setHex(e.flash > 0 ? 0xffffff : (e.type === 'rusher' ? 0xff3d1f : 0x000000)));
-    const toP = tmp.subVectors(P.pos, e.pos); toP.y = 0; const d = toP.length();
+    if (mirror) { mirrorEnemy(e, dt); continue; }
+    // en yakın canlı oyuncuya saldır (kimse yoksa bulunduğu yerde oyalanır)
+    let tg = null, bd = 1e9;
+    for (const c of targets) { const dd = (c.p.x - e.pos.x) ** 2 + (c.p.z - e.pos.z) ** 2; if (dd < bd) { bd = dd; tg = c; } }
+    const tp = tg ? tg.p : e.pos;
+    headPos.set(tp.x, tp.y + 1.3, tp.z);
+    const toP = tmp.subVectors(tp, e.pos); toP.y = 0; const d = toP.length();
     if (e.type === 'drone') {
       e.orbit += dt * e.dir * 0.35;
       const R0 = 12 + Math.sin(e.ph + T * 0.3) * 3;
-      const tx = P.pos.x + Math.cos(e.orbit) * R0, tz = P.pos.z + Math.sin(e.orbit) * R0, ty = e.alt + Math.sin(T * 1.5 + e.ph) * 0.6;
+      const tx = tp.x + Math.cos(e.orbit) * R0, tz = tp.z + Math.sin(e.orbit) * R0, ty = e.alt + Math.sin(T * 1.5 + e.ph) * 0.6;
       const des = new THREE.Vector3(tx - e.pos.x, ty - e.pos.y, tz - e.pos.z);
       const dl = des.length(); if (dl > 0.1) des.multiplyScalar(Math.min(6 * speedMul, dl * 2) / dl);
       e.vel.lerp(des, 1 - Math.exp(-dt * 2));
@@ -1493,8 +1550,8 @@ function updateEnemies(dt) {
       e.g.position.copy(e.pos); e.g.lookAt(headPos);
       e.parts.ring.rotation.z += dt * 4;
       e.cd -= dt;
-      if (e.cd <= 0 && e.scale >= 1) {
-        if (e.pos.distanceTo(headPos) < 40 && hasLos(e.pos, headPos)) { fireProjectile(e.pos.clone().addScaledVector(tmp.subVectors(headPos, e.pos).normalize(), 0.8), 19 + wave, 9, 0.03); e.cd = R(1.6, 2.8) / speedMul; }
+      if (e.cd <= 0 && e.scale >= 1 && tg) {
+        if (e.pos.distanceTo(headPos) < 40 && hasLos(e.pos, headPos)) { fireProjectile(e.pos.clone().addScaledVector(tmp.subVectors(headPos, e.pos).normalize(), 0.8), 19 + wave, 9, 0.03, tg); e.cd = R(1.6, 2.8) / speedMul; }
         else e.cd = 0.5;
       }
     } else if (e.type === 'rusher') {
@@ -1507,10 +1564,11 @@ function updateEnemies(dt) {
       e.g.position.copy(e.pos); e.g.rotation.y = Math.atan2(e.vel.x, e.vel.z);
       e.parts.body.rotation.x += dt * Math.hypot(e.vel.x, e.vel.z) * 1.6;
       e.parts.body.position.y = 0.65 + Math.abs(Math.sin(T * 10 + e.ph)) * 0.12;
-      if (d < 1.3 && Math.abs(P.pos.y - e.pos.y) < 2 && e.scale >= 1) {
+      if (tg && d < 1.3 && Math.abs(tp.y - e.pos.y) < 2 && e.scale >= 1) {
         const c = e.pos.clone(); c.y = 0.8;
         emit(blasts, c, 60, 8, ['#ff8a3d', '#ffd36b', '#ffffff'], 0.8, 2); sfxBoom(c);
-        removeEnemy(e); hurt(22, c); updateHud(); continue;
+        if (mode === 'coop') sendCoop({ t: 'ek', n: e.nid, by: 'robot', pts: 0, pk: 0, roster: NET.roster });
+        removeEnemy(e); robotHit(tg.id, 22, c); updateHud(); continue;
       }
     } else {
       if (d > 0.01) toP.multiplyScalar(1 / d);
@@ -1519,28 +1577,31 @@ function updateEnemies(dt) {
       e.pos.x += e.vel.x * dt; e.pos.z += e.vel.z * dt; e.pos.y = 0; resolve(e.pos, e.r, false);
       e.pos.x = clamp(e.pos.x, -ARENA + 2, ARENA - 2); e.pos.z = clamp(e.pos.z, -ARENA + 2, ARENA - 2);
       e.g.position.copy(e.pos);
-      const ty = Math.atan2(P.pos.x - e.pos.x, P.pos.z - e.pos.z);
+      const ty = Math.atan2(tp.x - e.pos.x, tp.z - e.pos.z);
       let df = ty - e.g.rotation.y; df = Math.atan2(Math.sin(df), Math.cos(df)); e.g.rotation.y += df * Math.min(1, dt * 2.5);
       e.cd -= dt;
       const muzzle = new THREE.Vector3(0, 1.7, 1.8).applyMatrix4(e.g.matrixWorld);
-      if (e.cd <= 0 && e.scale >= 1) {
+      if (e.cd <= 0 && e.scale >= 1 && tg) {
         if (hasLos(muzzle, headPos)) { e.burst = 4; e.cd = R(2.6, 3.6); } else e.cd = 0.6;
       }
-      if (e.burst > 0) { e.bt = (e.bt || 0) - dt; if (e.bt <= 0) { fireProjectile(muzzle, 22 + wave, 11, 0.05); e.burst--; e.bt = 0.14; } }
+      if (e.burst > 0 && tg) { e.bt = (e.bt || 0) - dt; if (e.bt <= 0) { fireProjectile(muzzle, 22 + wave, 11, 0.05, tg); e.burst--; e.bt = 0.14; } }
     }
   }
-  // mermiler
+  // mermiler: her canlı oyuncuya karşı denenir (görüntü mermileri yalnızca duvarda söner)
   for (let i = projectiles.length - 1; i >= 0; i--) {
-    const pr = projectiles[i];
-    pr.s.position.addScaledVector(pr.v, dt); pr.life -= dt;
+    const pr = projectiles[i], sp = pr.s.position;
+    sp.addScaledVector(pr.v, dt); pr.life -= dt;
     pr.s.scale.setScalar(0.75 + Math.sin(T * 30 + i) * 0.1);
     let dead = pr.life <= 0;
-    if (!dead && pr.s.position.distanceTo(headPos) < 0.75 || (!dead && Math.hypot(pr.s.position.x - P.pos.x, pr.s.position.z - P.pos.z) < 0.5 && pr.s.position.y > P.pos.y && pr.s.position.y < P.pos.y + 1.8)) {
-      hurt(pr.dmg, pr.s.position.clone()); dead = true;
-    } else if (!dead && pointInLevel(pr.s.position)) { emit(sparks, pr.s.position, 10, 4, ['#ff3fa4', '#ffffff'], 0.4, 6); dead = true; }
+    if (!dead && !pr.vis) for (const c of targets) {
+      const inHead = sp.distanceTo(headPos.set(c.p.x, c.p.y + 1.3, c.p.z)) < 0.75;
+      const inBody = Math.hypot(sp.x - c.p.x, sp.z - c.p.z) < 0.5 && sp.y > c.p.y && sp.y < c.p.y + 1.8;
+      if (inHead || inBody) { robotHit(c.id, pr.dmg, sp.clone()); dead = true; break; }
+    }
+    if (!dead && pointInLevel(sp)) { emit(sparks, sp, 10, 4, ['#ff3fa4', '#ffffff'], 0.4, 6); dead = true; }
     if (dead) { scene.remove(pr.s); projectiles.splice(i, 1); }
   }
-  // bekleyen doğuşlar
+  // bekleyen doğuşlar (beraber modda yalnızca oda sahibinde)
   for (let i = pending.length - 1; i >= 0; i--) {
     const pd = pending[i]; pd.t -= dt;
     if (Math.random() < 0.7) emit(sparks, tmp.set(pd.p.x + R(-1, 1), R(0, 3), pd.p.z + R(-1, 1)), 2, 2, ['#38f9ff', '#ff3fa4', '#ffffff'], 0.6, -4);
@@ -1566,9 +1627,10 @@ function updateWaves(dt) {
     } else if (!enemies.length && !pending.length) {
       inWave = false; breakT = 5;
       const bonus = wave * 250; score += bonus;
-      P.hp = Math.min(100, P.hp + 25);
+      if (!P.dead) P.hp = Math.min(100, P.hp + 25);
       banner('DALGA TEMİZLENDİ', `+${bonus} BONUS · +25 CAN`, 3);
       sfxPickup(); updateHud();
+      if (mode === 'coop') sendCoop({ t: 'clear', b: bonus });
     }
   } else {
     breakT -= dt;
@@ -1599,8 +1661,10 @@ const PREFIX = 'neonarena-tr-v1-';
 const FRAG_LIMIT = 20, ROUND_TIME = 8 * 60, MAX_PLAYERS = 8;
 const COLORS = [0x38f9ff, 0xff3fa4, 0xffb36b, 0x8cff6b, 0xb98bff, 0xffe14a, 0x4d8cff, 0xff6b6b];
 const NET = { on: false, host: false, busy: false, peer: null, conn: null, conns: new Map(), seen: new Map(), id: null, code: '',
-  roster: [], roundEnd: 0, ended: false, endAt: 0, hostSeen: 0 };
+  roster: [], roundEnd: 0, ended: false, endAt: 0, hostSeen: 0, kind: 'dm' };
 let mode = 'solo', streak = 0, lastKillT = -9, multi = 0;
+// dm: herkes birbirine · coop: arkadaşlarla beraber dalga modu (robotları oda sahibi yönetir)
+function online() { return mode === 'dm' || mode === 'coop'; }
 const remotes = new Map();
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const cleanName = s => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 14) || 'Oyuncu';
@@ -1634,6 +1698,7 @@ const hashCode = (location.hash || '').replace('#', '').toUpperCase();
 if (/^[A-Z0-9]{5}$/.test(hashCode)) $('code').value = hashCode;
 function netMsg(t, bad) { $('netMsg').textContent = t; $('netMsg').className = bad ? 'bad' : ''; }
 $('host').onclick = () => { enterFS(); initAudio(); hostRoom(); };
+$('hostCoop').onclick = () => { enterFS(); initAudio(); hostRoom(0, null, null, 'coop'); };
 $('quick').onclick = () => { enterFS(); initAudio(); quickMatch(); };
 $('join').onclick = () => {
   enterFS();
@@ -1653,8 +1718,9 @@ function peerReady() {
 const peerOpts = { debug: 0 };
 
 // fixed: belirli bir kodla kur (açık odalar); onTaken: o kod o an başkası tarafından alınmışsa çağrılır
-function hostRoom(retry = 0, fixed = null, onTaken = null) {
+function hostRoom(retry = 0, fixed = null, onTaken = null, kind = 'dm') {
   if (!retry && !peerReady()) return;
+  NET.kind = kind;
   NET.busy = true; if (!fixed) netMsg('Oda kuruluyor…');
   const code = fixed || makeCode(), peer = new Peer(PREFIX + code, peerOpts);
   NET.peer = peer;
@@ -1664,13 +1730,13 @@ function hostRoom(retry = 0, fixed = null, onTaken = null) {
     NET.roster = [{ id, name: cleanName($('pname').value), k: 0, d: 0, c: COLORS[0] }];
     syncBots();
     netMsg('');
-    startGame('dm');
+    startGame(kind);
   });
   peer.on('connection', conn => hostConn(conn));
   peer.on('disconnected', () => { if (NET.on) try { peer.reconnect(); } catch (e) {} });
   peer.on('error', err => {
     if (err.type === 'unavailable-id' && fixed && onTaken) { peer.destroy(); NET.peer = null; NET.busy = false; onTaken(); return; }
-    if (err.type === 'unavailable-id' && retry < 3) { peer.destroy(); hostRoom(retry + 1); return; }
+    if (err.type === 'unavailable-id' && retry < 3) { peer.destroy(); hostRoom(retry + 1, null, null, kind); return; }
     if (NET.on && /network|server-error|socket|disconnected|peer-unavailable/.test(err.type)) return; // oyun sürerken önemsiz
     netFail(err);
   });
@@ -1705,8 +1771,9 @@ function clientConn(conn, code, onMiss, wait) {
       NET.conn = conn;
       Object.assign(NET, { on: true, host: false, busy: false, code, roster: m.roster, ended: !!m.ended, roundEnd: performance.now() + m.left * 1000 });
       if ((m.map | 0) !== mapIdx) buildMap(m.map);
+      NET.kind = m.kind === 'coop' ? 'coop' : 'dm';
       netMsg('');
-      startGame('dm');
+      startGame(NET.kind);
       return;
     }
     if (m.t === 'full') { clearTimeout(timer); onMiss({ type: 'full' }); return; }
@@ -1801,7 +1868,7 @@ function hostConn(conn) {
       const name = cleanName(m.name);
       NET.conns.set(conn.peer, conn); NET.seen.set(conn.peer, performance.now());
       NET.roster.push({ id: conn.peer, name, k: 0, d: 0, c }); syncBots();
-      conn.send({ t: 'welcome', roster: NET.roster, left: Math.max(0, (NET.roundEnd - performance.now()) / 1000), ended: NET.ended, map: mapIdx });
+      conn.send({ t: 'welcome', roster: NET.roster, left: Math.max(0, (NET.roundEnd - performance.now()) / 1000), ended: NET.ended, map: mapIdx, kind: NET.kind });
       broadcast({ t: 'roster', roster: NET.roster, note: `${name} arenaya katıldı` });
       return;
     }
@@ -1821,6 +1888,7 @@ function route(m, from) {
     return;
   }
   if (m.t === 'die') { processDeath(m); return; }
+  if (m.t === 'edmg') { if (NET.kind === 'coop') coopEnemyDmg(m); return; }
   if (!['s', 'fx', 'chat'].includes(m.t)) return;
   for (const [id, c] of NET.conns) if (id !== from && c.open) c.send(m);
   if (from !== NET.id) onMsg(m);
@@ -1866,7 +1934,7 @@ const isBot = id => bots.has(id);
 const botEye = new THREE.Vector3(), botAim = new THREE.Vector3(), botMove = new THREE.Vector3();
 // coming: o an katılmakta olan, henüz listede olmayan oyuncu sayısı
 function syncBots(coming = 0) {
-  if (!NET.host) return;
+  if (!NET.host || NET.kind !== 'dm') return;
   const humans = NET.roster.filter(p => !p.bot).length + coming, want = Math.max(0, Math.min(BOT_FILL, MAX_PLAYERS) - humans);
   let have = NET.roster.filter(p => p.bot);
   while (have.length > want) { const b = have.pop(); bots.delete(b.id); NET.roster = NET.roster.filter(p => p !== b); }
@@ -2000,17 +2068,105 @@ function sendBotState(b) {
   route({ t: 's', id: b.id, p: v3(b.pos), y: r3(b.yaw), pi: r3(b.pitch), w: b.w, v: r2(Math.hypot(b.vel.x, b.vel.z)), sl: 0, a: b.dead ? 0 : 1, hp: Math.ceil(b.hp) }, b.id);
 }
 
+// --- beraber dalga: dalgaları, robotları ve takım skorunu oda sahibi yönetir, diğerlerine 20 Hz gönderir
+let coopLeft = 0;
+const killedNids = new Set();
+function sendCoop(m) { if (NET.host) for (const c of NET.conns.values()) if (c.open) c.send(m); }
+function coopTick(now) {
+  sendCoop({ t: 'wv', w: wave, s: score, l: enemies.length + toSpawn.length + pending.length,
+    e: enemies.map(e => [e.nid, e.type, r2(e.pos.x), r2(e.pos.y), r2(e.pos.z), r2(e.g.rotation.y), Math.round(e.hp / e.maxHp * 100)]) });
+  if (NET.ended) { if (now > NET.endAt) coopRestart(); return; }
+  // takımın tamamı aynı anda düştüyse oyun biter
+  const allDown = P.dead && NET.roster.every(p => p.id === NET.id || (remotes.get(p.id) && !remotes.get(p.id).alive));
+  if (wave > 0 && allDown) {
+    NET.ended = true; NET.endAt = now + 9000;
+    sendCoop({ t: 'cover', w: wave, s: score }); coopOver(wave, score);
+  }
+}
+function coopOver(w, s) {
+  const b = store.get('na_best', 0); if (s > b) store.set('na_best', s);
+  banner('TAKIM DÜŞTÜ', `DALGA ${w} · TAKIM SKORU ${s} · YENİ OYUN BİRAZDAN`, 8.5);
+  A.music.gain.setTargetAtTime(0.05, A.ctx.currentTime, 0.8);
+}
+function coopRestart() {
+  [...enemies].forEach(removeEnemy); pending.length = 0;
+  projectiles.forEach(p => scene.remove(p.s)); projectiles.length = 0;
+  wave = 0; score = 0; inWave = false; breakT = 4; toSpawn = [];
+  NET.roster.forEach(p => { p.k = 0; p.d = 0; });
+  NET.ended = false;
+  sendCoop({ t: 'crestart', roster: NET.roster });
+  coopReset();
+}
+function coopReset() {
+  combo = 1; kills = 0; streak = 0; killedNids.clear();
+  A.music.gain.setTargetAtTime(0.22, A.ctx.currentTime, 1);
+  respawn(); banner('YENİ OYUN', 'DALGA 1 GELİYOR', 3); updateHud();
+}
+function coopEnemyDmg(m) {
+  const e = enemies.find(x => x.nid === m.n);
+  if (e && !NET.ended) damageEnemy(e, clamp(+m.dmg || 0, 0, 400), !!m.weak, m.id);
+}
+// oyuncu tarafı: oda sahibinden gelen mesajlar
+function onCoopMsg(m) {
+  switch (m.t) {
+    case 'wv': {
+      wave = m.w | 0; score = m.s | 0; coopLeft = m.l | 0;
+      const seen = new Set();
+      for (const a of m.e || []) {
+        const [n, type, x, y, z, ry, hp] = a;
+        if (!TYPES[type] || killedNids.has(n)) continue;
+        seen.add(n);
+        let e = enemies.find(q => q.nid === n);
+        if (!e) {
+          spawnEnemy(type, tmpC2.set(x, y, z)); e = enemies[enemies.length - 1]; e.nid = n; e.tp = new THREE.Vector3(x, y, z);
+          emit(blasts, tmpC2.set(x, 1, z), 30, 6, ['#38f9ff', '#ffffff'], 0.5); sfxSpawn(e.pos);
+        }
+        e.tp.set(x, y, z); e.try = +ry || 0;
+        e.hp = e.guess = Math.max(1, hp) / 100 * e.maxHp;
+      }
+      for (const e of [...enemies]) if (!seen.has(e.nid)) removeEnemy(e);
+      break;
+    }
+    case 'ek': {
+      NET.roster = m.roster || NET.roster; killedNids.add(m.n);
+      const e = enemies.find(q => q.nid === m.n); if (!e) break;
+      const mine = m.by === NET.id;
+      if (m.by === 'robot') { const c = e.pos.clone(); c.y = 0.8; emit(blasts, c, 60, 8, ['#ff8a3d', '#ffd36b', '#ffffff'], 0.8, 2); sfxBoom(c); }
+      else enemyBoom(e, mine);
+      if (mine) { kills++; pop(`+${m.pts | 0}${m.weak ? ' KRİTİK' : ''}`, !!m.weak); hitmarker(true); }
+      if (m.pk) spawnPickup(new THREE.Vector3(e.pos.x, 0, e.pos.z));
+      removeEnemy(e); updateHud();
+      break;
+    }
+    case 'ep': addProjectile(fromArr(m.a), fromArr(m.v), 0, true); break;
+    case 'wave': wave = m.w | 0; banner(`DALGA ${wave}`, wave === 1 ? 'ROBOTLAR GELİYOR' : `${m.n | 0} DÜŞMAN`, 2.4); sfxWave(); break;
+    case 'clear':
+      if (!P.dead) P.hp = Math.min(100, P.hp + 25);
+      banner('DALGA TEMİZLENDİ', `+${m.b | 0} BONUS · +25 CAN`, 3); sfxPickup(); updateHud();
+      break;
+    case 'cover': NET.ended = true; coopOver(m.w | 0, m.s | 0); break;
+    case 'crestart':
+      NET.roster = m.roster || NET.roster; NET.ended = false;
+      [...enemies].forEach(removeEnemy); projectiles.forEach(p => scene.remove(p.s)); projectiles.length = 0;
+      wave = 0; score = 0; coopReset();
+      break;
+  }
+}
+
 // --- 20 Hz durum gönderimi ve oda bakımı (rAF dışında: sekme arkadayken de bağlantı canlı kalır)
 function sendState() {
   netSend({ t: 's', p: v3(P.pos), y: r3(P.yaw), pi: r3(P.pitch), w: cur, v: r2(Math.hypot(P.vel.x, P.vel.z)), sl: P.slideT > 0 ? 1 : 0, a: P.dead ? 0 : 1, hp: Math.ceil(P.hp) });
 }
 setInterval(() => {
-  if (!NET.on || mode !== 'dm') return;
+  if (!NET.on || !online()) return;
   sendState();
   const now = performance.now();
-  if (NET.host) {
+  if (NET.host && mode === 'coop') coopTick(now);
+  else if (NET.host) {
     if (!NET.ended && now > NET.roundEnd) endRound();
     if (NET.ended && now > NET.endAt) newRound();
+  }
+  if (NET.host) {
     for (const [id, t] of NET.seen) if (now - t > 20000) dropPeer(id);
     for (const b of bots.values()) { botTick(b, 0.05); sendBotState(b); }
   } else if (now - NET.hostSeen > 20000) toMenu('Oda sahibiyle bağlantı koptu.');
@@ -2018,6 +2174,7 @@ setInterval(() => {
 
 // --- gelen mesajlar (herkes)
 function onMsg(m) {
+  if (['wv', 'ek', 'ep', 'wave', 'clear', 'cover', 'crestart'].includes(m.t)) { if (!NET.host && mode === 'coop') onCoopMsg(m); return; }
   switch (m.t) {
     case 's': {
       if (m.id === NET.id) return;
@@ -2194,13 +2351,13 @@ function pickSpawn() {
   return best.clone();
 }
 function localDie() {
-  P.dead = true; P.respawnT = 3.5; mouseDown = false; adsDown = false; reloading = 0; P.slideT = 0; P.ads = 0; streak = 0;
-  const by = P.lastBy || NET.id;
+  P.dead = true; P.respawnT = mode === 'coop' ? 8 : 3.5; mouseDown = false; adsDown = false; reloading = 0; P.slideT = 0; P.ads = 0; streak = 0;
+  const by = P.lastBy || (mode === 'coop' ? 'robot' : NET.id);
   P.killer = by; P.deathPos.copy(camera.position);
   netSend({ t: 'die', by, w: P.lastW == null ? -1 : P.lastW });
   const c = new THREE.Vector3(P.pos.x, P.pos.y + 1, P.pos.z);
   emit(blasts, c, 60, 7, ['#ff3fa4', '#38f9ff', '#ffffff'], 0.9, 3); sfxBoom(c, 1);
-  $('deathTxt').innerHTML = by === NET.id ? 'KENDİ ROKETİNE YAKALANDIN'
+  $('deathTxt').innerHTML = by === 'robot' ? 'ROBOTLAR SENİ İNDİRDİ' : by === NET.id ? 'KENDİ ROKETİNE YAKALANDIN'
     : `<span style="color:${hexCss(colorOf(by))}">${esc(nameOf(by))}</span> SENİ İNDİRDİ`;
   $('death').classList.add('show'); $('scope').style.opacity = 0;
 }
@@ -2225,7 +2382,7 @@ function updateDM(dt) {
     if (P.respawnT <= 0 && !NET.ended) respawn();
   }
   P.inv = Math.max(0, P.inv - dt);
-  if (!P.dead && P.hp < 100 && T - P.hurtT > 4) P.hp = Math.min(100, P.hp + 20 * dt);
+  if (mode === 'dm' && !P.dead && P.hp < 100 && T - P.hurtT > 4) P.hp = Math.min(100, P.hp + 20 * dt);
   if (boardHeld) { boardT -= dt; if (boardT <= 0) { boardT = 0.5; renderBoard(); } }
 }
 let boardT = 0;
@@ -2237,15 +2394,17 @@ function updateHudDM() {
   const html = `<div>SÜRE<b>${NET.ended ? '-' : Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0')}</b></div>`
     + `<div>İNDİRME<b>${me ? me.k : 0}<small> / ${FRAG_LIMIT}</small></b></div>`
     + `<div>LİDER<b>${lead && lead.k > 0 ? esc(lead.name) + ' · ' + lead.k : '-'}</b></div>`;
-  if (html !== topCache) { topCache = html; $('top').innerHTML = html; }
-  const tag = `ODA <b>${esc(NET.code)}</b> · ${NET.roster.length}/${MAX_PLAYERS} OYUNCU${NET.roster.length < 2 ? ' · <span style="color:var(--orange)">RAKİP BEKLENİYOR</span>' : ''}<br><span style="opacity:.6">TAB skor · T sohbet · ESC oda kodu</span>`;
+  if (mode === 'dm' && html !== topCache) { topCache = html; $('top').innerHTML = html; }
+  const extra = mode === 'coop' ? ' · <span style="color:var(--cyan)">BERABER DALGA</span>' : NET.roster.length < 2 ? ' · <span style="color:var(--orange)">RAKİP BEKLENİYOR</span>' : '';
+  const tag = `ODA <b>${esc(NET.code)}</b> · ${NET.roster.length}/${MAX_PLAYERS} OYUNCU${extra}<br><span style="opacity:.6">TAB skor · T sohbet · ESC oda kodu</span>`;
   if ($('roomTag').dataset.h !== tag) { $('roomTag').dataset.h = tag; $('roomTag').innerHTML = tag; }
 }
 function span(text, color) { const s = document.createElement('span'); s.textContent = text; if (color != null) s.style.color = hexCss(color); return s; }
 function addFeed(by, v, w) {
   const el = document.createElement('div'); el.className = 'kf' + (by === NET.id || v === NET.id ? ' me' : '');
   const tag = document.createElement('i');
-  if (by === v || !rosterOf(by)) { tag.textContent = '✖ KENDİNİ İNDİRDİ'; el.append(span(nameOf(v), colorOf(v)), tag); }
+  if (by === 'robot') { tag.textContent = '✖ ROBOTLARA YENİLDİ'; el.append(span(nameOf(v), colorOf(v)), tag); }
+  else if (by === v || !rosterOf(by)) { tag.textContent = '✖ KENDİNİ İNDİRDİ'; el.append(span(nameOf(v), colorOf(v)), tag); }
   else { tag.textContent = `[${(WEAPONS[w] || {}).short || '?'}]`; el.append(span(nameOf(by), colorOf(by)), tag, span(nameOf(v), colorOf(v))); }
   pushFeed(el);
 }
@@ -2258,7 +2417,8 @@ function pushFeed(el) {
 function renderBoard() {
   const rows = [...NET.roster].sort((a, b) => b.k - a.k || a.d - b.d);
   $('boardHead').textContent = NET.ended ? (rows[0] ? `KAZANAN: ${rows[0].name}` : 'TUR BİTTİ') : `ODA ${NET.code} · ${rows.length}/${MAX_PLAYERS} OYUNCU`;
-  $('boardFoot').textContent = NET.ended ? 'YENİ TUR BİRAZDAN BAŞLIYOR' : `${FRAG_LIMIT} İNDİRMEYE ULAŞAN KAZANIR`;
+  $('boardFoot').textContent = mode === 'coop' ? `BERABER DALGA · DALGA ${wave || '-'} · TAKIM SKORU ${score}`
+    : NET.ended ? 'YENİ TUR BİRAZDAN BAŞLIYOR' : `${FRAG_LIMIT} İNDİRMEYE ULAŞAN KAZANIR`;
   const box_ = $('boardRows'); box_.textContent = '';
   const hd = document.createElement('div'); hd.className = 'br hd';
   ['#', '', 'OYUNCU', 'İNDİRME', 'ÖLÜM'].forEach(t => hd.append(span(t))); box_.append(hd);
@@ -2483,7 +2643,7 @@ function pollInput(dt) {
     if (hit(2)) startReload();
     if (hit(3) || hit(5)) switchWeapon((cur + 1) % WEAPONS.length);
     if (hit(4)) switchWeapon((cur + WEAPONS.length - 1) % WEAPONS.length);
-    if (mode === 'dm' && b(8) !== PAD.board) {
+    if (online() && b(8) !== PAD.board) {
       PAD.board = b(8); boardHeld = PAD.board;
       if (boardHeld) { renderBoard(); $('board').classList.add('show'); } else if (!NET.ended) $('board').classList.remove('show');
     }
@@ -2533,8 +2693,8 @@ function tbDown(a, el) {
   else if (a === 'reload') startReload();
   else if (a === 'swap') switchWeapon((cur + 1) % WEAPONS.length);
   else if (a === 'pause') pause();
-  else if (a === 'board' && mode === 'dm') { boardHeld = !boardHeld; if (boardHeld) { renderBoard(); $('board').classList.add('show'); } else if (!NET.ended) $('board').classList.remove('show'); }
-  else if (a === 'chat' && mode === 'dm') openChat();
+  else if (a === 'board' && online()) { boardHeld = !boardHeld; if (boardHeld) { renderBoard(); $('board').classList.add('show'); } else if (!NET.ended) $('board').classList.remove('show'); }
+  else if (a === 'chat' && online()) openChat();
 }
 function tbUp(a, el) { el.classList.remove('on'); if (a === 'fire') TCH.fire = false; if (a === 'jump') TCH.jump = false; }
 const tl = $('touch');
@@ -2594,11 +2754,13 @@ let last = performance.now(), hudT = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   pollInput(dt); syncTouchUI();
-  if (mode === 'dm' && (state === 'play' || state === 'pause')) {
+  if (online() && (state === 'play' || state === 'pause')) {
     T += dt;
     if (P.dead) updateDeadCam(dt);
     else if (state === 'play' && !NET.ended) updatePlayer(dt);
-    updateDM(dt); updateRemotes(dt); updateRockets(dt); updateFx(dt);
+    updateDM(dt); updateRemotes(dt);
+    if (mode === 'coop') { updateEnemies(dt); if (NET.host && !NET.ended) updateWaves(dt); }
+    updateRockets(dt); updateFx(dt);
     hudT -= dt; if (hudT <= 0) { hudT = 0.1; updateHud(); }
   } else if (state === 'play') {
     T += dt; updatePlayer(dt); updateEnemies(dt); updateRockets(dt); updateWaves(dt); updateFx(dt);
