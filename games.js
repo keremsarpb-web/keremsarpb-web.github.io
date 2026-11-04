@@ -1,6 +1,11 @@
 // KSB Games oyun listesi: ana sayfa (index.html) ve kaydırmalı akış (kaydir.html) bu listeyi okur.
 // genre: aksiyon | korku | rahat | bulmaca · fit: 'land' = yatay ekran için yapılmış (masaüstünde geniş çerçeve)
 window.KSB_GAMES = [
+  { id: 'yalpa', title: 'Yalpa', genre: 'aksiyon', label: 'Ragdoll · Online', plat: ['PC'], fit: 'land',
+    pitch: 'Human Fall Flat tarzı yalpalayan karakterinle adalar arasında zıpla, kutuları taşı, duvarlara tırman ve bayrağa ulaş. 20 kozmetikle karakterini süsle.',
+    keys: [['WASD', 'yürü'], ['Sol / Sağ tık', 'elle tut'], ['Boşluk', 'zıpla'], ['R', 'geri dön']],
+    note: 'Arkadaşlarınla oynamak için oyunda ODA KUR, kodu paylaş; onlar KATIL ile gelsin.',
+    web: true },
   { id: 'neon-arena', title: 'Neon Arena', genre: 'aksiyon', label: 'FPS · Çok oyunculu', plat: ['PC', 'Telefon', 'Kumanda'], fit: 'land',
     pitch: 'Neon ışıklı arenada beş silah, kayma ve dört harita. Robot dalgalarına karşı tek başına ya da arkadaşlarınla beraber hayatta kal, ya da arenada kapış.',
     keys: [['WASD', 'yürü'], ['Fare', 'nişan'], ['C', 'kay'], ['1–5', 'silah']],
