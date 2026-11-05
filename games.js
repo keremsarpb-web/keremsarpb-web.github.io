@@ -2,7 +2,7 @@
 // genre: aksiyon | korku | rahat | bulmaca · fit: 'land' = yatay ekran için yapılmış (masaüstünde geniş çerçeve)
 window.KSB_GAMES = [
   { id: 'yalpa', title: 'Yalpa', genre: 'aksiyon', label: 'Ragdoll · Online', plat: ['PC'], fit: 'land',
-    pitch: 'Human Fall Flat tarzı yalpalayan karakterinle adalar arasında zıpla, kutuları taşı, duvarlara tırman ve bayrağa ulaş. 20 kozmetikle karakterini süsle.',
+    pitch: 'Human Fall Flat tarzı yalpalayan karakterinle 6 bölümü geç: tahterevalli, kale kapısı, değirmen, kule ve gökyüzü. Kutuları taşı, duvarlara tırman, 20 kozmetikle karakterini süsle.',
     keys: [['WASD', 'yürü'], ['Sol / Sağ tık', 'elle tut'], ['Boşluk', 'zıpla'], ['R', 'geri dön']],
     note: 'Arkadaşlarınla oynamak için oyunda ODA KUR, kodu paylaş; onlar KATIL ile gelsin.',
     web: true, dl: 'https://github.com/keremsarpb-web/keremsarpb-web.github.io/releases/download/yalpa-v1.0.0/Yalpa.exe' },

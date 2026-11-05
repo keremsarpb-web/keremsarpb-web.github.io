@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import * as CANNON from 'cannon-es';
 import { Ragdoll, GRAVITY, PARTS } from './ragdoll.js';
 import { RagdollView, COSMETICS, SLOTS, DEFAULT_LOOK, sanitizeLook } from './view.js';
-import { buildLevel, CHECKPOINTS, GOAL, FALL_Y } from './level.js';
+import { buildLevel, LEVELS, FALL_Y } from './level.js';
 import { sfx, unlockAudio, Particles } from './fx.js';
 import { showBanner, maybeInterstitial } from './ads.js';
 
@@ -10,7 +10,7 @@ const PEER_PREFIX = 'yalpa-oyun-v2-';
 const MAX_PLAYERS = 8;
 const STEP = 1 / 60;
 const SEND_RATE = 1 / 20;
-const INTERP_DELAY = 110;
+const INTERP_DELAY = 130;
 
 // ---------------- Sahne ----------------
 const canvas = document.getElementById('game');
@@ -55,6 +55,7 @@ world.addContactMaterial(new CANNON.ContactMaterial(objMat, groundMat, { frictio
 
 const level = buildLevel(scene, world, groundMat, objMat);
 const particles = new Particles(scene);
+const LV = () => LEVELS[S.level];
 
 // Bir oyuncunun olaylarını (zıplama, tutunma, düşme) ses + efekt olarak çal
 function playEvents(id, p, events, feet) {
@@ -67,7 +68,7 @@ function playEvents(id, p, events, feet) {
     else if (e === 'land') { sfx.land(vol); particles.dust({ x: feet.x, y: feet.y - 0.95, z: feet.z }, 10, 1.2); }
     else if (e === 'grab') sfx.grab(vol);
     else if (e === 'cp' && isMe) { sfx.checkpoint(); toast('Kontrol noktası! ✔'); }
-    else if (e === 'goal') { sfx.goal(); particles.confetti(GOAL, isMe ? 120 : 60); }
+    else if (e === 'goal') { sfx.goal(); particles.confetti(LV().goal, isMe ? 120 : 60); }
     else if (e === 'fall' && isMe) sfx.fall();
   }
 }
@@ -82,9 +83,14 @@ const S = {
   conns: new Map(), // host: peerId -> conn
   hostConn: null, // client
   snaps: [],
+  offs: [], // istemci: kurucu saati ile yerel saat farkı örnekleri
   sendTimer: 0,
   code: '',
+  level: 0,
+  nextAt: 0, // kurucu: sonraki bölüme geçiş zamanı (sn), 0 = yok
 };
+let pickedLevel = 0;
+let doneLevels = [];
 
 const input = { yaw: 0, pitch: -0.25, keys: new Set(), gl: false, gr: false, jump: false, respawn: false, dist: 5 };
 
@@ -99,6 +105,8 @@ try {
   $('name').value = localStorage.getItem('yalpa-name') || '';
   myColor = localStorage.getItem('yalpa-color') || myColor;
   myLook = sanitizeLook(JSON.parse(localStorage.getItem('yalpa-look') || 'null'));
+  pickedLevel = Math.min(LEVELS.length - 1, Math.max(0, parseInt(localStorage.getItem('yalpa-level'), 10) || 0));
+  doneLevels = JSON.parse(localStorage.getItem('yalpa-done') || '[]').filter((n) => Number.isInteger(n));
 } catch {}
 const swatches = $('swatches');
 COLORS.forEach((c) => {
@@ -148,6 +156,32 @@ $('random').onclick = () => {
 };
 renderSwatches();
 renderCosmetics();
+
+// Bölüm seçimi (kurucu ya da tek oyunculu için)
+function renderLevels() {
+  const box = $('levels');
+  box.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const b = document.createElement('button');
+    b.className = 'cos lvl' + (i === pickedLevel ? ' on' : '');
+    b.innerHTML = '<span></span><small></small>';
+    b.firstChild.textContent = L.icon;
+    b.lastChild.textContent = (i + 1) + '. ' + L.name + (doneLevels.includes(i) ? ' ✔' : '');
+    b.onclick = () => {
+      pickedLevel = i;
+      try { localStorage.setItem('yalpa-level', String(i)); } catch {}
+      renderLevels();
+    };
+    box.appendChild(b);
+  });
+}
+renderLevels();
+function markDone(i) {
+  if (doneLevels.includes(i)) return;
+  doneLevels.push(i);
+  try { localStorage.setItem('yalpa-done', JSON.stringify(doneLevels)); } catch {}
+  renderLevels();
+}
 
 // Menüde dönen önizleme karakteri
 let preview = null;
@@ -226,8 +260,13 @@ function renderPlayerList() {
   }
 }
 
+function showLevelInfo() {
+  $('level-info').textContent = `Bölüm ${S.level + 1}/${LEVELS.length} · ${LV().name}`;
+}
+
 function startGameUI() {
   menu.classList.add('hidden');
+  showLevelInfo();
   hud.classList.remove('hidden');
   $('room').textContent = S.mode === 'solo' ? 'Tek oyunculu' : 'Oda kodu: ' + S.code;
   $('copy').classList.toggle('hidden', S.mode === 'solo');
@@ -236,6 +275,7 @@ function startGameUI() {
   $('ad-banner').classList.add('hidden');
   camera.clearViewOffset();
   input.yaw = 0; input.pitch = -0.25; input.dist = 5;
+  camSnap = true;
   unlockAudio();
   lockPointer();
 }
@@ -254,14 +294,12 @@ function backToMenu(msg) {
   S.peer = null;
   S.hostConn = null;
   S.mode = null;
-  level.dynamics.forEach((d) => {
-    d.body.position.set(d.home.x, d.home.y, d.home.z);
-    d.body.quaternion.set(0, 0, 0, 1);
-    d.body.velocity.setZero();
-    d.body.angularVelocity.setZero();
-    d.mesh.position.copy(d.body.position);
-    d.mesh.quaternion.copy(d.body.quaternion);
-  });
+  S.offs = [];
+  S.nextAt = 0;
+  level.reset(S.level);
+  S.level = 0;
+  level.setActive(0);
+  level.reset(0);
   menu.classList.remove('hidden');
   hud.classList.add('hidden');
   $('ad-banner').classList.remove('hidden');
@@ -282,14 +320,42 @@ function freeSlot() {
 function addSimPlayer(id, name, color, look) {
   const slot = freeSlot();
   if (slot < 0) return null;
-  const cp = CHECKPOINTS[0];
-  const spawn = { x: cp.x + (slot % 4 - 1.5) * 1.2, y: cp.y + 0.1, z: cp.z - 2 + Math.floor(slot / 4) * 1.4 };
-  const rag = new Ragdoll(world, slot, spawn, playerMat);
+  const rag = new Ragdoll(world, slot, spawnPoint(slot), playerMat);
   const view = new RagdollView(scene, name, color, look, id === S.myId);
   const p = { name, color, look, rag, view, cp: 0, finished: false, netEvents: [] };
   S.players.set(id, p);
   renderPlayerList();
   return p;
+}
+
+function spawnPoint(slot) {
+  const cp = LV().cps[0];
+  return { x: cp.x + (slot % 4 - 1.5) * 1.2, y: cp.y + 0.1, z: cp.z - 2 + Math.floor(slot / 4) * 1.4 };
+}
+
+function respawnPlayer(p, pos) {
+  p.rag.respawn(pos);
+  p.prev = null; // ara kareler eski konumdan kaymasın
+}
+
+// Herkesi verilen bölümün başına taşı (kurucu / tek oyunculu)
+function goLevel(i) {
+  level.reset(S.level);
+  S.level = i;
+  S.nextAt = 0;
+  level.setActive(i);
+  level.reset(i);
+  for (const p of S.players.values()) {
+    p.cp = 0;
+    p.finished = false;
+    respawnPlayer(p, spawnPoint(p.rag.slot));
+    p.rag.events.length = 0;
+  }
+  for (const d of level.dynamics) d.prev = null;
+  camSnap = true;
+  showLevelInfo();
+  renderPlayerList();
+  announce(`Bölüm ${i + 1}: ${LV().name} ${LV().icon}`);
 }
 
 function removePlayer(id) {
@@ -306,23 +372,29 @@ function removePlayer(id) {
 
 function checkProgress(id, p) {
   const pos = p.rag.pelvis.position;
+  const L = LV();
   if (pos.y < FALL_Y) {
-    p.rag.respawn(CHECKPOINTS[p.cp]);
+    respawnPlayer(p, L.cps[p.cp]);
     p.rag.events.push('fall');
     return;
   }
-  for (let i = p.cp + 1; i < CHECKPOINTS.length; i++) {
-    const c = CHECKPOINTS[i];
+  for (let i = p.cp + 1; i < L.cps.length; i++) {
+    const c = L.cps[i];
     if (Math.abs(pos.x - c.x) < 5 && Math.abs(pos.z - c.z) < 2.5 && pos.y > c.y && pos.y < c.y + 3) {
       p.cp = i;
       p.rag.events.push('cp');
     }
   }
-  if (!p.finished && Math.hypot(pos.x - GOAL.x, pos.z - GOAL.z) < GOAL.r && pos.y > GOAL.y && pos.y < GOAL.y + 2.5) {
+  const G = L.goal;
+  if (!p.finished && Math.hypot(pos.x - G.x, pos.z - G.z) < G.r && pos.y > G.y && pos.y < G.y + 2.5) {
     p.finished = true;
     p.rag.events.push('goal');
-    if (id === S.myId) setTimeout(() => maybeInterstitial($('ad-full')), 3500);
-    announce(`${p.name} bitişe ulaştı! 🏁`);
+    if (id === S.myId) markDone(S.level);
+    const all = [...S.players.values()].every((o) => o.finished);
+    const now = performance.now() / 1000;
+    // Herkes bitirince 4 sn sonra, yoksa ilk bitirenden 30 sn sonra sonraki bölüm
+    S.nextAt = all ? (S.nextAt ? Math.min(S.nextAt, now + 4) : now + 4) : (S.nextAt || now + 30);
+    announce(all ? `${p.name} bitişe ulaştı! 🏁 Sonraki bölüm geliyor...` : `${p.name} bitişe ulaştı! 🏁 (30 sn içinde sonraki bölüm)`);
     renderPlayerList();
   }
 }
@@ -344,9 +416,16 @@ function broadcast(msg) {
   for (const c of S.conns.values()) if (c.open) c.send(msg);
 }
 
+function enterPickedLevel() {
+  S.level = pickedLevel;
+  level.setActive(S.level);
+  level.reset(S.level);
+}
+
 function startSolo() {
   S.mode = 'solo';
   S.myId = 'host';
+  enterPickedLevel();
   addSimPlayer(S.myId, myName(), myColor, myLook);
   startGameUI();
 }
@@ -361,6 +440,7 @@ function startHost(tries = 0) {
   peer.on('open', () => {
     S.mode = 'host';
     S.myId = 'host';
+    enterPickedLevel();
     addSimPlayer(S.myId, name, myColor, myLook);
     startGameUI();
     toast('Oda kuruldu! Kodu arkadaşlarına gönder: ' + S.code);
@@ -399,7 +479,7 @@ function onHostData(conn, d) {
     i.yaw = clampNum(d.yaw, -1e6, 1e6); i.pitch = clampNum(d.pitch, -1.5, 1.5);
     i.gl = !!d.gl; i.gr = !!d.gr;
     if (d.jump) i.jump = true;
-    if (d.respawn) p.rag.respawn(CHECKPOINTS[p.cp]);
+    if (d.respawn) respawnPlayer(p, LV().cps[p.cp]);
   }
 }
 
@@ -446,7 +526,24 @@ function startJoin() {
         backToMenu('Oda dolu (en fazla ' + MAX_PLAYERS + ' kişi).');
       } else if (d.t === 's') {
         if (!Array.isArray(d.p) || !Array.isArray(d.o)) return;
-        S.snaps.push({ time: performance.now(), d });
+        const lvl = Number.isInteger(d.l) && d.l >= 0 && d.l < LEVELS.length ? d.l : 0;
+        if (lvl !== S.level) {
+          S.level = lvl;
+          level.setActive(lvl);
+          S.snaps = [];
+          camSnap = true;
+          showLevelInfo();
+          toast(`Bölüm ${lvl + 1}: ${LV().name} ${LV().icon}`);
+          maybeInterstitial($('ad-full'));
+        }
+        const now = performance.now();
+        const ts = Number(d.ts);
+        if (Number.isFinite(ts)) {
+          // Ağ gecikmesi dalgalansa da akıcı olsun: en hızlı gelen paketin saat farkını kullan
+          S.offs.push(now - ts);
+          if (S.offs.length > 60) S.offs.shift();
+        }
+        S.snaps.push({ ts: Number.isFinite(ts) ? ts : null, time: now, d });
         if (S.snaps.length > 30) S.snaps.shift();
         for (const e of d.p) {
           if (Array.isArray(e[7]) && e[7].length) {
@@ -541,7 +638,7 @@ function simulate(dt) {
     const i = me.rag.input;
     i.mx = mx; i.mz = mz; i.yaw = input.yaw; i.pitch = input.pitch; i.gl = input.gl; i.gr = input.gr;
     if (input.jump) i.jump = true;
-    if (input.respawn) me.rag.respawn(CHECKPOINTS[me.cp]);
+    if (input.respawn) respawnPlayer(me, LV().cps[me.cp]);
   }
   input.jump = false;
   input.respawn = false;
@@ -549,6 +646,11 @@ function simulate(dt) {
   acc += dt;
   let n = 0;
   while (acc >= STEP && n < 4) {
+    capturePrev();
+    const positions = [];
+    for (const d of level.dynamics) if (!d.kin) positions.push(d.body.position);
+    for (const p of S.players.values()) positions.push(p.rag.pelvis.position);
+    level.step(STEP, positions);
     for (const p of S.players.values()) p.rag.update(STEP);
     world.step(STEP);
     for (const p of S.players.values()) p.rag.tryGrab(world.contacts);
@@ -556,10 +658,11 @@ function simulate(dt) {
     n++;
   }
   if (n === 4) acc = 0;
+  const alpha = acc / STEP;
 
   for (const [id, p] of S.players) {
     checkProgress(id, p);
-    p.view.applyBodies(p.rag.bodies);
+    p.view.apply(interpBodies(p.rag.bodies, p.prev, alpha, p.renderArr || (p.renderArr = [])));
     p.view.setGrab(!!p.rag.grab[0], !!p.rag.grab[1]);
     p.view.tick(dt);
     const ev = p.rag.events.splice(0);
@@ -569,14 +672,23 @@ function simulate(dt) {
     }
   }
   for (const d of level.dynamics) {
-    if (d.body.position.y < FALL_Y - 10) {
+    if (!d.kin && d.body.position.y < FALL_Y - 10) {
       d.body.position.set(d.home.x, d.home.y + 1, d.home.z);
       d.body.velocity.setZero();
       d.body.angularVelocity.setZero();
       d.body.quaternion.set(0, 0, 0, 1);
+      d.prev = null;
     }
-    d.mesh.position.copy(d.body.position);
-    d.mesh.quaternion.copy(d.body.quaternion);
+    const a = interpBodies([d.body], d.prev, alpha, renderTmp);
+    d.mesh.position.set(a[0], a[1], a[2]);
+    d.mesh.quaternion.set(a[3], a[4], a[5], a[6]);
+  }
+
+  if (S.nextAt && performance.now() / 1000 >= S.nextAt) {
+    const next = (S.level + 1) % LEVELS.length;
+    if (S.mode === 'solo') maybeInterstitial($('ad-full'));
+    goLevel(next);
+    if (next === 0) announce('Tüm bölümler bitti! 🎉 Baştan başlıyoruz');
   }
 
   if (S.mode === 'host') {
@@ -588,7 +700,7 @@ function simulate(dt) {
         const g = (pl.rag.grab[0] ? 1 : 0) | (pl.rag.grab[1] ? 2 : 0);
         p.push([id, pl.name, pl.color, pl.rag.serialize(), pl.finished ? 1 : 0, pl.look, g, pl.netEvents.splice(0)]);
       }
-      broadcast({ t: 's', p, o: level.serialize() });
+      broadcast({ t: 's', p, o: level.serialize(), l: S.level, ts: Math.round(performance.now()) });
     }
   }
 }
@@ -608,13 +720,15 @@ function clientUpdate(dt) {
   }
 
   if (!S.snaps.length) return;
+  const off = S.offs.length ? Math.min(...S.offs) : 0;
+  const tOf = (s) => (s.ts != null ? s.ts + off : s.time);
   const rt = performance.now() - INTERP_DELAY;
   let a = S.snaps[S.snaps.length - 1], b = a, t = 0;
   for (let i = S.snaps.length - 2; i >= 0; i--) {
-    if (S.snaps[i].time <= rt) {
+    if (tOf(S.snaps[i]) <= rt) {
       a = S.snaps[i];
       b = S.snaps[i + 1];
-      t = Math.min(1, Math.max(0, (rt - a.time) / Math.max(1, b.time - a.time)));
+      t = Math.min(1, Math.max(0, (rt - tOf(a)) / Math.max(1, tOf(b) - tOf(a))));
       break;
     }
   }
@@ -648,13 +762,34 @@ function clientUpdate(dt) {
     lerpTransforms(arrA, arrB, t, out);
     S.players.get(id).view.apply(out);
   }
-  lerpTransforms(a.d.o, b.d.o, t, out);
+  if (a.d.o.length === b.d.o.length) lerpTransforms(a.d.o, b.d.o, t, out);
+  else lerpTransforms(b.d.o, b.d.o, 0, out);
   level.dynamics.forEach((d, i) => {
     const o = i * 7;
     if (out.length <= o) return;
     d.mesh.position.set(out[o], out[o + 1], out[o + 2]);
     d.mesh.quaternion.set(out[o + 3], out[o + 4], out[o + 5], out[o + 6]);
   });
+}
+
+// Fizik 60 Hz, ekran daha hızlı olabilir: son iki fizik adımı arasında aradeğerle
+const renderTmp = [];
+function capturePrev() {
+  for (const p of S.players.values()) p.prev = writeBodies(p.rag.bodies, p.prev || []);
+  for (const d of level.dynamics) d.prev = writeBodies([d.body], d.prev || []);
+}
+function writeBodies(bodies, out) {
+  for (let i = 0; i < bodies.length; i++) {
+    const b = bodies[i], o = i * 7;
+    out[o] = b.position.x; out[o + 1] = b.position.y; out[o + 2] = b.position.z;
+    out[o + 3] = b.quaternion.x; out[o + 4] = b.quaternion.y; out[o + 5] = b.quaternion.z; out[o + 6] = b.quaternion.w;
+  }
+  return out;
+}
+function interpBodies(bodies, prev, alpha, out) {
+  writeBodies(bodies, out);
+  if (!prev) return out;
+  return lerpTransforms(prev, out, alpha, out);
 }
 
 function lerpTransforms(A, B, t, out) {
@@ -671,12 +806,43 @@ function lerpTransforms(A, B, t, out) {
   return out;
 }
 
+let camSnap = true;
+let camDist = 5;
+const camRay = new THREE.Raycaster();
+const camWant = new THREE.Vector3();
+const camDir = new THREE.Vector3();
+const camBack = new THREE.Vector3();
 function updateCamera(dt) {
   const me = S.players.get(S.myId);
-  if (me) camTarget.lerp(me.view.chestPos.clone().add(new THREE.Vector3(0, 0.35, 0)), 1 - Math.exp(-dt * 10));
+  if (me) {
+    camWant.copy(me.view.chestPos);
+    camWant.y += 0.35;
+    // Yeniden doğma / bölüm değişimi: kamerayı haritanın içinden uçurmadan doğrudan oraya al
+    if (camSnap || camTarget.distanceTo(camWant) > 8) {
+      camTarget.copy(camWant);
+      camDist = input.dist;
+      camSnap = false;
+    } else {
+      // Yatayda sıkı, dikeyde yumuşak takip: yalpalama kamerayı sarsmasın
+      const kh = 1 - Math.exp(-dt * 12), kv = 1 - Math.exp(-dt * 6);
+      camTarget.x += (camWant.x - camTarget.x) * kh;
+      camTarget.z += (camWant.z - camTarget.z) * kh;
+      camTarget.y += (camWant.y - camTarget.y) * kv;
+    }
+  }
   const cp = Math.cos(input.pitch);
-  const d = new THREE.Vector3(Math.sin(input.yaw) * cp, Math.sin(input.pitch), Math.cos(input.yaw) * cp);
-  camera.position.copy(camTarget).addScaledVector(d, -input.dist);
+  const d = camDir.set(Math.sin(input.yaw) * cp, Math.sin(input.pitch), Math.cos(input.yaw) * cp);
+  // Kamera duvarın / adanın içine girmesin: engele kadar yaklaş, sonra yavaşça geri çekil
+  const want = input.dist;
+  if (S.mode) {
+    let lim = want;
+    camRay.set(camTarget, camBack.copy(d).negate());
+    camRay.far = want + 0.3;
+    const hit = camRay.intersectObjects(level.solids, false)[0];
+    if (hit) lim = Math.max(0.8, hit.distance - 0.3);
+    camDist = lim < camDist ? lim : camDist + (lim - camDist) * (1 - Math.exp(-dt * 3));
+  } else camDist = want;
+  camera.position.copy(camTarget).addScaledVector(d, -camDist);
   camera.lookAt(camTarget);
   sun.position.set(camTarget.x + 15, camTarget.y + 30, camTarget.z + 8);
   sun.target.position.copy(camTarget);
@@ -709,4 +875,4 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // Test/debug için
-window.__yalpa = { S, input, world, simulate, scene, camera, THREE, renderOnce: () => { updateCamera(1); renderer.render(scene, camera); } };
+window.__yalpa = { S, input, world, simulate, scene, camera, THREE, level, LEVELS, goLevel, updateCamera, renderOnce: () => { updateCamera(1); renderer.render(scene, camera); } };

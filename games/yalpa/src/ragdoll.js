@@ -139,6 +139,9 @@ export class Ragdoll {
     if (this.grounded && !this.wasGrounded && pelvis.velocity.y < -4) this.events.push('land');
     this.wasGrounded = this.grounded;
     const staticGrab = this.grabBody.some((b) => b && b.mass === 0);
+    // Hareketli platformun üstündeyken onunla birlikte taşın
+    const gb = this.grounded && this.ray.body && this.ray.body.type === CANNON.Body.KINEMATIC ? this.ray.body.velocity : null;
+    const gvx = gb ? gb.x : 0, gvy = gb ? gb.y : 0, gvz = gb ? gb.z : 0;
 
     // Dik durma
     const qDes = new CANNON.Quaternion();
@@ -151,13 +154,21 @@ export class Ragdoll {
     if (this.grounded && this.jumpCd < 0.35) {
       const dist = from.y - this.ray.hitPointWorld.y;
       const acc = clamp(140 * (STAND_H - dist), -25, 50);
-      pelvis.force.y += this.mLower * (GRAVITY + acc - 16 * pelvis.velocity.y);
-      chest.force.y += this.mUpper * (GRAVITY - 6 * (chest.velocity.y - pelvis.velocity.y));
+      const fp = this.mLower * (GRAVITY + acc - 16 * (pelvis.velocity.y - gvy));
+      const fc = this.mUpper * (GRAVITY - 6 * (chest.velocity.y - pelvis.velocity.y));
+      pelvis.force.y += fp;
+      chest.force.y += fc;
+      // Ağırlığı bastığı şeye geri ver: tahterevalli yatsın, sandık ezilsin
+      const under = this.ray.body;
+      if (under && under.type === CANNON.Body.DYNAMIC && !under.ragdoll) {
+        const f = Math.max(0, fp + fc);
+        under.applyForce(new CANNON.Vec3(0, -f, 0), this.ray.hitPointWorld.vsub(under.position));
+      }
     }
 
     // Yürüme
     const ctl = this.grounded ? 9 : 1.5;
-    const tvx = inp.mx * SPEED, tvz = inp.mz * SPEED;
+    const tvx = inp.mx * SPEED + gvx, tvz = inp.mz * SPEED + gvz;
     for (const [b, m] of [[pelvis, this.mLower], [chest, this.mUpper]]) {
       b.force.x += m * ctl * (tvx - b.velocity.x);
       b.force.z += m * ctl * (tvz - b.velocity.z);

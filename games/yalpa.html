@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Yalpa – online ragdoll oyunu | KSB Games</title>
-<meta name="description" content="Human Fall Flat tarzı, yalpalayan karakterlerle online ragdoll oyunu. Arkadaşlarınla oda kur, tutun, tırman, bayrağa ulaş.">
+<meta name="description" content="Human Fall Flat tarzı, yalpalayan karakterlerle online ragdoll oyunu. 6 bölüm: tahterevalli, kale kapısı, değirmen, kule ve daha fazlası. Arkadaşlarınla oda kur, tutun, tırman, bayrağa ulaş.">
 <link rel="canonical" href="https://keremsarpb-web.github.io/games/yalpa.html">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
@@ -36,6 +36,9 @@
   .cos span { font-size: 22px; line-height: 1.1; }
   .cos small { font-size: 10px; opacity: 0.75; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   .cos.on { border-color: var(--accent); background: #fff3e6; box-shadow: 0 0 0 2px var(--accent); }
+  #levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .cos.lvl small { font-size: 11px; }
+  #level-info { font-size: 13px; opacity: 0.7; margin-top: 2px; }
   #random { font: inherit; font-size: 12px; border: 0; background: none; color: var(--accent2); cursor: pointer; font-weight: 600; padding: 0; }
   #ad-banner { position: fixed; right: 16px; bottom: 16px; width: 320px; max-width: calc(100vw - 32px); background: var(--card); border-radius: 14px; padding: 8px 10px 10px; box-shadow: 0 8px 24px rgba(30,60,90,0.2); }
   .ad-tag { font-size: 10px; letter-spacing: 1px; opacity: 0.5; font-weight: 600; text-transform: uppercase; }
@@ -98,6 +101,8 @@
     <div class="lbl-row"><label>Kozmetik dolabı <small id="cos-count"></small></label><button id="random">🎲 Rastgele</button></div>
     <div id="cos-tabs"></div>
     <div id="cos-grid"></div>
+    <label>Bölüm <small style="opacity:.55;font-weight:400">(odayı kuran seçer)</small></label>
+    <div id="levels"></div>
     <button class="btn" id="host">Oda kur (online)</button>
     <div class="sep">— ya da arkadaşının odasına katıl —</div>
     <div class="row">
@@ -112,6 +117,7 @@
 <div id="hud" class="hidden">
   <div class="panel" id="tl">
     <div id="room"></div>
+    <div id="level-info"></div>
     <ul id="players"></ul>
     <button class="mini" id="copy">Kodu kopyala</button><button class="mini" id="leave">Menüye dön</button>
   </div>
