@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sütun Yarışı – KSB Games</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Figtree:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Sütun Yarışı okulda (PHP + MySQL) çalışır; bu sayfa KSB Games içinde tanıtım ve yönlendirme yapar */
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { font-family: 'Figtree', 'Segoe UI', system-ui, sans-serif; color: #f4f0ff; background: #120c22; }
+  .arena { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: space-around; padding: 0 4%;
+    background: linear-gradient(#5b9bd5 0%, #a9d4f5 55%, #cfe8ff 80%); overflow: hidden; }
+  .arena::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 9%; background: linear-gradient(#7cc36a, #5aa548); }
+  .sun { position: absolute; top: 6%; right: 5%; width: 9vmin; height: 9vmin; border-radius: 50%; background: #ffe066; box-shadow: 0 0 6vmin #ffd43b; }
+  .lane { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; width: 17%; max-width: 160px; }
+  .rider { display: flex; justify-content: center; width: 100%; }
+  .rider img, .rider .blob { width: min(110px, 100%); aspect-ratio: 200 / 220; }
+  .rider .blob { border-radius: 50% 50% 46% 46%; }
+  .pillar { width: 62%; background: linear-gradient(90deg, #d9d0bd, #ece6d8 40%, #cfc6b2); border-radius: 6px 6px 0 0; transition: height .6s cubic-bezier(.3, 1.4, .5, 1); margin-bottom: 9vh; position: relative; }
+  .pillar::before { content: ""; position: absolute; left: -8%; right: -8%; top: -8px; height: 10px; border-radius: 4px; background: #f3eee2; }
+  .rider.jump { animation: jump .8s ease-out; }
+  .rider.fall { animation: fall 1s cubic-bezier(.5, 0, 1, .6); }
+  @keyframes jump { 40% { transform: translateY(-40px) scale(1.12, .92); } 70% { transform: translateY(3px) scale(.96, 1.06); } }
+  @keyframes fall { 30% { transform: translate(14px, -10px) rotate(25deg); } 100% { transform: translate(30px, 60vh) rotate(160deg); opacity: 0; } }
+  .ring { position: relative; isolation: isolate; }
+  .ring::before { content: ""; position: absolute; z-index: -1; border-radius: 50%; inset: -10% 2% 4% 2%; }
+  .aura-infinity::before { background: conic-gradient(#ff6b6b, #ffd43b, #69db7c, #4dabf7, #9775fa, #f783ac, #ff6b6b); -webkit-mask: radial-gradient(circle, transparent 52%, #000 54% 66%, transparent 68%); mask: radial-gradient(circle, transparent 52%, #000 54% 66%, transparent 68%); animation: spin 2.5s linear infinite; }
+  .aura-void::before { background: conic-gradient(#10002b, #5a189a, #000, #9d4edd, #240046, #10002b); filter: blur(7px); opacity: .85; animation: spin 2.2s linear infinite; }
+  .aura-gold img { filter: drop-shadow(0 0 6px #fcc419) drop-shadow(0 0 14px #f59f00); }
+  .aura-sakura img { filter: drop-shadow(0 0 7px #ff8fab); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .card { position: absolute; z-index: 2; top: 50%; left: 50%; transform: translate(-50%, -62%); width: min(92%, 520px); text-align: center;
+    background: rgba(18, 12, 34, .88); border: 1px solid rgba(173, 150, 255, .25); border-radius: 22px; padding: 22px 22px 20px; box-shadow: 0 20px 50px rgba(0, 0, 0, .35); }
+  .eyebrow { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: #ff8a1f; font-weight: 700; }
+  h1 { font-family: 'Fredoka', system-ui, sans-serif; font-size: clamp(34px, 7vw, 54px); margin: 4px 0 6px; line-height: 1; }
+  h1 span { color: #ff8a1f; }
+  p { margin: 0 0 14px; color: #cfc6ea; font-size: 15px; line-height: 1.5; }
+  .q { font-weight: 700; color: #fff; background: rgba(139, 108, 255, .18); border-radius: 12px; padding: 8px 12px; margin-bottom: 14px; font-size: 15px; }
+  .q b { color: #ff8a1f; margin-right: 6px; }
+  .btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+  a.btn { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; border-radius: 14px; padding: 12px 22px; font-family: 'Fredoka', system-ui, sans-serif; font-weight: 700; font-size: 18px; }
+  a.main { background: #ff8a1f; color: #1c0d00; box-shadow: 0 5px 0 #e5690a; }
+  a.main:active { transform: translateY(3px); box-shadow: 0 2px 0 #e5690a; }
+  a.alt { border: 1px solid rgba(173, 150, 255, .35); color: #f4f0ff; background: rgba(255, 255, 255, .05); }
+  a:focus-visible { outline: 3px solid #ff8a1f; outline-offset: 3px; }
+  small { display: block; margin-top: 12px; color: #9d93bd; font-size: 12px; }
+  /* ?kapak: küçük resim için yalnızca arena ve soru */
+  .kapak .card { top: 9%; transform: translate(-50%, 0); background: none; border: 0; box-shadow: none; padding: 0; }
+  .kapak .card > :not(.q) { display: none; }
+  .kapak .q { font-size: 30px; background: rgba(18, 12, 34, .85); padding: 12px 20px; border-radius: 16px; }
+  @media (max-height: 520px) { .card { transform: translate(-50%, -50%); padding: 14px; } p { display: none; } }
+  @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="arena" id="arena" aria-hidden="true"><div class="sun"></div></div>
+<div class="card">
+  <div class="eyebrow">6. sınıf · bilgi yarışması</div>
+  <h1>Sütun <span>Yarışı</span></h1>
+  <p>Sınıfınla yarış: doğru bilen sütununda yükselir, yanlış bilen düşer. Sınava hazırlık, eşleştirme etkinlikleri, öğretmen paneli ve 20 aura.</p>
+  <div class="q" id="q"><b>Soru 1</b>3⁴ ifadesinin değeri kaçtır?</div>
+  <div class="btns">
+    <a class="btn main" href="https://keremsarpb-web.github.io/ksb-sutun-yarisi/" target="_top">Sitesine git</a>
+    <a class="btn alt" href="https://github.com/keremsarpb-web/ksb-sutun-yarisi/archive/refs/heads/main.zip" target="_top">İndir (.zip)</a>
+  </div>
+  <small>Okulda XAMPP ya da USB ile kurulur; aynı ağdaki tahta, tablet ve telefonlar birlikte oynar.</small>
+</div>
+
+<script src="https://keremsarpb-web.github.io/ksb-sutun-yarisi/vendor/three.min.js"></script>
+<script>
+  // char3d.js oyundaki karakter seçeneklerini bekler
+  const COLORS = ['#ff6b6b', '#ffa94d', '#ffd43b', '#69db7c', '#38d9a9', '#4dabf7', '#748ffc', '#da77f2', '#f783ac', '#8d6e63'];
+  const EYES = { normal: 1, happy: 1, cool: 1, sleepy: 1, star: 1 };
+  const MOUTHS = { smile: 1, laugh: 1, tongue: 1, wow: 1, cool: 1 };
+</script>
+<script src="https://keremsarpb-web.github.io/ksb-sutun-yarisi/char3d.js"></script>
+<script>
+(() => {
+  if (location.search.includes('kapak')) document.body.classList.add('kapak');
+  const img = p => {
+    if (window.Char3D) { try { return `<img src="${Char3D.image(p)}" alt="">`; } catch (e) {} }
+    return `<div class="blob" style="background:${p.color}"></div>`;
+  };
+  const players = [
+    { color: '#4dabf7', shape: 'round', eyes: 'happy', mouth: 'smile', hat: 'crown', aura: 'gold' },
+    { color: '#f783ac', shape: 'star', eyes: 'star', mouth: 'laugh', hat: 'slayshades', aura: 'infinity' },
+    { color: '#69db7c', shape: 'cat', eyes: 'cool', mouth: 'cool', hat: 'wizard', aura: 'void' },
+    { color: '#ffa94d', shape: 'bear', eyes: 'normal', mouth: 'tongue', hat: 'cowboy', aura: 'sakura' },
+    { color: '#748ffc', shape: 'drop', eyes: 'sleepy', mouth: 'wow', hat: 'viking', aura: '' },
+  ];
+  const questions = ['3⁴ ifadesinin değeri kaçtır?', 'Güneş’e en yakın gezegen hangisidir?', '“Siyah” sözcüğünün eş anlamlısı nedir?',
+    'EBOB(24, 36) kaçtır?', 'Türk adıyla kurulan ilk Türk devleti hangisidir?', 'We cook meals in the ___.', '(−7) + 12 işleminin sonucu kaçtır?'];
+  const arena = document.getElementById('arena');
+  const lanes = players.map(p => {
+    const el = document.createElement('div');
+    el.className = 'lane';
+    const ring = p.aura === 'infinity' || p.aura === 'void';
+    el.innerHTML = `<div class="rider"><div class="${ring ? 'ring ' : ''}aura-${p.aura || 'none'}">${img(p)}</div></div><div class="pillar"></div>`;
+    arena.appendChild(el);
+    return { rider: el.querySelector('.rider'), pillar: el.querySelector('.pillar'), h: 1 + Math.floor(Math.random() * 3) };
+  });
+  const draw = () => lanes.forEach(l => { l.pillar.style.height = (14 + l.h * 5) + 'vh'; });
+  draw();
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  let q = 0;
+  setInterval(() => {
+    q = (q + 1) % questions.length;
+    document.getElementById('q').innerHTML = `<b>Soru ${q + 1}</b>${questions[q]}`;
+    lanes.forEach(l => {
+      const ok = Math.random() < 0.7 && l.h < 6;
+      l.rider.classList.remove('jump', 'fall'); void l.rider.offsetWidth;
+      l.rider.classList.add(ok ? 'jump' : 'fall');
+      if (ok) l.h++;
+      else setTimeout(() => { l.h = 0; draw(); l.rider.classList.remove('fall'); }, 1000);
+    });
+    draw();
+  }, 2600);
+})();
+</script>
+</body>
+</html>
