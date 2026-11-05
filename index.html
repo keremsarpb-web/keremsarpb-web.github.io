@@ -526,10 +526,20 @@ document.addEventListener('click', e => {
 // --- indirme: oyunun tek dosyalık HTML'ini ziyaretçiye verir
 let toastT = 0;
 function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), 2800); }
-function syncDownloads() { document.querySelectorAll('[data-dl]').forEach(b => b.hidden = !downloads || !!GAMES.find(g => g.id === b.dataset.dl)?.web); }
+function syncDownloads() {
+  document.querySelectorAll('[data-dl]').forEach(b => {
+    const g = GAMES.find(x => x.id === b.dataset.dl);
+    b.hidden = !downloads || (!!g?.web && !g.dl);
+  });
+}
 function download(id) {
   const g = GAMES.find(x => x.id === id); if (!g) return;
-  // çok dosyalı oyunlar (ör. Yalpa) tek dosya olarak indirilemez, tarayıcıda oynanır
+  // çok dosyalı oyunlar (ör. Yalpa) tek HTML olarak indirilemez: varsa uygulama dosyası (dl) verilir
+  if (g.dl) {
+    const a = document.createElement('a'); a.href = g.dl; a.rel = 'noopener';
+    document.body.append(a); a.click(); a.remove();
+    toast(`${g.title} (Windows uygulaması) indiriliyor. İnince çift tıklayıp aç.`); return;
+  }
   if (g.web) { toast(`${g.title} yalnızca tarayıcıda oynanır. Şimdi oyna'ya bas.`); return; }
   const a = document.createElement('a'); a.href = `games/${id}.html`; a.download = `${g.title}.html`;
   document.body.append(a); a.click(); a.remove();
