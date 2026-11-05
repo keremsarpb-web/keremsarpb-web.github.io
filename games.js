@@ -9,7 +9,7 @@ window.KSB_GAMES = [
   { id: 'sutun-yarisi', title: 'Sütun Yarışı', genre: 'bulmaca', label: 'Bilgi yarışması · Okul', plat: ['PC', 'Telefon'],
     pitch: '6. sınıf bilgi yarışması: doğru bilen sütununda yükselir, yanlış bilen düşer. Sınava hazırlık, eşleştirme etkinlikleri, öğretmen paneli, coin, Mystery Box ve 20 aura.',
     keys: [['Dokun / Tıkla', 'cevap seç'], ['2–5 oyuncu', 'okul ağında']],
-    note: 'Sütun Yarışı okulda çalışır (PHP + MySQL). Kurulum ve indirme için oyunun sitesine git.',
+    note: 'Tarayıcıda bilgisayar oyuncularına karşı oynanır; ilerlemen bu cihazda kaydedilir. Sınıfça oynamak için okulda kur: keremsarpb-web.github.io/ksb-sutun-yarisi',
     web: true },
   { id: 'neon-arena', title: 'Neon Arena', genre: 'aksiyon', label: 'FPS · Çok oyunculu', plat: ['PC', 'Telefon', 'Kumanda'], fit: 'land',
     pitch: 'Neon ışıklı arenada beş silah, kayma ve dört harita. Robot dalgalarına karşı tek başına ya da arkadaşlarınla beraber hayatta kal, ya da arenada kapış.',
