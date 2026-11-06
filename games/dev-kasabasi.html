@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Dev Kasabası</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One&family=Nunito:wght@500;700;800&display=swap">
+<style>
+/* Tek görünümlü oyun ekranı: tam ekran 3B sahne, üstünde küçük HUD kartları */
+:root {
+  --sky: #9fd4ff;
+  --ink: #1d2433;
+  --paper: #fffaf0;
+  --accent: #ff6b3d;
+  --muted: #5b6577;
+  --glass: rgba(255, 250, 240, 0.86);
+  --display: "Bowlby One", "Arial Black", Impact, sans-serif;
+  --body: "Nunito", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+}
+[hidden] { display: none !important; }
+html, body { height: 100%; overflow: hidden; }
+body { background: var(--sky); color: var(--ink); font-family: var(--body); }
+canvas { display: block; }
+#hud {
+  position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px));
+  background: var(--glass); border-radius: 12px; padding: 10px 14px; font-size: 13px; line-height: 1.5;
+  max-width: min(330px, calc(100vw - 32px)); pointer-events: none; box-shadow: 0 4px 18px rgba(0,0,0,.12);
+}
+#hud b { font-family: var(--display); font-weight: 400; font-size: 18px; letter-spacing: .5px; display: block; }
+#hud .keys { color: var(--muted); }
+#hud kbd { font-family: var(--body); font-weight: 800; background: var(--ink); color: var(--paper); border-radius: 4px; padding: 0 5px; font-size: 11px; }
+#stats { font-variant-numeric: tabular-nums; font-weight: 800; margin-top: 6px; }
+#hudToggle { font-size: 11px; color: var(--muted); }
+#cross {
+  position: fixed; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%;
+  border: 2px solid var(--paper); box-shadow: 0 0 0 1px var(--ink); pointer-events: none;
+}
+#cross.on { background: var(--accent); width: 16px; height: 16px; margin: -8px 0 0 -8px; }
+#start {
+  position: fixed; inset: 0; display: grid; place-items: center; background: rgba(29, 36, 51, .45);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  cursor: pointer;
+}
+#start .card { background: var(--paper); border-radius: 18px; padding: 26px 28px; max-width: 460px; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+#start h1 { font-family: var(--display); font-weight: 400; font-size: clamp(34px, 8vw, 54px); line-height: 1; margin: 0 0 10px; color: var(--accent); text-wrap: balance; }
+#start p { margin: 0 0 10px; line-height: 1.5; }
+#start .go { display: inline-block; margin-top: 6px; background: var(--ink); color: var(--paper); font-weight: 800; padding: 10px 18px; border-radius: 999px; }
+#start small { display: block; margin-top: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <b>DEV KASABASI</b>
+  <div class="keys" id="keys">
+    <kbd>WASD</kbd> yürü · <kbd>Shift</kbd> koş · <kbd>C</kbd> eğil · fare/ok tuşları: bak<br>
+    <kbd>Sol tık</kbd> basılı tut: yakala · savur ve bırak: fırlat<br>
+    <kbd>Sağ tık</kbd> tutarken: güçlü fırlat · boşta: fiske<br>
+    <kbd>Tekerlek</kbd> tutma mesafesi · <kbd>Boşluk</kbd> yere tepin<br>
+    <kbd>F</kbd> insan yağdır · <kbd>G</kbd> araba · <kbd>T</kbd> yavaş çekim · <kbd>R</kbd> sıfırla · <kbd>H</kbd> gizle
+  </div>
+  <div id="stats"></div>
+</div>
+<div id="cross" hidden></div>
+<div id="start" hidden>
+  <div class="card">
+    <h1>Dev Kasabası</h1>
+    <p>Sen kocaman bir devsin. Küçük kasabalılar senden kaçıyor. Onları yakala, savur, fırlat, yere tepinip havaya uçur.</p>
+    <p>VR gözlüğün varsa aşağıdaki <b>ENTER VR</b> düğmesine bas: tetik veya kavrama ile yakala, elini savurup bırak, elini yere hızla vurursan şok dalgası çıkar.</p>
+    <span class="go">Başlamak için tıkla</span>
+    <small>Fare kilitlenmezse imleçle nişan alırsın; boş yere sürükleyerek etrafa bakabilirsin.</small>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/",
+  "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
+import { VRButton } from 'three/addons/webxr/VRButton.js';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+
+// ---------- Ayarlar ----------
+const G = 6;              // dev ölçeği: oyuncu insanlardan 6 kat büyük
+const TAU = Math.PI * 2;
+const MAX_HUMANS = 90;
+const WALK_R = 50;
+const HAND_R = 0.07 * G;
+const GRAB_R = 0.75;
+const KIN = CANNON.Body.KINEMATIC, DYN = CANNON.Body.DYNAMIC;
+const V3 = THREE.Vector3;
+const UP = new V3(0, 1, 0), XAX = new V3(1, 0, 0);
+const rnd = (a, b) => a + Math.random() * (b - a);
+const pick = a => a[(Math.random() * a.length) | 0];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const wrapAng = a => Math.atan2(Math.sin(a), Math.cos(a));
+
+let now = performance.now() / 1000;
+let timeScale = 1;
+const stats = { throws: 0, maxH: 0 };
+
+// ---------- Render ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.xr.enabled = true;
+document.body.appendChild(renderer.domElement);
+const vrButton = VRButton.createButton(renderer);
+document.body.appendChild(vrButton);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x9fd4ff);
+scene.fog = new THREE.Fog(0x9fd4ff, 90, 300);
+
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.02, 200);
+const rig = new THREE.Group();
+rig.scale.setScalar(G);
+rig.position.set(0, 0, 27);
+scene.add(rig);
+rig.add(camera);
+camera.position.set(0, 1.6, 0);
+
+scene.add(new THREE.HemisphereLight(0xe6f4ff, 0x5a7a40, 1.0));
+const sun = new THREE.DirectionalLight(0xfff4e0, 1.7);
+sun.position.set(45, 90, 25);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 1, far: 260 });
+sun.shadow.bias = -0.0006;
+scene.add(sun);
+
+const matCache = {};
+const mat = c => (matCache[c] ||= new THREE.MeshLambertMaterial({ color: c }));
+
+// ---------- Fizik dünyası ----------
+const world = new CANNON.World({ gravity: new CANNON.Vec3(0, -14, 0) });
+world.broadphase = new CANNON.SAPBroadphase(world);
+world.solver.iterations = 10;
+world.allowSleep = false;
+world.defaultContactMaterial.friction = 0.45;
+world.defaultContactMaterial.restitution = 0.12;
+
+const ground = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Plane() });
+ground.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+world.addBody(ground);
+
+function setType(b, t) {
+  b.type = t;
+  if (b.updateSolveMassProperties) b.updateSolveMassProperties();
+  b.wakeUp();
+}
+
+// ---------- Kasaba ----------
+const obstacles = []; // {x0,x1,z0,z1}
+function flat(geo, color, y) {
+  const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ color, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }));
+  m.rotation.x = -Math.PI / 2; m.position.y = y; m.receiveShadow = true; scene.add(m); return m;
+}
+const groundMesh = new THREE.Mesh(new THREE.PlaneGeometry(900, 900), mat(0x7cc35a));
+groundMesh.rotation.x = -Math.PI / 2; groundMesh.receiveShadow = true; scene.add(groundMesh);
+flat(new THREE.RingGeometry(19, 24, 72), 0x5b6068, 0.03);
+flat(new THREE.RingGeometry(21.4, 21.6, 72), 0xf4f0d8, 0.06);
+flat(new THREE.CircleGeometry(9, 48), 0xd8cdb6, 0.05);
+
+// Çeşme
+{
+  const b = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Cylinder(2.4, 2.6, 1, 16) });
+  b.position.set(0, 0.5, 0); world.addBody(b);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 2.6, 1, 24), mat(0xb9b2a3));
+  m.position.y = 0.5; m.castShadow = m.receiveShadow = true; scene.add(m);
+  const w = new THREE.Mesh(new THREE.CircleGeometry(2.1, 24), mat(0x4fb3e8));
+  w.rotation.x = -Math.PI / 2; w.position.y = 1.01; scene.add(w);
+  const p = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, 2.2, 10), mat(0xb9b2a3));
+  p.position.y = 1.6; p.castShadow = true; scene.add(p);
+  obstacles.push({ x0: -2.9, x1: 2.9, z0: -2.9, z1: 2.9 });
+}
+
+// Evler
+const wallCols = [0xf6e3c6, 0xe9c9b1, 0xd7e8f0, 0xf3d5d5, 0xe6eccf, 0xfff1c1];
+const roofCols = [0xb5523b, 0x8b3a2f, 0x4f6d8f, 0x6e5a4a];
+const roofGeo = new THREE.ConeGeometry(Math.SQRT1_2, 1, 4); roofGeo.rotateY(Math.PI / 4);
+for (let i = 0; i < 12; i++) {
+  const a = (i / 12) * TAU + rnd(-0.12, 0.12);
+  const r = rnd(33, 43);
+  const x = Math.sin(a) * r, z = Math.cos(a) * r;
+  const w = rnd(5, 8), d = rnd(5, 8), h = rnd(3.5, 6);
+  const b = new CANNON.Body({ type: CANNON.Body.STATIC, shape: new CANNON.Box(new CANNON.Vec3(w / 2, h / 2, d / 2)) });
+  b.position.set(x, h / 2, z); world.addBody(b);
+  const house = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(pick(wallCols)));
+  house.position.set(x, h / 2, z); house.castShadow = house.receiveShadow = true; scene.add(house);
+  const rh = rnd(2, 3.2);
+  const roof = new THREE.Mesh(roofGeo, mat(pick(roofCols)));
+  roof.scale.set(w * 1.12, rh, d * 1.12); roof.position.set(x, h + rh / 2, z); roof.castShadow = true; scene.add(roof);
+  // kapı ve pencereler, merkeze bakan yüzde
+  const toC = Math.abs(x) > Math.abs(z) ? [-Math.sign(x), 0] : [0, -Math.sign(z)];
+  const face = (ox, oy, ww, hh, col) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(toC[0] ? 0.1 : ww, hh, toC[0] ? ww : 0.1), mat(col));
+    m.position.set(x + toC[0] * (w / 2 + 0.03) + (toC[0] ? 0 : ox), oy, z + toC[1] * (d / 2 + 0.03) + (toC[0] ? ox : 0));
+    scene.add(m);
+  };
+  face(0, 1.0, 1.1, 2.0, 0x6b4428);
+  face(-w / 3.2, h * 0.62, 1.0, 0.9, 0x7fb6d6);
+  face(w / 3.2, h * 0.62, 1.0, 0.9, 0x7fb6d6);
+  obstacles.push({ x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2 });
+}
+
+// Ağaçlar
+const trunkGeo = new THREE.CylinderGeometry(0.35, 0.45, 3, 8);
+const leafGeo = new THREE.ConeGeometry(2.2, 5, 8);
+for (let i = 0; i < 55; i++) {
+  const a = rnd(0, TAU), r = rnd(57, 115);
+  const x = Math.sin(a) * r, z = Math.cos(a) * r;
+  const b = new CANNON.Body({ type: CANNON.Body.STATIC });
+  b.addShape(new CANNON.Cylinder(0.4, 0.4, 3, 8), new CANNON.Vec3(0, 1.5, 0));
+  b.addShape(new CANNON.Sphere(1.8), new CANNON.Vec3(0, 4.6, 0));
+  b.position.set(x, 0, z); world.addBody(b);
+  const t = new THREE.Mesh(trunkGeo, mat(0x7a5233)); t.position.set(x, 1.5, z); t.castShadow = true; scene.add(t);
+  const l = new THREE.Mesh(leafGeo, mat(pick([0x3f8f3a, 0x4fa44a, 0x2f7a3a]))); l.position.set(x, 5.4, z); l.castShadow = true; scene.add(l);
+}
+
+// Bulutlar
+const clouds = [];
+for (let i = 0; i < 12; i++) {
+  const g = new THREE.Group();
+  for (let k = 0; k < 4; k++) {
+    const s = new THREE.Mesh(new THREE.SphereGeometry(rnd(5, 9), 10, 8), mat(0xffffff));
+    s.position.set(k * 7 - 10, rnd(-1, 2), rnd(-3, 3)); g.add(s);
+  }
+  g.position.set(rnd(-250, 250), rnd(75, 110), rnd(-250, 250));
+  scene.add(g); clouds.push(g);
+}
+
+function blocked(x, z) {
+  if (Math.hypot(x, z) > WALK_R + 3) return true;
+  for (const o of obstacles) if (x > o.x0 - 0.6 && x < o.x1 + 0.6 && z > o.z0 - 0.6 && z < o.z1 + 0.6) return true;
+  return false;
+}
+function freeSpot(rMin = 3, rMax = 46) {
+  for (let i = 0; i < 40; i++) {
+    const a = rnd(0, TAU), r = rnd(rMin, rMax);
+    const x = Math.sin(a) * r, z = Math.cos(a) * r;
+    if (!blocked(x, z)) return [x, z];
+  }
+  return [rnd(-6, 6), 12];
+}
+
+// ---------- Ragdoll insanlar ----------
+const skinCols = [0xf1c27d, 0xe0ac69, 0xc68642, 0x8d5524, 0xffdbac];
+const shirtCols = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf1c40f, 0x9b59b6, 0xe67e22, 0x1abc9c, 0xff6fa8, 0xf5f5f5];
+const pantsCols = [0x2c3e50, 0x34495e, 0x5d4037, 0x1a237e, 0x424242, 0x6d4c41];
+const hairCols = [0x2b1b0e, 0x5a3825, 0xd9b36c, 0x111111, 0xa0522d, 0x9e9e9e];
+
+// parça sırası: 0 kalça, 1 gövde, 2 baş, 3-4 sol bacak, 5-6 sağ bacak, 7-8 sol kol, 9-10 sağ kol
+const DEF = [
+  { box: [.16, .10, .10], m: 10, c: 'pants' },
+  { box: [.18, .22, .11], m: 15, c: 'shirt' },
+  { r: .13, m: 5, c: 'skin' },
+  { box: [.07, .22, .07], m: 7, c: 'pants' }, { box: [.06, .22, .06], m: 4, c: 'pants' },
+  { box: [.07, .22, .07], m: 7, c: 'pants' }, { box: [.06, .22, .06], m: 4, c: 'pants' },
+  { box: [.055, .15, .055], m: 3, c: 'shirt' }, { box: [.05, .14, .05], m: 2, c: 'skin' },
+  { box: [.055, .15, .055], m: 3, c: 'shirt' }, { box: [.05, .14, .05], m: 2, c: 'skin' },
+];
+const PI = Math.PI;
+const JOINTS = [
+  [0, 1, [0, .10, 0], [0, -.22, 0], PI / 6, PI / 8],
+  [1, 2, [0, .22, 0], [0, -.16, 0], PI / 4, PI / 4],
+  [0, 3, [.09, -.10, 0], [0, .22, 0], PI / 2.5, PI / 8],
+  [3, 4, [0, -.22, 0], [0, .22, 0], PI / 3, 0.1],
+  [0, 5, [-.09, -.10, 0], [0, .22, 0], PI / 2.5, PI / 8],
+  [5, 6, [0, -.22, 0], [0, .22, 0], PI / 3, 0.1],
+  [1, 7, [.24, .18, 0], [0, .15, 0], PI * 0.9, PI / 4],
+  [7, 8, [0, -.15, 0], [0, .14, 0], PI / 3, 0.1],
+  [1, 9, [-.24, .18, 0], [0, .15, 0], PI * 0.9, PI / 4],
+  [9, 10, [0, -.15, 0], [0, .14, 0], PI / 3, 0.1],
+];
+
+const geoCache = {};
+const boxGeo = s => (geoCache[s.join()] ||= new THREE.BoxGeometry(s[0] * 2, s[1] * 2, s[2] * 2));
+const headGeo = new THREE.SphereGeometry(.13, 14, 10);
+const hairGeo = new THREE.SphereGeometry(.137, 14, 8, 0, TAU, 0, PI * 0.45);
+const eyesGeo = (() => {
+  const a = new THREE.SphereGeometry(.024, 8, 6); a.translate(.05, .03, .115);
+  const b = new THREE.SphereGeometry(.024, 8, 6); b.translate(-.05, .03, .115);
+  return mergeGeometries([a, b]);
+})();
+const mouthGeo = new THREE.BoxGeometry(.06, .014, .02);
+
+const grabBodies = [];
+const grabMeshes = [];
+const humans = [];
+const cars = [];
+
+// poz hesaplama için ortak geçici diziler
+const LP = DEF.map(() => new V3()), LQ = DEF.map(() => new THREE.Quaternion());
+const TP = DEF.map(() => new V3()), TQ = DEF.map(() => new THREE.Quaternion());
+const _hip = new V3(), _knee = new V3(), _qy = new THREE.Quaternion(), _v = new V3(), _q = new THREE.Quaternion();
+
+function limb(iu, il, pivot, t1, t2, lu, ll) {
+  LQ[iu].setFromAxisAngle(XAX, t1);
+  LP[iu].set(0, -lu, 0).applyQuaternion(LQ[iu]).add(pivot);
+  _knee.set(0, -lu * 2, 0).applyQuaternion(LQ[iu]).add(pivot);
+  LQ[il].setFromAxisAngle(XAX, t2);
+  LP[il].set(0, -ll, 0).applyQuaternion(LQ[il]).add(_knee);
+}
+
+function computePose(h, amp, panic) {
+  const ph = h.phase, bob = Math.abs(Math.sin(ph)) * 0.04 * amp, y0 = h.y0 + bob;
+  LP[0].set(0, 1.0 + y0, 0); LQ[0].identity();
+  LP[1].set(0, 1.32 + y0, 0); LQ[1].identity();
+  LP[2].set(0, 1.70 + y0, 0); LQ[2].identity();
+  for (const [s, u, l, off] of [[1, 3, 4, 0], [-1, 5, 6, PI]]) {
+    const a = Math.sin(ph + off) * amp;
+    const t1 = -a, t2 = t1 + Math.max(0, Math.cos(ph + off)) * amp * 1.3;
+    limb(u, l, _hip.set(s * .09, .9 + y0, 0), t1, t2, .22, .22);
+  }
+  for (const [s, u, l, off] of [[1, 7, 8, PI], [-1, 9, 10, 0]]) {
+    let t1, t2;
+    if (panic) { t1 = PI * 0.85 + Math.sin(ph * 2.3 + off) * 0.35; t2 = t1 - 0.4; }
+    else { t1 = -Math.sin(ph + off) * amp * 0.9; t2 = t1 - 0.35; }
+    limb(u, l, _hip.set(s * .24, 1.50 + y0, 0), t1, t2, .15, .14);
+  }
+  _qy.setFromAxisAngle(UP, h.heading);
+  for (let i = 0; i < DEF.length; i++) {
+    TP[i].copy(LP[i]).applyQuaternion(_qy); TP[i].x += h.x; TP[i].z += h.z;
+    TQ[i].copy(_qy).multiply(LQ[i]);
+  }
+}
+
+function placeKin(b, p, q, dt, snap) {
+  if (snap || dt < 1e-5) {
+    b.velocity.set(0, 0, 0);
+    b.position.set(p.x, p.y, p.z);
+    b.previousPosition.copy(b.position); b.interpolatedPosition.copy(b.position);
+  } else {
+    b.velocity.set((p.x - b.position.x) / dt, (p.y - b.position.y) / dt, (p.z - b.position.z) / dt);
+    b.position.set(p.x, p.y, p.z);
+  }
+  b.quaternion.set(q.x, q.y, q.z, q.w);
+  if (snap) { b.previousQuaternion.copy(b.quaternion); b.interpolatedQuaternion.copy(b.quaternion); }
+  b.angularVelocity.set(0, 0, 0);
+}
+
+class Human {
+  constructor(x, z, dropY = 0) {
+    this.x = x; this.z = z; this.y0 = dropY;
+    this.heading = rnd(0, TAU); this.target = this.heading;
+    this.phase = rnd(0, TAU); this.wander = 0; this.avoid = 0; this.turnDir = Math.random() < .5 ? 1 : -1;
+    this.state = 'walk'; this.held = 0; this.rest = 0; this.blend = 0; this.thrown = false; this.panic = false;
+    this.from = DEF.map(() => ({ p: new V3(), q: new THREE.Quaternion() }));
+    const cols = { skin: pick(skinCols), shirt: pick(shirtCols), pants: pick(pantsCols) };
+    this.bodies = []; this.meshes = [];
+    DEF.forEach((d, i) => {
+      const shape = d.r ? new CANNON.Sphere(d.r) : new CANNON.Box(new CANNON.Vec3(...d.box));
+      const b = new CANNON.Body({ mass: d.m, type: KIN, shape, linearDamping: 0.04, angularDamping: 0.25 });
+      b.human = this;
+      world.addBody(b);
+      const m = new THREE.Mesh(d.r ? headGeo : boxGeo(d.box), mat(cols[d.c]));
+      m.castShadow = true; m.userData.body = b;
+      if (i === 2) {
+        const hair = new THREE.Mesh(hairGeo, mat(pick(hairCols))); hair.position.y = .012; hair.rotation.x = -0.35; m.add(hair);
+        m.add(new THREE.Mesh(eyesGeo, mat(0x111111)));
+        this.mouth = new THREE.Mesh(mouthGeo, mat(0x6a1f1f)); this.mouth.position.set(0, -.05, .122); m.add(this.mouth);
+      }
+      scene.add(m);
+      this.bodies.push(b); this.meshes.push(m);
+      grabBodies.push(b); grabMeshes.push(m);
+    });
+    for (const i of [0, 1, 2]) this.bodies[i].addEventListener('collide', onHit);
+    this.constraints = JOINTS.map(([a, b, pa, pb, ang, tw]) => {
+      const c = new CANNON.ConeTwistConstraint(this.bodies[a], this.bodies[b], {
+        pivotA: new CANNON.Vec3(...pa), pivotB: new CANNON.Vec3(...pb),
+        axisA: new CANNON.Vec3(0, 1, 0), axisB: new CANNON.Vec3(0, 1, 0),
+        angle: ang, twistAngle: tw,
+      });
+      c.collideConnected = false;
+      world.addConstraint(c);
+      return c;
+    });
+    this.applyPose(0, 0, false, true);
+    if (dropY > 0) { this.ragdoll(); this.y0 = 0; for (const b of this.bodies) b.velocity.set(rnd(-2, 2), -2, rnd(-2, 2)); }
+  }
+  applyPose(dt, amp, panic, snap) {
+    computePose(this, amp, panic);
+    this.bodies.forEach((b, i) => placeKin(b, TP[i], TQ[i], dt, snap));
+  }
+  ragdoll() {
+    if (this.state === 'ragdoll') return;
+    this.state = 'ragdoll'; this.rest = 0;
+    for (const b of this.bodies) setType(b, DYN);
+  }
+  respawn() {
+    const [x, z] = freeSpot();
+    this.x = x; this.z = z; this.y0 = 0; this.heading = rnd(0, TAU); this.target = this.heading;
+    for (const b of this.bodies) setType(b, KIN);
+    this.state = 'walk'; this.thrown = false; this.held = 0;
+    this.applyPose(0, 0, false, true);
+  }
+  startGetUp() {
+    const p = this.bodies[0].position;
+    this.x = p.x; this.z = p.z; this.heading = rnd(0, TAU); this.target = this.heading;
+    this.bodies.forEach((b, i) => {
+      this.from[i].p.copy(b.position); this.from[i].q.copy(b.quaternion);
+      setType(b, KIN); b.velocity.set(0, 0, 0); b.angularVelocity.set(0, 0, 0);
+    });
+    this.state = 'getup'; this.blend = 0; this.thrown = false;
+  }
+  update(dt) {
+    if (this.state === 'walk') {
+      this.walk(dt);
+      this.applyPose(dt, this.panic ? 0.8 : 0.45, this.panic, false);
+    } else if (this.state === 'getup') {
+      this.blend += dt / 0.8;
+      const k = clamp(this.blend, 0, 1), s = k * k * (3 - 2 * k);
+      computePose(this, 0, false);
+      this.bodies.forEach((b, i) => {
+        _v.copy(this.from[i].p).lerp(TP[i], s);
+        _q.copy(this.from[i].q).slerp(TQ[i], s);
+        placeKin(b, _v, _q, dt, false);
+      });
+      if (this.blend >= 1) this.state = 'walk';
+    } else {
+      const pel = this.bodies[0];
+      if (this.held > 0) { this.rest = 0; return; }
+      if (this.thrown) stats.maxH = Math.max(stats.maxH, pel.position.y);
+      this.rest = pel.velocity.length() < 0.8 ? this.rest + dt : 0;
+      const far = Math.hypot(pel.position.x, pel.position.z) > 170 || pel.position.y < -30;
+      if (far || this.rest > 10) this.respawn();
+      else if (this.rest > 2.2 && pel.position.y < 1.3) this.startGetUp();
+    }
+  }
+  walk(dt) {
+    const dx = this.x - playerPos.x, dz = this.z - playerPos.z;
+    this.panic = Math.hypot(dx, dz) < 20;
+    if (this.avoid > 0) this.avoid -= dt;
+    else if (this.panic) this.target = Math.atan2(dx, dz);
+    else if ((this.wander -= dt) < 0) { this.wander = rnd(2, 6); this.target = this.heading + rnd(-1.3, 1.3); }
+    if (Math.hypot(this.x, this.z) > WALK_R && this.avoid <= 0) this.target = Math.atan2(-this.x, -this.z);
+    this.heading += clamp(wrapAng(this.target - this.heading), -4 * dt, 4 * dt);
+    const sp = this.panic ? 4.2 : 1.3;
+    const sx = Math.sin(this.heading), sz = Math.cos(this.heading);
+    if (blocked(this.x + sx * 1.2, this.z + sz * 1.2)) {
+      this.target = this.heading + this.turnDir * 1.8; this.avoid = 0.7;
+    } else { this.x += sx * sp * dt; this.z += sz * sp * dt; }
+    this.phase += dt * (2.5 + sp * 2.2);
+  }
+  sync() {
+    for (let i = 0; i < 11; i++) {
+      const b = this.bodies[i], m = this.meshes[i];
+      m.position.copy(b.interpolatedPosition); m.quaternion.copy(b.interpolatedQuaternion);
+    }
+    this.mouth.scale.y = (this.panic || this.state === 'ragdoll') ? 4 : 1;
+  }
+  dispose() {
+    for (const c of this.constraints) world.removeConstraint(c);
+    for (const b of this.bodies) { world.removeBody(b); grabBodies.splice(grabBodies.indexOf(b), 1); }
+    for (const m of this.meshes) { scene.remove(m); grabMeshes.splice(grabMeshes.indexOf(m), 1); }
+  }
+}
+
+function spawnHuman(x, z, dropY = 0) {
+  if (humans.length >= MAX_HUMANS) return null;
+  const h = new Human(x, z, dropY); humans.push(h); return h;
+}
+
+// ---------- Arabalar ----------
+const carCols = [0xd62828, 0x1d70b8, 0xf2c14e, 0x2a9d8f, 0xffffff, 0x333333];
+const wheelGeo = new THREE.CylinderGeometry(.36, .36, .28, 14); wheelGeo.rotateZ(PI / 2);
+function spawnCar(x, z, rot, y = 0.8) {
+  const b = new CANNON.Body({ mass: 900, linearDamping: 0.05, angularDamping: 0.1 });
+  b.addShape(new CANNON.Box(new CANNON.Vec3(1, .45, 2.1)));
+  b.addShape(new CANNON.Box(new CANNON.Vec3(.85, .35, 1.1)), new CANNON.Vec3(0, .8, -.2));
+  b.position.set(x, y, z); b.quaternion.setFromEuler(0, rot, 0);
+  b.addEventListener('collide', onHit);
+  world.addBody(b);
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(2, .9, 4.2), mat(pick(carCols))); body.castShadow = true; g.add(body);
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(1.7, .7, 2.2), mat(0x9fd3ea)); cab.position.set(0, .8, -.2); cab.castShadow = true; g.add(cab);
+  for (const [wx, wz] of [[1, 1.3], [-1, 1.3], [1, -1.3], [-1, -1.3]]) {
+    const w = new THREE.Mesh(wheelGeo, mat(0x1b1b1b)); w.position.set(wx, -.2, wz); g.add(w);
+  }
+  g.userData.body = b;
+  scene.add(g);
+  grabBodies.push(b); grabMeshes.push(g);
+  cars.push({ body: b, mesh: g });
+}
+
+// ---------- Sesler ----------
+let actx = null, noiseBuf = null, lastScream = 0, lastThud = 0;
+function initAudio() {
+  if (!actx) {
+    try {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      noiseBuf = actx.createBuffer(1, actx.sampleRate * 0.4, actx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    } catch { actx = null; }
+  }
+  actx?.resume?.();
+}
+function scream() {
+  if (!actx || now - lastScream < 0.15) return;
+  lastScream = now;
+  const t = actx.currentTime, f = rnd(500, 1100);
+  const o = actx.createOscillator(); o.type = 'sawtooth';
+  o.frequency.setValueAtTime(f, t);
+  o.frequency.linearRampToValueAtTime(f * 1.5, t + 0.12);
+  o.frequency.exponentialRampToValueAtTime(f * 0.7, t + 0.7);
+  const lfo = actx.createOscillator(); lfo.frequency.value = rnd(8, 15);
+  const lg = actx.createGain(); lg.gain.value = f * 0.06; lfo.connect(lg); lg.connect(o.frequency);
+  const flt = actx.createBiquadFilter(); flt.type = 'bandpass'; flt.frequency.value = 1400; flt.Q.value = 1.2;
+  const g = actx.createGain();
+  g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.13, t + 0.03); g.gain.exponentialRampToValueAtTime(0.001, t + 0.75);
+  o.connect(flt); flt.connect(g); g.connect(actx.destination);
+  o.start(t); lfo.start(t); o.stop(t + 0.8); lfo.stop(t + 0.8);
+}
+function thud(v) {
+  if (!actx || now - lastThud < 0.05) return;
+  lastThud = now;
+  const t = actx.currentTime;
+  const s = actx.createBufferSource(); s.buffer = noiseBuf;
+  const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 180 + v * 600;
+  const g = actx.createGain(); g.gain.setValueAtTime(0.6 * v, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+  s.connect(f); f.connect(g); g.connect(actx.destination); s.start(t);
+}
+function onHit(e) {
+  const v = Math.abs(e.contact.getImpactVelocityAlongNormal());
+  if (v > 7) thud(Math.min(1, v / 30));
+}
+
+// ---------- Eller ----------
+function makeHandMesh() {
+  const g = new THREE.Group(), m = mat(0xf0b98a);
+  const palm = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 12), m); palm.scale.set(1, 0.7, 1.25); g.add(palm);
+  for (let i = 0; i < 4; i++) {
+    const f = new THREE.Mesh(new THREE.CapsuleGeometry(0.013, 0.05, 4, 8), m);
+    f.rotation.x = PI / 2; f.position.set(-0.03 + i * 0.02, 0, -0.085); g.add(f);
+  }
+  const th = new THREE.Mesh(new THREE.CapsuleGeometry(0.015, 0.04, 4, 8), m);
+  th.rotation.set(PI / 2, 0, 0.8); th.position.set(0.055, 0, -0.03); g.add(th);
+  g.traverse(o => { o.castShadow = true; });
+  return g;
+}
+
+class Hand {
+  constructor(collide) {
+    this.collide = collide;
+    this.body = new CANNON.Body({ mass: 0, type: KIN, shape: new CANNON.Sphere(HAND_R) });
+    world.addBody(this.body);
+    this.pos = new V3(); this.vel = new V3(); this.hist = [];
+    this.held = null; this.c = null; this.active = false; this.noColUntil = 0; this.lastSlam = 0;
+    this.pressed = 0; this.btn = [];
+    this.park();
+  }
+  park() {
+    this.active = false; this.hist.length = 0; this.vel.set(0, 0, 0);
+    this.body.position.set(0, -50, 0); this.body.velocity.set(0, 0, 0);
+    this.body.collisionResponse = false;
+  }
+  update(p, sdt) {
+    if (!this.active) { this.body.position.set(p.x, p.y, p.z); this.body.previousPosition.copy(this.body.position); }
+    this.active = true;
+    this.hist.push({ p: p.clone(), t: now });
+    while (this.hist.length > 6) this.hist.shift();
+    const a = this.hist[0], b = this.hist[this.hist.length - 1];
+    if (b.t - a.t > 1e-3) this.vel.subVectors(b.p, a.p).divideScalar(b.t - a.t);
+    const bp = this.body.position;
+    if (sdt > 1e-5) this.body.velocity.set((p.x - bp.x) / sdt, (p.y - bp.y) / sdt, (p.z - bp.z) / sdt);
+    bp.set(p.x, p.y, p.z);
+    this.pos.copy(p);
+    this.body.collisionResponse = this.collide && !this.held && now > this.noColUntil;
+  }
+  tryGrab() {
+    let best = null, bd = GRAB_R;
+    for (const b of grabBodies) {
+      const d = Math.hypot(b.position.x - this.pos.x, b.position.y - this.pos.y, b.position.z - this.pos.z) - b.boundingRadius * 0.6;
+      if (d < bd) { bd = d; best = b; }
+    }
+    if (best) this.grab(best);
+    return best;
+  }
+  grab(body) {
+    if (this.held) return;
+    const h = body.human;
+    if (h) { h.ragdoll(); h.held++; scream(); }
+    this.c = new CANNON.PointToPointConstraint(this.body, new CANNON.Vec3(), body, new CANNON.Vec3(), h ? 4e4 : body.mass * 300);
+    world.addConstraint(this.c);
+    this.held = body;
+    this.pulse(0.5, 40);
+  }
+  release(throwVel) {
+    if (!this.held) return;
+    world.removeConstraint(this.c);
+    const b = this.held, h = b.human;
+    const v = throwVel ? throwVel.clone() : this.vel.clone().multiplyScalar(1.25);
+    if (v.length() > 90) v.setLength(90);
+    if (h) {
+      h.held = Math.max(0, h.held - 1);
+      for (const p of h.bodies) p.velocity.set(p.velocity.x * 0.3 + v.x * 0.8, p.velocity.y * 0.3 + v.y * 0.8, p.velocity.z * 0.3 + v.z * 0.8);
+      if (v.length() > 8) { stats.throws++; h.thrown = true; scream(); }
+    } else b.velocity.set(v.x, v.y, v.z);
+    this.held = null; this.c = null; this.noColUntil = now + 0.3;
+  }
+  pulse(i, ms) { try { this.src?.gamepad?.hapticActuators?.[0]?.pulse(i, ms); } catch {} }
+}
+
+const vrHands = [new Hand(true), new Hand(true)];
+const deskHand = new Hand(false);
+const deskHandMesh = makeHandMesh(); deskHandMesh.scale.setScalar(G); deskHandMesh.visible = false; scene.add(deskHandMesh);
+
+for (let i = 0; i < 2; i++) {
+  const H = vrHands[i];
+  const ctrl = renderer.xr.getController(i), grip = renderer.xr.getControllerGrip(i);
+  rig.add(ctrl); rig.add(grip);
+  H.grip = grip; H.mesh = makeHandMesh(); grip.add(H.mesh);
+  const down = () => { H.pressed++; if (H.pressed === 1) H.tryGrab(); };
+  const up = () => { H.pressed = Math.max(0, H.pressed - 1); if (H.pressed === 0) H.release(); };
+  ctrl.addEventListener('selectstart', down); ctrl.addEventListener('selectend', up);
+  ctrl.addEventListener('squeezestart', down); ctrl.addEventListener('squeezeend', up);
+  ctrl.addEventListener('connected', e => { H.src = e.data; });
+  ctrl.addEventListener('disconnected', () => { H.release(); H.src = null; H.park(); });
+}
+
+// Devin ayağı: yürürken insanları iter
+const foot = { body: new CANNON.Body({ mass: 0, type: KIN, shape: new CANNON.Sphere(1.3) }), pos: new V3(), vel: new V3() };
+world.addBody(foot.body);
+
+// ---------- Şok dalgası ----------
+const ringGeo = new THREE.RingGeometry(0.85, 1, 48);
+const rings = [];
+function shockwave(p, R = 9, S = 16) {
+  for (const b of grabBodies) {
+    const dx = b.position.x - p.x, dz = b.position.z - p.z, d = Math.hypot(dx, dz);
+    if (d > R || b.position.y > 6) continue;
+    if (b.human) { b.human.ragdoll(); b.human.thrown = true; }
+    const k = 1 - d / R, n = d || 1;
+    b.velocity.x += dx / n * S * k; b.velocity.z += dz / n * S * k; b.velocity.y += S * 1.1 * k;
+  }
+  const m = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xfff1c1, transparent: true, opacity: .8, side: THREE.DoubleSide, depthWrite: false }));
+  m.rotation.x = -PI / 2; m.position.set(p.x, 0.12, p.z); scene.add(m);
+  rings.push({ m, t: 0, R });
+  thud(1); shake = 0.35;
+}
+
+// ---------- Girdi (masaüstü) ----------
+const keys = {};
+let yaw = 0, pitch = -0.35, crouch = false, holdDist = 14, locked = false, dragLook = false, shake = 0, hudHidden = false;
+const mouse = new THREE.Vector2(0, 0);
+const raycaster = new THREE.Raycaster(); raycaster.far = 150;
+const startEl = document.getElementById('start'), crossEl = document.getElementById('cross');
+const canvas = renderer.domElement;
+
+function aimNDC() { return locked ? new THREE.Vector2(0, 0) : mouse; }
+function bodyFromObj(o) { while (o && !o.userData.body) o = o.parent; return o?.userData.body; }
+function aimHit() {
+  raycaster.setFromCamera(aimNDC(), camera);
+  const hits = raycaster.intersectObjects(grabMeshes, true);
+  for (const h of hits) { const b = bodyFromObj(h.object); if (b) return { body: b, dist: h.distance, point: h.point }; }
+  return null;
+}
+function aimGround() {
+  raycaster.setFromCamera(aimNDC(), camera);
+  const r = raycaster.ray;
+  if (r.direction.y < -0.02) {
+    const t = -r.origin.y / r.direction.y;
+    if (t < 120) return r.origin.clone().addScaledVector(r.direction, t);
+  }
+  const p = camera.getWorldPosition(new V3()); p.y = 0;
+  return p.add(new V3(-Math.sin(yaw), 0, -Math.cos(yaw)).multiplyScalar(12));
+}
+
+startEl.addEventListener('click', () => {
+  initAudio();
+  startEl.hidden = true;
+  tryLock();
+});
+function tryLock() {
+  try { const r = canvas.requestPointerLock?.(); r?.catch?.(() => {}); } catch {}
+}
+document.addEventListener('pointerlockchange', () => {
+  locked = document.pointerLockElement === canvas;
+  crossEl.hidden = !locked;
+});
+vrButton.addEventListener('click', initAudio);
+
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('mousedown', e => {
+  initAudio();
+  if (renderer.xr.isPresenting) return;
+  rig.updateMatrixWorld(true);
+  if (e.button === 0) {
+    const hit = aimHit();
+    if (hit) { holdDist = clamp(hit.dist, 5, 45); deskHand.grab(hit.body); }
+    else if (!locked) dragLook = true;
+  } else if (e.button === 2) {
+    raycaster.setFromCamera(aimNDC(), camera);
+    const dir = raycaster.ray.direction.clone();
+    if (deskHand.held) deskHand.release(dir.multiplyScalar(55).add(new V3(0, 6, 0)));
+    else {
+      const hit = aimHit();
+      if (hit) {
+        const h = hit.body.human;
+        if (h) { h.ragdoll(); h.thrown = true; scream(); for (const p of h.bodies) p.velocity.vadd(new CANNON.Vec3(dir.x * 10, dir.y * 10 + 4, dir.z * 10), p.velocity); }
+        hit.body.velocity.vadd(new CANNON.Vec3(dir.x * 22, dir.y * 22 + 5, dir.z * 22), hit.body.velocity);
+      }
+    }
+  }
+});
+addEventListener('mouseup', e => {
+  if (e.button === 0) { if (deskHand.held) deskHand.release(); dragLook = false; }
+});
+addEventListener('mousemove', e => {
+  mouse.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  if (locked || dragLook) {
+    yaw -= e.movementX * 0.0022;
+    pitch = clamp(pitch - e.movementY * 0.0022, -1.45, 1.2);
+  }
+});
+canvas.addEventListener('wheel', e => { holdDist = clamp(holdDist * (1 + e.deltaY * 0.001), 4, 60); e.preventDefault(); }, { passive: false });
+
+addEventListener('keydown', e => {
+  if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+  if (keys[e.code]) return;
+  keys[e.code] = true;
+  if (!startEl.hidden && e.code !== 'Escape') { startEl.hidden = true; initAudio(); }
+  rig.updateMatrixWorld(true);
+  switch (e.code) {
+    case 'Space': shockwave(aimGround()); break;
+    case 'KeyF': rainHumans(aimGround()); break;
+    case 'KeyG': { const p = aimGround(); spawnCar(p.x, p.z, rnd(0, TAU), 14); break; }
+    case 'KeyT': toggleSlow(); break;
+    case 'KeyR': resetTown(); break;
+    case 'KeyC': crouch = !crouch; break;
+    case 'KeyH': hudHidden = !hudHidden; document.getElementById('hud').hidden = hudHidden; break;
+  }
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+function rainHumans(p) {
+  for (let i = 0; i < 6; i++) spawnHuman(p.x + rnd(-3, 3), p.z + rnd(-3, 3), rnd(14, 26));
+  scream();
+}
+function toggleSlow() { timeScale = timeScale === 1 ? 0.25 : 1; }
+function resetTown() {
+  for (const H of [...vrHands, deskHand]) H.release();
+  for (const h of humans) h.dispose();
+  humans.length = 0;
+  for (const c of cars) { world.removeBody(c.body); scene.remove(c.mesh); grabBodies.splice(grabBodies.indexOf(c.body), 1); grabMeshes.splice(grabMeshes.indexOf(c.mesh), 1); }
+  cars.length = 0;
+  populate();
+  stats.throws = 0; stats.maxH = 0;
+}
+function populate() {
+  for (let i = 0; i < 32; i++) { const [x, z] = freeSpot(); spawnHuman(x, z); }
+  for (let i = 0; i < 6; i++) { const a = (i / 6) * TAU + 0.3; spawnCar(Math.sin(a) * 21.5, Math.cos(a) * 21.5, a + PI / 2); }
+}
+populate();
+
+// ---------- Güncellemeler ----------
+const playerPos = new V3();
+const _f = new V3(), _r = new V3(), _p = new V3();
+
+function updateDesktop(dt) {
+  if (keys.ArrowLeft) yaw += 1.8 * dt;
+  if (keys.ArrowRight) yaw -= 1.8 * dt;
+  if (keys.ArrowUp) pitch = clamp(pitch + 1.4 * dt, -1.45, 1.2);
+  if (keys.ArrowDown) pitch = clamp(pitch - 1.4 * dt, -1.45, 1.2);
+  rig.rotation.set(0, yaw, 0);
+  camera.rotation.set(pitch, 0, 0);
+  const ty = crouch ? 0.55 : 1.6;
+  camera.position.y += (ty - camera.position.y) * Math.min(1, dt * 6);
+  const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0), s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  const sp = keys.ShiftLeft || keys.ShiftRight ? 26 : 13;
+  _f.set(-Math.sin(yaw), 0, -Math.cos(yaw)); _r.set(Math.cos(yaw), 0, -Math.sin(yaw));
+  rig.position.addScaledVector(_f, f * sp * dt).addScaledVector(_r, s * sp * dt);
+  if (shake > 0) {
+    shake -= dt;
+    camera.position.x = rnd(-1, 1) * shake * 0.15; camera.position.z = rnd(-1, 1) * shake * 0.15;
+  } else { camera.position.x = 0; camera.position.z = 0; }
+}
+
+let snapCool = 0;
+function updateVR(dt) {
+  const session = renderer.xr.getSession();
+  if (!session) return;
+  snapCool -= dt;
+  camera.getWorldDirection(_f); _f.y = 0; _f.normalize();
+  _r.crossVectors(_f, UP);
+  for (const H of vrHands) {
+    const gp = H.src?.gamepad;
+    if (!gp) continue;
+    const ax = gp.axes, x = ax.length >= 4 ? ax[2] : ax[0] || 0, y = ax.length >= 4 ? ax[3] : ax[1] || 0;
+    if (H.src.handedness === 'left') {
+      if (Math.hypot(x, y) > 0.15) rig.position.addScaledVector(_f, -y * 14 * dt).addScaledVector(_r, x * 14 * dt);
+    } else if (Math.abs(x) > 0.7 && snapCool <= 0) {
+      const ang = -Math.sign(x) * PI / 6;
+      camera.getWorldPosition(_p);
+      rig.position.sub(_p).applyAxisAngle(UP, ang).add(_p);
+      rig.rotation.y += ang;
+      snapCool = 0.3;
+    }
+    const a = !!gp.buttons[4]?.pressed, b = !!gp.buttons[5]?.pressed;
+    if (a && !H.btn[4]) {
+      camera.getWorldPosition(_p);
+      rainHumans({ x: _p.x + _f.x * 16, z: _p.z + _f.z * 16 });
+    }
+    if (b && !H.btn[5]) toggleSlow();
+    H.btn[4] = a; H.btn[5] = b;
+  }
+}
+
+function updateHands(dt, sdt, vr) {
+  if (vr) {
+    deskHand.release(); deskHand.park(); deskHandMesh.visible = false;
+    for (const H of vrHands) {
+      if (!H.grip.visible) { H.release(); H.park(); continue; }
+      H.grip.getWorldPosition(_p);
+      H.update(_p, sdt);
+      H.mesh.scale.setScalar(H.held ? 0.85 : 1);
+      // elini yere hızla vurursan şok dalgası
+      if (_p.y < 0.9 && H.vel.y < -10 && now - H.lastSlam > 0.6) {
+        H.lastSlam = now; shockwave(new V3(_p.x, 0, _p.z)); H.pulse(1, 150);
+      }
+    }
+  } else {
+    for (const H of vrHands) { H.release(); H.park(); }
+    if (deskHand.held) {
+      raycaster.setFromCamera(aimNDC(), camera);
+      _p.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction, holdDist);
+      _p.y = Math.max(_p.y, 0.4);
+      deskHand.update(_p, sdt);
+      deskHandMesh.visible = true;
+      deskHandMesh.position.copy(_p);
+      deskHandMesh.quaternion.copy(camera.getWorldQuaternion(_q));
+    } else { deskHand.park(); deskHandMesh.visible = false; }
+  }
+}
+
+function updateFoot(sdt) {
+  camera.getWorldPosition(playerPos);
+  const fb = foot.body;
+  const nx = playerPos.x, nz = playerPos.z;
+  if (sdt > 1e-5) fb.velocity.set((nx - fb.position.x) / sdt, 0, (nz - fb.position.z) / sdt);
+  if (fb.velocity.length() > 60) fb.velocity.set(0, 0, 0);
+  fb.position.set(nx, 1.3, nz);
+  foot.pos.set(nx, 1.3, nz);
+  foot.vel.set(fb.velocity.x, 0, fb.velocity.z);
+}
+
+const fast = [];
+function knockChecks() {
+  const pushers = [{ p: foot.pos, v: foot.vel, r: 1.3 }];
+  if (renderer.xr.isPresenting) for (const H of vrHands) if (H.active && !H.held) pushers.push({ p: H.pos, v: H.vel, r: HAND_R });
+  fast.length = 0;
+  for (const b of grabBodies) if (b.type === DYN && b.velocity.lengthSquared() > 25) fast.push(b);
+  for (const h of humans) {
+    if (h.state === 'ragdoll') continue;
+    const px = h.bodies[0].position.x, pz = h.bodies[0].position.z;
+    let hitV = null;
+    for (const P of pushers) {
+      if (P.p.y < 1.9 + P.r && Math.hypot(P.p.x - px, P.p.z - pz) < P.r + 0.35) { hitV = _v.copy(P.v).multiplyScalar(0.8); hitV.y += 3; break; }
+    }
+    if (!hitV) for (const b of fast) {
+      if (b.human === h) continue;
+      if (b.position.y < 2 + b.boundingRadius && Math.hypot(b.position.x - px, b.position.z - pz) < 0.4 + b.boundingRadius) {
+        hitV = _v.set(b.velocity.x * 0.6, b.velocity.y * 0.6 + 2, b.velocity.z * 0.6); break;
+      }
+    }
+    if (hitV) {
+      h.ragdoll(); h.thrown = true;
+      for (const p of h.bodies) p.velocity.set(p.velocity.x + hitV.x, p.velocity.y + hitV.y, p.velocity.z + hitV.z);
+      if (Math.random() < 0.5) scream();
+    }
+  }
+  for (const c of cars) {
+    const p = c.body.position;
+    if (Math.hypot(p.x, p.z) > 170 || p.y < -30) {
+      const a = rnd(0, TAU);
+      p.set(Math.sin(a) * 21.5, 3, Math.cos(a) * 21.5); c.body.velocity.set(0, 0, 0); c.body.angularVelocity.set(0, 0, 0);
+    }
+  }
+}
+
+// ---------- Dünyadaki tabela (VR'da da okunur) ----------
+const signCanvas = document.createElement('canvas'); signCanvas.width = 1024; signCanvas.height = 600;
+const signTex = new THREE.CanvasTexture(signCanvas); signTex.colorSpace = THREE.SRGBColorSpace;
+const sign = new THREE.Mesh(new THREE.PlaneGeometry(14, 8.2), new THREE.MeshBasicMaterial({ map: signTex }));
+sign.position.set(-15, 9, 14); sign.lookAt(0, 9, 27); scene.add(sign);
+const pole = new THREE.Mesh(new THREE.CylinderGeometry(.3, .3, 5, 8), mat(0x7a5233)); pole.position.set(-15, 2.5, 14); scene.add(pole);
+let lastSign = '';
+function drawSign(text) {
+  const c = signCanvas.getContext('2d');
+  c.fillStyle = '#fffaf0'; c.fillRect(0, 0, 1024, 600);
+  c.fillStyle = '#ff6b3d'; c.fillRect(0, 0, 1024, 110);
+  c.fillStyle = '#fffaf0'; c.font = '64px "Bowlby One", "Arial Black", sans-serif'; c.fillText('DEV KASABASI', 40, 82);
+  c.fillStyle = '#1d2433'; c.font = '700 36px Nunito, "Segoe UI", sans-serif';
+  const lines = [
+    'VR: Tetik / kavrama: yakala, savur, bırak',
+    'Elini yere hızla vur: şok dalgası',
+    'Sol çubuk: yürü · Sağ çubuk: dön',
+    'A / X: insan yağdır · B / Y: yavaş çekim',
+  ];
+  lines.forEach((l, i) => c.fillText(l, 40, 175 + i * 56));
+  c.fillStyle = '#ff6b3d'; c.font = '800 44px Nunito, "Segoe UI", sans-serif';
+  c.fillText(text, 40, 520);
+  signTex.needsUpdate = true;
+}
+
+let hudT = 0;
+const statsEl = document.getElementById('stats');
+function updateHUD(dt) {
+  hudT -= dt;
+  if (hudT > 0) return;
+  hudT = 0.25;
+  const t = `Fırlatma: ${stats.throws} · Rekor: ${stats.maxH.toFixed(0)} m · İnsan: ${humans.length}${timeScale < 1 ? ' · YAVAŞ ÇEKİM' : ''}`;
+  statsEl.textContent = t;
+  if (t !== lastSign) { lastSign = t; drawSign(t); }
+  if (!renderer.xr.isPresenting && !deskHand.held && locked) crossEl.classList.toggle('on', !!aimHit());
+  if (!locked && !renderer.xr.isPresenting) canvas.style.cursor = deskHand.held ? 'grabbing' : (aimHit() ? 'grab' : 'crosshair');
+}
+document.fonts?.ready?.then(() => { lastSign = ''; });
+
+renderer.xr.addEventListener('sessionstart', () => { startEl.hidden = true; rig.rotation.set(0, yaw, 0); camera.position.set(0, 0, 0); });
+renderer.xr.addEventListener('sessionend', () => { camera.position.set(0, 1.6, 0); });
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// ---------- Ana döngü ----------
+let prevT = performance.now();
+renderer.setAnimationLoop(() => {
+  const tn = performance.now();
+  const dt = Math.min(0.05, (tn - prevT) / 1000);
+  prevT = tn; now = tn / 1000;
+  const sdt = dt * timeScale;
+  const vr = renderer.xr.isPresenting;
+
+  if (vr) updateVR(dt); else updateDesktop(dt);
+  rig.updateMatrixWorld(true);
+  updateHands(dt, sdt, vr);
+  updateFoot(sdt);
+  for (const h of humans) h.update(sdt);
+
+  world.step(1 / 90, sdt, 4);
+
+  knockChecks();
+  for (const h of humans) h.sync();
+  for (const c of cars) { c.mesh.position.copy(c.body.interpolatedPosition); c.mesh.quaternion.copy(c.body.interpolatedQuaternion); }
+  for (let i = rings.length - 1; i >= 0; i--) {
+    const r = rings[i]; r.t += dt;
+    const k = r.t / 0.45;
+    r.m.scale.setScalar(1 + (r.R - 1) * k); r.m.material.opacity = 0.8 * (1 - k);
+    if (k >= 1) { scene.remove(r.m); r.m.material.dispose(); rings.splice(i, 1); }
+  }
+  for (const c of clouds) { c.position.x += dt * 2; if (c.position.x > 260) c.position.x = -260; }
+  updateHUD(dt);
+  renderer.render(scene, camera);
+});
+</script>
+
+</body>
+</html>

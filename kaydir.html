@@ -233,7 +233,7 @@ function activate(i) {
   const fr = slides[i].querySelector('.frame'), clip = fr.querySelector('.clip');
   const f = document.createElement('iframe');
   f.title = g.title; f.src = `games/${g.id}.html`;
-  f.allow = 'fullscreen; gamepad; autoplay; clipboard-write; screen-wake-lock';
+  f.allow = 'fullscreen; gamepad; autoplay; clipboard-write; screen-wake-lock; xr-spatial-tracking';
   f.tabIndex = -1;
   f.onload = () => fr.classList.add('loaded');
   clip.insertBefore(f, clip.querySelector('.tap'));
