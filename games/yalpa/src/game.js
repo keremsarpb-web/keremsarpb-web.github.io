@@ -352,7 +352,6 @@ function goLevel(i) {
     p.rag.events.length = 0;
   }
   for (const d of level.dynamics) d.prev = null;
-  camSnap = true;
   showLevelInfo();
   renderPlayerList();
   announce(`Bölüm ${i + 1}: ${LV().name} ${LV().icon}`);
@@ -531,7 +530,6 @@ function startJoin() {
           S.level = lvl;
           level.setActive(lvl);
           S.snaps = [];
-          camSnap = true;
           showLevelInfo();
           toast(`Bölüm ${lvl + 1}: ${LV().name} ${LV().icon}`);
           maybeInterstitial($('ad-full'));
@@ -817,8 +815,8 @@ function updateCamera(dt) {
   if (me) {
     camWant.copy(me.view.chestPos);
     camWant.y += 0.35;
-    // Yeniden doğma / bölüm değişimi: kamerayı haritanın içinden uçurmadan doğrudan oraya al
-    if (camSnap || camTarget.distanceTo(camWant) > 8) {
+    // Yalnızca oyun ilk açılırken kamera doğrudan oyuncuya konur; sonra her zaman yumuşak takip eder (ışınlanma yok)
+    if (camSnap) {
       camTarget.copy(camWant);
       camDist = input.dist;
       camSnap = false;
