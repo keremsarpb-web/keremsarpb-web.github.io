@@ -32,6 +32,7 @@
   #hpBar { width:220px; height:6px; background:rgba(255,255,255,.12); margin-top:8px; transform:skewX(-20deg); }
   #hpBar i { display:block; height:100%; width:100%; background:linear-gradient(90deg,var(--cyan),#9ffcff); box-shadow:0 0 10px var(--cyan); transition:width .2s; }
   #ammoPanel { right:34px; text-align:right; }
+  #buff { font-size:13px; font-weight:800; letter-spacing:.14em; color:#ff8a3d; margin-top:7px; min-height:16px; text-shadow:0 0 10px rgba(255,138,61,.85); }
   #ammo { font-size:46px; font-weight:800; line-height:1; }
   #ammo small { font-size:20px; opacity:.6; }
   #wname { font-family:'Rajdhani'; font-weight:700; letter-spacing:.3em; font-size:14px; opacity:.85; margin-top:4px; }
@@ -200,7 +201,7 @@
   <div id="dirs"></div>
   <div id="top"><div>DALGA<b id="wave">1</b></div><div>SKOR<b id="score">0</b></div><div>DÜŞMAN<b id="left">0</b></div></div>
   <div id="combo"></div>
-  <div class="panel" id="hpPanel"><div id="hpNum">100</div><div id="hpBar"><i id="hpFill"></i></div></div>
+  <div class="panel" id="hpPanel"><div id="hpNum">100</div><div id="hpBar"><i id="hpFill"></i></div><div id="buff"></div></div>
   <div class="panel" id="ammoPanel"><div id="slots"></div><div id="reloadTxt"></div><div id="ammo">30<small> / ∞</small></div><div id="wname">PULSE TÜFEK</div></div>
   <div id="roomTag"></div>
   <div id="feed"></div>
@@ -596,6 +597,7 @@ function buildMap(i) {
     const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 0.08, 24), new THREE.MeshBasicMaterial({ color: k % 2 ? M.edges[1] : M.edges[0], transparent: true, opacity: 0.35 }));
     pad.position.set(p.x, 0.04, p.z); mapGroup.add(pad);
   });
+  buildStations();
 }
 
 // ------------------------------------------------------------ çarpışma
@@ -819,14 +821,14 @@ function explode(pos, owner = 'me') {
   for (const e of [...enemies]) {
     const c = tmpC2.copy(e.pos); if (e.type !== 'drone') c.y += 0.8;
     const d = c.distanceTo(pos);
-    if (d < 5.5) { any = true; if (damageEnemy(e, 25 + 130 * (1 - d / 5.5), false)) killed = true; }
+    if (d < 5.5) { any = true; if (damageEnemy(e, (25 + 130 * (1 - d / 5.5)) * dmgMul(), false)) killed = true; }
   }
   for (const rp of remotes.values()) {
     if (!rp.alive || !rp.g.visible) continue;
     const c = new THREE.Vector3(rp.pos.x, rp.pos.y + 0.9, rp.pos.z), d = c.distanceTo(pos);
     if (d >= 5.5) continue;
     const k = 1 - d / 5.5, kb = c.sub(pos).normalize().multiplyScalar(13 * k); kb.y = Math.max(kb.y, 0) + 7.5 * k;
-    any = true; if (damageRemote(rp, (25 + 130 * k) * WEAPONS[4].pvp, false, kb, 4)) killed = true;
+    any = true; if (damageRemote(rp, (25 + 130 * k) * WEAPONS[4].pvp * dmgMul(), false, kb, 4)) killed = true;
   }
   const pc = tmpC2.set(P.pos.x, P.pos.y + 0.9, P.pos.z), pd = pc.distanceTo(pos);
   if (pd < 4 && !P.dead) {
@@ -1130,6 +1132,7 @@ function startGame(m = 'solo') {
   [...enemies].forEach(removeEnemy);
   projectiles.forEach(p => scene.remove(p.s)); projectiles.length = 0;
   pickups.forEach(p => scene.remove(p.g)); pickups.length = 0; pending.length = 0;
+  resetStations();
   rockets.forEach(r => scene.remove(r.g)); rockets.length = 0;
   Object.assign(P, { yaw: 0, pitch: 0, hp: 100, ground: true, bob: 0, recoilP: 0, ads: 0, slideT: 0, slideCd: 0, camY: 0, eyeH: 1.62, tilt: 0 });
   // çevrim içinde haritayı oda sahibi belirler; tek başına modda menüde seçilen harita
@@ -1189,6 +1192,7 @@ let topCache = '';
 function updateHud() {
   if (online()) updateHudDM();
   $('hpNum').textContent = Math.ceil(P.hp);
+  $('buff').textContent = dmgBonus > 0 ? `HASAR +%${Math.round(dmgBonus * 100)}` : '';
   $('hpFill').style.width = P.hp + '%';
   $('hpFill').style.background = P.hp < 30 ? 'linear-gradient(90deg,#ff3a6a,#ff8aa0)' : '';
   $('ammo').innerHTML = `${ammo[cur]}<small> / ∞</small>`;
@@ -1267,8 +1271,8 @@ function tryFire(click) {
       if (done.has(e || rp)) continue;
       done.add(e || rp); anyHit = true;
       const weak = h.object.userData.weak; if (weak) head = true;
-      if (e) { if (damageEnemy(e, w.dmg * (weak ? 2 : 1), weak)) killed = true; }
-      else addPvp(rp, w.dmg * w.pvp * (weak ? 2 : 1), weak);
+      if (e) { if (damageEnemy(e, w.dmg * dmgMul() * (weak ? 2 : 1), weak)) killed = true; }
+      else addPvp(rp, w.dmg * dmgMul() * w.pvp * (weak ? 2 : 1), weak);
       emit(sparks, h.point, 25, 9, ['#9ffcff', '#ffffff'], 0.6, 6);
     }
     beam(muzzleW, end, w.color);
@@ -1289,8 +1293,8 @@ function tryFire(click) {
         const weak = hit.object.userData.weak;
         if (weak) head = true;
         const fall = Math.max(0.45, 1 - Math.max(0, hit.distance - 18) / 40);
-        if (e) { if (damageEnemy(e, w.dmg * (weak ? 2 : 1) * fall, weak)) killed = true; }
-        else addPvp(rp, w.dmg * w.pvp * (weak ? 2 : 1) * fall, weak);
+        if (e) { if (damageEnemy(e, w.dmg * dmgMul() * (weak ? 2 : 1) * fall, weak)) killed = true; }
+        else addPvp(rp, w.dmg * dmgMul() * w.pvp * (weak ? 2 : 1) * fall, weak);
         emit(sparks, hit.point, 8, 6, weak ? ['#ffe14a', '#ffffff'] : ['#ff3fa4', '#ffffff'], 0.4, 10);
       } else {
         const n = hit.face ? hit.face.normal.clone().transformDirection(hit.object.matrixWorld) : up;
@@ -1375,6 +1379,72 @@ function spawnPickup(pos) {
   const gl = new THREE.Sprite(projMat.clone()); gl.material.color.set(0x5cff9a); gl.scale.setScalar(1.6); g.add(gl);
   pos.y = groundAt(pos.x, pos.z, 10, 0.3) + 0.8; g.position.copy(pos); scene.add(g);
   pickups.push({ g, pos, t: 25 });
+}
+
+// ------------------------------------------------------------ istasyonlar: ortada can küpleri, köşelerde hasar güçlendirmeleri
+const stations = [];
+const HP_GAIN = 35, HP_CD = 15;              // can küpü: +35 can, 15 sn sonra yeniden çıkar
+const DMG_STEP = 0.1, DMG_MAX = 0.5, DMG_CD = 30; // güçlendirme: +%10 hasar (en çok +%50), ölünce sıfırlanır
+let dmgBonus = 0;
+const dmgMul = () => 1 + dmgBonus;
+function freeSpot(x, z, r) { return Math.abs(x) < ARENA - 1.5 && Math.abs(z) < ARENA - 1.5 && !boxes.some(b => overlapsBox(b, x, z, r)) && !spawnPoints.some(sp => Math.hypot(sp.x - x, sp.z - z) < 2.6); }
+function addStation(kind, x, z) {
+  const hp = kind === 'hp', col = hp ? 0x5cff9a : 0xff8a3d, size = hp ? 0.6 : 0.36;
+  const y = groundAt(x, z, 10, 0.3) + (hp ? 1.05 : 0.9);
+  const g = new THREE.Group();
+  const core = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), new THREE.MeshBasicMaterial({ color: col }));
+  const cage = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(size * 1.5, size * 1.5, size * 1.5)), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.75 }));
+  g.add(core, cage);
+  if (hp) { // küpün üstünde beyaz artı
+    const wm = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const a = new THREE.Mesh(new THREE.BoxGeometry(size * 0.7, 0.07, 0.07), wm), b = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.07, size * 0.7), wm);
+    a.position.y = b.position.y = size / 2 + 0.04; g.add(a, b);
+  }
+  const gl = new THREE.Sprite(projMat.clone()); gl.material.color.set(col); gl.scale.setScalar(hp ? 2 : 1.4); g.add(gl);
+  g.position.set(x, y, z); mapGroup.add(g);
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(hp ? 1 : 0.75, hp ? 1.1 : 0.85, 0.06, 24), new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.3 }));
+  pad.position.set(x, groundAt(x, z, 10, 0.3) + 0.04, z); mapGroup.add(pad);
+  stations.push({ kind, g, core, pad, x, z, y, cd: 0 });
+}
+function buildStations() {
+  stations.length = 0; // eski modeller harita temizlenirken gitti
+  // can küpleri: merkezin çevresinde dört çaprazda, engele değmeyen ilk yer
+  for (let k = 0; k < 4; k++) {
+    const a = Math.PI / 4 + k * Math.PI / 2;
+    for (let r = 3; r < 16; r += 0.5) { const x = Math.cos(a) * r, z = Math.sin(a) * r; if (freeSpot(x, z, 1.1)) { addStation('hp', x, z); break; } }
+  }
+  // hasar güçlendirmeleri: her köşeden içeri doğru ilk boş yer
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    for (let d = 3; d < 18; d += 0.5) { const x = sx * (ARENA - d), z = sz * (ARENA - d); if (freeSpot(x, z, 1)) { addStation('dmg', x, z); break; } }
+  }
+}
+function resetStations() { stations.forEach(st => st.cd = 0); dmgBonus = 0; }
+function takeStation(i, mine) {
+  const st = stations[i]; if (!st) return;
+  st.cd = st.kind === 'hp' ? HP_CD : DMG_CD;
+  emit(sparks, tmp.set(st.x, st.y, st.z), 30, 5, st.kind === 'hp' ? ['#5cff9a', '#ffffff'] : ['#ff8a3d', '#ffe14a', '#ffffff'], 0.6, 4);
+  if (mine && online()) netSend({ t: 'st', i });
+}
+function updateStations(dt) {
+  for (let i = 0; i < stations.length; i++) {
+    const st = stations[i];
+    if (st.cd > 0) st.cd = Math.max(0, st.cd - dt);
+    const on = st.cd <= 0;
+    st.g.visible = on; st.pad.material.opacity = on ? 0.3 + Math.sin(T * 4 + i) * 0.1 : 0.07;
+    if (!on) continue;
+    st.g.rotation.y += dt * (st.kind === 'hp' ? 1.4 : 2.6); st.core.rotation.x += dt * 0.8;
+    st.g.position.y = st.y + Math.sin(T * 3 + i) * 0.15;
+    if (state !== 'play' || P.dead) continue;
+    if (Math.hypot(P.pos.x - st.x, P.pos.z - st.z) > 1.3 || Math.abs(P.pos.y + 1 - st.y) > 1.7) continue;
+    if (st.kind === 'hp') {
+      if (P.hp >= 100) continue;
+      P.hp = Math.min(100, P.hp + HP_GAIN); pop(`+${HP_GAIN} CAN`);
+    } else {
+      if (dmgBonus >= DMG_MAX - 1e-6) continue;
+      dmgBonus = Math.min(DMG_MAX, dmgBonus + DMG_STEP); pop(`HASAR +%${Math.round(dmgBonus * 100)}`, true);
+    }
+    sfxPickup(); takeStation(i, true); updateHud();
+  }
 }
 
 // ------------------------------------------------------------ dalgalar
@@ -1889,7 +1959,7 @@ function route(m, from) {
   }
   if (m.t === 'die') { processDeath(m); return; }
   if (m.t === 'edmg') { if (NET.kind === 'coop') coopEnemyDmg(m); return; }
-  if (!['s', 'fx', 'chat'].includes(m.t)) return;
+  if (!['s', 'fx', 'chat', 'st'].includes(m.t)) return;
   for (const [id, c] of NET.conns) if (id !== from && c.open) c.send(m);
   if (from !== NET.id) onMsg(m);
 }
@@ -2174,6 +2244,7 @@ setInterval(() => {
 
 // --- gelen mesajlar (herkes)
 function onMsg(m) {
+  if (m.t === 'st') { if (m.id !== NET.id && Number.isInteger(m.i)) takeStation(m.i, false); return; }
   if (['wv', 'ek', 'ep', 'wave', 'clear', 'cover', 'crestart'].includes(m.t)) { if (!NET.host && mode === 'coop') onCoopMsg(m); return; }
   switch (m.t) {
     case 's': {
@@ -2351,6 +2422,7 @@ function pickSpawn() {
   return best.clone();
 }
 function localDie() {
+  dmgBonus = 0;
   P.dead = true; P.respawnT = mode === 'coop' ? 8 : 3.5; mouseDown = false; adsDown = false; reloading = 0; P.slideT = 0; P.ads = 0; streak = 0;
   const by = P.lastBy || (mode === 'coop' ? 'robot' : NET.id);
   P.killer = by; P.deathPos.copy(camera.position);
@@ -2760,17 +2832,17 @@ function frame(now) {
     else if (state === 'play' && !NET.ended) updatePlayer(dt);
     updateDM(dt); updateRemotes(dt);
     if (mode === 'coop') { updateEnemies(dt); if (NET.host && !NET.ended) updateWaves(dt); }
-    updateRockets(dt); updateFx(dt);
+    updateRockets(dt); updateStations(dt); updateFx(dt);
     hudT -= dt; if (hudT <= 0) { hudT = 0.1; updateHud(); }
   } else if (state === 'play') {
-    T += dt; updatePlayer(dt); updateEnemies(dt); updateRockets(dt); updateWaves(dt); updateFx(dt);
+    T += dt; updatePlayer(dt); updateEnemies(dt); updateRockets(dt); updateWaves(dt); updateStations(dt); updateFx(dt);
     hudT -= dt; if (hudT <= 0) { hudT = 0.1; updateHud(); }
   } else if (state === 'menu' || state === 'over') {
     T += dt;
     const a = T * 0.08;
     camera.position.set(Math.cos(a) * ARENA * 0.8, 9, Math.sin(a) * ARENA * 0.8); camera.lookAt(0, 2, 0);
     if (state === 'over') updateEnemies(dt);
-    updateFx(dt);
+    updateStations(dt); updateFx(dt);
   }
   renderAll();
   requestAnimationFrame(frame);
