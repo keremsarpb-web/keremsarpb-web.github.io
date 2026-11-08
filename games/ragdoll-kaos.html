@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Ragdoll Kaos – Windows için indir | KSB Games</title>
-<meta name="description" content="Ragdoll Kaos: Unity ile yapılmış online ragdoll fizik kapışması. Rakiplerini tut, yumrukla, arenadan fırlat. Windows için ücretsiz indir, Mac sürümü yakında.">
+<title>Ragdoll Kaos – Windows ve Mac için indir | KSB Games</title>
+<meta name="description" content="Ragdoll Kaos: Unity ile yapılmış online ragdoll fizik kapışması. Rakiplerini tut, yumrukla, arenadan fırlat. Windows ve Mac için ücretsiz indir.">
 <link rel="canonical" href="https://keremsarpb-web.github.io/games/ragdoll-kaos.html">
 <meta property="og:title" content="Ragdoll Kaos – KSB Games">
-<meta property="og:description" content="Online ragdoll fizik kapışması. Windows için ücretsiz, Mac sürümü yakında.">
+<meta property="og:description" content="Online ragdoll fizik kapışması. Windows ve Mac için ücretsiz.">
 <meta property="og:image" content="https://keremsarpb-web.github.io/thumbs/ragdoll-kaos.jpg">
 <link rel="icon" href="../favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -51,8 +51,8 @@
     <div class="dl">
       <a id="win" href="https://github.com/keremsarpb-web/keremsarpb-web.github.io/releases/download/ragdoll-kaos-v1.1/RagdollKaos-Windows.zip">
         <span>Windows<small>Windows 10 / 11 · 64 bit</small></span></a>
-      <a id="mac" class="soon" aria-disabled="true">
-        <span>Mac · yakında<small>Apple Silicon ve Intel sürümü hazırlanıyor</small></span></a>
+      <a id="mac" href="https://github.com/keremsarpb-web/keremsarpb-web.github.io/releases/download/ragdoll-kaos-v1.1/RagdollKaos-Mac.zip">
+        <span>Mac<small>Apple Silicon (M1–M4) ve Intel</small></span></a>
     </div>
     <div class="keys">
       <span><kbd>WASD</kbd>yürü</span><span><kbd>Shift</kbd>koş</span><span><kbd>Boşluk</kbd>zıpla</span>
@@ -62,16 +62,17 @@
     <h2>Nasıl kurulur?</h2>
     <ol>
       <li><b>Windows:</b> Zip'e sağ tıkla, <i>Tümünü ayıkla</i> de, klasördeki <i>RagdollKaos.exe</i>'yi çift tıkla. “Windows bilgisayarınızı korudu” çıkarsa <i>Ek bilgi › Yine de çalıştır</i>.</li>
-      <li><b>Mac:</b> (yakında) Zip'i çift tıkla, çıkan <i>Ragdoll Kaos</i> uygulamasını Uygulamalar klasörüne sürükle. İlk açılışta uygulamaya <b>sağ tıkla › Aç</b> de. Açılmazsa <i>Sistem Ayarları › Gizlilik ve Güvenlik</i>'te en altta <i>Yine de Aç</i>'a bas.</li>
+      <li><b>Mac:</b> Zip'i çift tıkla, çıkan <i>Ragdoll Kaos</i> uygulamasını Uygulamalar klasörüne sürükle. İlk açılışta uygulamaya <b>sağ tıkla › Aç</b> de. Açılmazsa <i>Sistem Ayarları › Gizlilik ve Güvenlik</i>'te en altta <i>Yine de Aç</i>'a bas.</li>
     </ol>
     <h2>Arkadaşlarınla oyna</h2>
     <p class="note">Bir kişi <b>SUNUCU KUR</b>'a basar; ekranda IP adresi yazar. Diğerleri bu IP'yi yazıp <b>KATIL</b>'a basar.
-       Aynı Wi-Fi'da en kolayı budur. Güvenlik duvarı sorarsa <i>İzin ver</i> de.</p>
+       Aynı Wi-Fi'da en kolayı budur. Güvenlik duvarı sorarsa <i>İzin ver</i> de. Windows ve Mac oyuncuları birlikte oynayabilir.</p>
   </div>
 </main>
 <script>
   // ziyaretçinin sistemine uyan indirme düğmesini öne çıkar
-  document.getElementById('win').classList.add('rec');
+  const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+  document.getElementById(mac ? 'mac' : 'win').classList.add('rec');
 </script>
 </body>
 </html>
