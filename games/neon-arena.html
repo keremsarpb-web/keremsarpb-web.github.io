@@ -1127,6 +1127,7 @@ $('copy').onclick = () => {
 
 const TOP0 = $('top').innerHTML;
 function startGame(m = 'solo') {
+  if (isBanned($('pname').value)) { banScreen(); return; }
   mode = m;
   initAudio();
   [...enemies].forEach(removeEnemy);
@@ -1738,6 +1739,24 @@ function online() { return mode === 'dm' || mode === 'coop'; }
 const remotes = new Map();
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const cleanName = s => String(s || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 14) || 'Oyuncu';
+// banlı oyuncular: harf büyüklüğü, Türkçe işaretler, boşluk ve noktalama önemsiz
+const BANNED = ['gguneyu', 'guneyu'];
+const banKey = s => String(s || '').toLocaleLowerCase('tr').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ı/g, 'i').replace(/[^a-z0-9]/g, '');
+const isBanned = s => BANNED.includes(banKey(s));
+function banScreen() {
+  try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {}
+  if (NET.peer) { try { NET.peer.destroy(); } catch (e) {} }
+  Object.assign(NET, { on: false, busy: false, peer: null, conn: null });
+  state = 'menu';
+  if (document.getElementById('banned')) return;
+  const d = document.createElement('div');
+  d.id = 'banned';
+  d.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;'
+    + 'background:#0b0716;color:#ff3fa4;font-family:Orbitron,sans-serif;text-align:center;user-select:none';
+  d.innerHTML = '<div style="font-size:min(30vw,260px);font-weight:900;text-shadow:0 0 40px #ff3fa4">hehe</div>'
+    + '<div style="font-size:20px;color:#9ffcff;letter-spacing:.2em;margin-top:10px">NEON ARENA\'DAN BANLANDIN</div>';
+  document.body.appendChild(d);
+}
 const r2 = v => Math.round(v * 100) / 100, r3 = v => Math.round(v * 1000) / 1000;
 const v3 = v => [r2(v.x), r2(v.y), r2(v.z)];
 const fromArr = a => Array.isArray(a) ? new THREE.Vector3(+a[0] || 0, +a[1] || 0, +a[2] || 0) : new THREE.Vector3();
@@ -1781,6 +1800,7 @@ $('code').addEventListener('keydown', e => { if (e.code === 'Enter' || e.code ==
 
 function makeCode() { const A_ = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 5; i++) s += A_[Math.floor(Math.random() * A_.length)]; return s; }
 function peerReady() {
+  if (isBanned($('pname').value)) { banScreen(); return false; }
   if (!window.Peer) { netMsg('Çevrim içi bileşen yüklenemedi. İnternet bağlantını kontrol edip sayfayı yenile.', true); return false; }
   if (NET.busy || NET.on) return false;
   return true;
@@ -1847,6 +1867,7 @@ function clientConn(conn, code, onMiss, wait) {
       return;
     }
     if (m.t === 'full') { clearTimeout(timer); onMiss({ type: 'full' }); return; }
+    if (m.t === 'ban') { clearTimeout(timer); banScreen(); return; }
     if (NET.on) onMsg(m);
   });
   conn.on('close', () => { if (NET.on && NET.conn === conn) toMenu('Oda kapandı: oda sahibi oyundan çıktı.'); });
@@ -1931,6 +1952,7 @@ function hostConn(conn) {
     if (!m || typeof m !== 'object' || typeof m.t !== 'string') return;
     if (m.t === 'hello') {
       if (NET.conns.has(conn.peer)) return;
+      if (isBanned(m.name)) { conn.send({ t: 'ban' }); setTimeout(() => conn.close(), 500); return; } // banlı oyuncu odaya alınmaz
       if (NET.roster.filter(p => !p.bot).length >= MAX_PLAYERS) { conn.send({ t: 'full' }); setTimeout(() => conn.close(), 500); return; }
       // gerçek oyuncu gelince bir bot yer açar (renk ve skor yerini de)
       syncBots(1);
