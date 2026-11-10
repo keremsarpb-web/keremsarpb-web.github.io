@@ -1,0 +1,884 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Piksel Köy: 20 ev, 30 eski usul işletme, askerler ve haydut baskınlarıyla tatlı bir piksel art köy kurma oyunu.">
+<link rel="icon" href="../favicon.svg">
+</head>
+<body style="margin:0">
+<title>Piksel Köy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&family=VT323&display=swap">
+<style>
+/* Oyun ekranı: üstte kaynak şeridi, solda harita, sağda parşömen yapı paneli; telefonda panel alta iner */
+:root{
+  --ink:#3a2a48; --wood:#9a6a9a; --wood2:#c48ab4; --wood3:#f2a0bc; --edge:#6e4a74; --chip:#7a5280;
+  --parch:#fff6ec; --parch2:#ffe6ef; --parch3:#fbcfe0;
+  --gold:#ffd166; --red:#e5626f; --green:#6cc488; --txt:#4a3050; --mute:#9a6f94;
+  --f-disp:"Pixelify Sans","Courier New",monospace; --f-body:"VT323","Courier New",monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--ink);color:var(--parch);font-family:var(--f-body);font-size:18px;overflow:hidden}
+#app{display:grid;grid-template-rows:auto 1fr;grid-template-columns:1fr 340px;height:100%}
+#top{grid-column:1/3;background:var(--wood);border-bottom:4px solid var(--edge);display:flex;align-items:center;gap:12px;padding:6px max(12px,env(safe-area-inset-right,0px)) 6px max(12px,env(safe-area-inset-left,0px));min-width:0}
+#brand{font-family:var(--f-disp);font-weight:700;font-size:22px;color:var(--gold);letter-spacing:.5px;white-space:nowrap;text-shadow:2px 2px 0 var(--edge)}
+#stats{display:flex;gap:10px;white-space:nowrap;font-size:18px}
+#stats b{color:var(--gold);font-weight:400}
+#res{display:flex;gap:6px;overflow-x:auto;flex:1;min-width:0;scrollbar-width:thin;padding-block:2px}
+.chip{display:flex;align-items:center;gap:3px;background:var(--chip);border-radius:8px;border:2px solid var(--edge);padding:0 6px;white-space:nowrap;font-size:18px;line-height:22px}
+.chip img{width:15px;height:15px;image-rendering:pixelated}
+.chip.z{opacity:.4}
+#ctl{display:flex;gap:4px}
+.btn{font-family:var(--f-disp);font-size:14px;background:var(--wood3);color:var(--parch);border:2px solid var(--edge);box-shadow:inset -2px -2px 0 #d07898,inset 2px 2px 0 #ffd0e0;padding:3px 9px;border-radius:8px;color:var(--txt);cursor:pointer;white-space:nowrap}
+.btn:hover{filter:brightness(1.12)}
+.btn.on{background:var(--gold);color:var(--txt);box-shadow:inset -2px -2px 0 #e0a83a,inset 2px 2px 0 #fff4c8}
+.btn:focus-visible,.card:focus-visible,.tab:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+#view{position:relative;min-width:0;min-height:0;overflow:hidden;background:#8cc870}
+canvas#cv{display:block;width:100%;height:100%;image-rendering:pixelated;touch-action:none;cursor:pointer}
+#hint{position:absolute;left:10px;top:8px;background:rgba(74,48,80,.72);padding:2px 8px;font-size:16px;pointer-events:none;color:var(--parch2)}
+#log{position:absolute;left:10px;bottom:10px;display:flex;flex-direction:column;gap:3px;pointer-events:none;max-width:min(460px,70%)}
+#log div{border-radius:0 8px 8px 0;background:rgba(74,48,80,.85);border-left:4px solid var(--gold);padding:2px 8px;font-size:18px;transition:opacity .6s}
+#log div.bad{border-color:var(--red)}
+#log div.good{border-color:var(--green)}
+#zoom{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:4px}
+#zoom .btn{font-size:18px;width:34px;padding:2px 0}
+#panel{background:var(--parch);color:var(--txt);display:flex;flex-direction:column;min-height:0;border-left:4px solid var(--wood)}
+#tabs{display:flex;background:var(--parch3);border-bottom:3px solid var(--wood2)}
+.tab{flex:1;font-family:var(--f-disp);font-size:14px;padding:8px 2px;background:none;border:0;color:var(--txt);cursor:pointer;border-right:2px solid var(--parch2)}
+.tab.on{background:var(--parch);font-weight:700}
+.tab small{display:block;font-family:var(--f-body);font-size:14px;color:var(--mute)}
+#cards{flex:1;overflow-y:auto;padding:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px;align-content:start;min-height:0}
+.card{background:var(--parch2);border:2px solid var(--wood2);border-radius:10px;display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 3px;cursor:pointer;font-family:var(--f-body);color:var(--txt);min-width:0}
+.card:hover{background:#ffd6e6;transform:translateY(-1px)}
+.card.sel{background:var(--gold);border-color:var(--wood)}
+.card.poor{opacity:.5}
+.card .th{height:46px;display:flex;align-items:flex-end;justify-content:center}
+.card .th img{max-height:46px;max-width:84px;image-rendering:pixelated}
+.card .nm{font-family:var(--f-disp);font-size:12px;line-height:1.1;text-align:center;font-weight:600}
+.card .co{display:flex;flex-wrap:wrap;justify-content:center;gap:0 4px;font-size:15px;line-height:15px}
+.co i,.io i{font-style:normal;display:inline-flex;align-items:center;gap:1px}
+.co img,.io img{width:11px;height:11px;image-rendering:pixelated}
+#detail{border-top:3px solid var(--wood2);background:var(--parch2);padding:8px 12px 10px;min-height:126px;font-size:18px;line-height:1.15}
+#detail h3{margin:0 0 4px;font-family:var(--f-disp);font-size:17px;text-wrap:balance}
+#detail .row{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center}
+#detail .lbl{color:var(--mute)}
+.io img{width:14px;height:14px}
+.bar{height:8px;border-radius:6px;overflow:hidden;background:#f0d0dc;border:2px solid var(--wood2);margin:4px 0}
+.bar span{display:block;height:100%;background:var(--green)}
+#detail .btn{margin-top:6px}
+#visitbar{position:absolute;left:50%;top:8px;transform:translateX(-50%);background:rgba(74,48,80,.92);border:2px solid var(--wood3);border-radius:10px;padding:6px 10px;display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;justify-content:center;max-width:calc(100% - 32px);font-size:18px;color:var(--parch)}
+#visitbar b{font-family:var(--f-disp);color:var(--gold)}
+#visitbar .vb{display:flex;gap:4px;flex-wrap:wrap}
+.btn:disabled{opacity:.5;cursor:default}
+#netbox{grid-column:1/-1;display:flex;flex-direction:column;gap:8px}
+#netst{color:var(--mute)}
+.nrow{display:flex;gap:6px}
+.nrow input{flex:1;min-width:0;font-family:var(--f-body);font-size:18px;padding:3px 8px;border:2px solid var(--wood2);border-radius:8px;background:#fff;color:var(--txt)}
+.nv{display:flex;align-items:center;gap:8px;background:var(--parch2);border:2px solid var(--wood2);border-radius:10px;padding:6px 8px}
+.ninfo{flex:1;min-width:0;display:flex;flex-direction:column}
+.ninfo b{font-family:var(--f-disp);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ninfo small{font-size:15px;color:var(--mute)}
+.dot{width:10px;height:10px;border-radius:50%;background:#d8c4cc;flex:none}
+.dot.on{background:var(--green);box-shadow:0 0 0 2px #d6f5dd}
+.you{font-family:var(--f-disp);font-size:12px;color:var(--mute)}
+.nempty{color:var(--mute)}
+@media (max-width:760px){
+  #app{grid-template-columns:1fr;grid-template-rows:auto 1fr 44%}
+  #top{grid-column:1;flex-wrap:wrap;gap:6px}
+  #res{order:5;flex-basis:100%}
+  #brand{font-size:18px}
+  #panel{border-left:0;border-top:4px solid var(--wood)}
+  #detail{min-height:0;max-height:38%;overflow:auto}
+  #hint{display:none}
+}
+@media (prefers-reduced-motion:reduce){#log div{transition:none}}
+</style>
+
+<div id="app">
+  <header id="top">
+    <div id="brand">Piksel Köy <span style="color:#ff8fab">♥</span></div>
+    <div id="stats"></div>
+    <div id="res"></div>
+    <div id="ctl">
+      <button class="btn" id="sp0" title="Duraklat">II</button>
+      <button class="btn on" id="sp1">1×</button>
+      <button class="btn" id="sp2">2×</button>
+      <button class="btn" id="sp4">4×</button>
+      <button class="btn" id="save">Kaydet</button>
+      <button class="btn" id="new">Yeni</button>
+    </div>
+  </header>
+  <main id="view">
+    <canvas id="cv"></canvas>
+    <div id="hint">Sürükle: kaydır · Tekerlek: yakınlaştır · Sağ tık / Esc: iptal</div>
+    <div id="log"></div>
+    <div id="visitbar" hidden></div>
+    <div id="zoom"><button class="btn" id="zin" aria-label="Yakınlaştır">+</button><button class="btn" id="zout" aria-label="Uzaklaştır">−</button></div>
+  </main>
+  <aside id="panel">
+    <nav id="tabs">
+      <button class="tab on" data-t="house">Evler<small>20 çeşit</small></button>
+      <button class="tab" data-t="biz">İşletme<small>30 çeşit</small></button>
+      <button class="tab" data-t="mil">Asker<small>savunma</small></button>
+      <button class="tab" data-t="tool">Araçlar<small>yol, yık</small></button>
+      <button class="tab" data-t="net">Komşular<small>online</small></button>
+    </nav>
+    <div id="cards"></div>
+    <div id="detail"></div>
+  </aside>
+</div>
+
+<script>
+(()=>{
+const T=16, LIFT=12, MW=64, MH=48;
+const $=s=>document.querySelector(s);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+function h2(x,y,s){let n=Math.imul(x|0,374761393)+Math.imul(y|0,668265263)+Math.imul(s|0,1442695041);n=Math.imul(n^(n>>>13),1274126177);n^=n>>>16;return (n>>>0)/4294967296}
+const shC={};
+function shade(hex,f){const key=hex+f;if(shC[key])return shC[key];let n=parseInt(hex.slice(1),16),r=n>>16,g=n>>8&255,b=n&255;
+  if(f<0){r*=1+f;g*=1+f;b*=1+f}else{r+=(255-r)*f;g+=(255-g)*f;b+=(255-b)*f}
+  return shC[key]=`rgb(${r|0},${g|0},${b|0})`}
+
+/* ---------- Kaynaklar ---------- */
+const RES={
+ altin:['Altın','#f2c94c',[".###.","#ll##","#l###","####d",".ddd."]],
+ odun:['Odun','#9a6634',["#####","dllld","#####","dllld","#####"]],
+ tas:['Taş','#9aa0a6',["..##.",".#l##","##l##","####d",".ddd."]],
+ tugla:['Tuğla','#b5523b',["##d##","ddddd","d##d#","ddddd","##d##"]],
+ bugday:['Buğday','#e3c15a',["#.#.#",".###.","..#..","..#..","..d.."]],
+ un:['Un','#efe6cf',[".kkk.","..#..",".###.","#l###",".###."]],
+ ekmek:['Ekmek','#c98a3e',[".....",".###.","#l#l#","#####",".ddd."]],
+ sebze:['Sebze','#e07a2e',["..g..",".ggg.","..#..",".##..","..#.."]],
+ meyve:['Meyve','#d9443b',["..b..",".#g#.","#l###","#####",".###."]],
+ balik:['Balık','#6fa8dc',[".....","#.##.","####l","#.##.","....."]],
+ et:['Et','#b0413e',[".##..","#l##.","####w",".##.w","....."]],
+ sut:['Süt','#f4f4f4',["..k..",".#l#.",".###.",".###.",".ddd."]],
+ peynir:['Peynir','#f3d36b',[".....","...##","..###","#d#d#","#####"]],
+ bal:['Bal','#e0a526',[".bbb.","#####","#l###","#####",".###."]],
+ yun:['Yün','#e8e2d0',[".#.#.","#l###","#####","##d##",".#.#."]],
+ kumas:['Kumaş','#8e6cc0',["#d#d#","d#d#d","#d#d#","d#d#d","#d#d#"]],
+ deri:['Deri','#9b6a43',["#...#","#####",".#l#.",".###.","##.##"]],
+ demir:['Demir','#7d8b9a',[".....",".###.","#l###","ddddd","....."]],
+ alet:['Alet','#a7b1ba',["###..","#l#..",".b...","..b..","...b."]],
+ silah:['Silah','#cfd4d9',["....#","...#.","b.#..",".b...","b.b.."]],
+ kil:['Kil','#c27a4a',[".....",".##..","#l##.","####d",".ddd."]],
+ bira:['Bira','#d89b2a',["wwww.","#l##d","###.d","####.","dddd."]],
+ uzum:['Üzüm','#7b3fa0',["..g..",".##..","#l##.",".##..","..#.."]],
+ sarap:['Şarap','#8c1c3a',["..k..","..#..",".###.",".#l#.",".###."]],
+ mum:['Mum','#f6e9b8',["..y..","..r..",".#l#.",".###.",".###."]],
+ ilac:['İlaç','#5fbf9f',[".kk..","..#..",".#w#.","#www#",".###."]],
+};
+const FOOD=['ekmek','sebze','meyve','balik','et','peynir','bal'];
+const PRICE={odun:1,tas:1,tugla:3,bugday:1,un:2,ekmek:3,sebze:2,meyve:2,balik:3,et:4,sut:2,peynir:5,bal:4,yun:2,kumas:6,deri:3,demir:4,alet:8,silah:12,kil:1,bira:7,uzum:2,sarap:10,mum:5,ilac:9};
+const GC={k:'#2a2018',w:'#f8f4ea',g:'#4f9a3a',b:'#7a4e2a',y:'#ffd34d',r:'#e0502e'};
+function glyph(g,x,y,key){const [,c,m]=RES[key];for(let j=0;j<5;j++)for(let i=0;i<5;i++){const ch=m[j][i];if(ch==='.')continue;
+  g.fillStyle=ch==='#'?c:ch==='l'?shade(c,.5):ch==='d'?shade(c,-.38):GC[ch];g.fillRect(x+i,y+j,1,1)}}
+const ICON={};for(const k in RES){const c=document.createElement('canvas');c.width=c.height=5;glyph(c.getContext('2d'),0,0,k);ICON[k]=c.toDataURL()}
+
+/* ---------- Tanımlar ---------- */
+const HOUSES=[
+ {n:'Saman Kulübe',w:2,h:2,cap:2,c:{odun:5},s:{wall:'#b08a5a',wt:'mud',roof:'#d9b45a',rt:'thatch'}},
+ {n:'Kamış Ev',w:2,h:2,cap:3,c:{odun:8},s:{wall:'#a7804e',wt:'wood',roof:'#c9a24a',rt:'thatch',deco:'flowers'}},
+ {n:'Kerpiç Ev',w:2,h:2,cap:3,c:{odun:6,tas:4},s:{wall:'#c9a06a',wt:'mud',roof:'#9a5a3a',rt:'flat',deco:'pots'}},
+ {n:'Ahşap Ev',w:2,h:2,cap:4,c:{odun:15},s:{wall:'#9c6a3c',wt:'wood',roof:'#7a3b2e',rt:'gable',ch:1}},
+ {n:'Kütük Ev',w:2,h:2,cap:4,c:{odun:20},s:{wall:'#7d5230',wt:'wood',roof:'#5a6a3a',rt:'gable',ch:1,deco:'logs'}},
+ {n:'Taş Ev',w:2,h:2,cap:5,c:{odun:8,tas:15},s:{wall:'#a8a29a',wt:'stone',roof:'#6b4a3a',rt:'gable',ch:1}},
+ {n:'Çiftçi Evi',w:3,h:2,cap:6,c:{odun:20,tas:8},s:{wall:'#b98c58',wt:'wood',roof:'#b5553a',rt:'gable',ch:1,deco:'hay'}},
+ {n:'Yayla Evi',w:2,h:2,cap:4,c:{odun:12,tas:6},s:{wall:'#8a6a48',wt:'wood',roof:'#4a5a6a',rt:'gable',ch:1,deco:'flowers'}},
+ {n:'Balıkçı Evi',w:2,h:2,cap:4,c:{odun:14},s:{wall:'#6f8fa8',wt:'wood',roof:'#3e5a72',rt:'gable',deco:'barrel'}},
+ {n:'Değirmenci Evi',w:2,h:2,cap:5,c:{odun:14,tas:8},s:{wall:'#e1d3b4',wt:'timber',roof:'#8a4a2a',rt:'gable',ch:1}},
+ {n:'Tuğla Ev',w:2,h:2,cap:6,c:{tugla:15,odun:6},s:{wall:'#b5523b',wt:'brick',roof:'#5a3a2a',rt:'gable',ch:1}},
+ {n:'İki Katlı Ev',w:2,h:2,cap:8,c:{odun:20,tugla:12},s:{wall:'#d8c9a8',wt:'timber',roof:'#9a3b2b',rt:'gable',fl:2,ch:1}},
+ {n:'Cumbalı Ev',w:3,h:2,cap:8,c:{odun:25,tugla:10,altin:20},s:{wall:'#e9e0cc',wt:'wood',roof:'#a0442c',rt:'gable',fl:2,ch:1,deco:'cumba'}},
+ {n:'Kule Ev',w:2,h:2,cap:6,c:{tas:25,odun:10},s:{wall:'#9b968e',wt:'stone',rt:'tower',deco:'banner'}},
+ {n:'Avlulu Ev',w:3,h:3,cap:10,c:{odun:30,tas:20},s:{wall:'#cfb58a',wt:'mud',roof:'#8b4b2b',rt:'gable',ch:1,deco:'flowers'}},
+ {n:'Tüccar Evi',w:3,h:2,cap:10,c:{tugla:25,odun:15,altin:40},s:{wall:'#c96a4a',wt:'brick',roof:'#3f4f63',rt:'gable',fl:2,ch:1,deco:'barrel'}},
+ {n:'Konak',w:3,h:3,cap:14,c:{tugla:40,tas:20,altin:80},s:{wall:'#efe6d2',wt:'timber',roof:'#7b2f25',rt:'gable',fl:2,ch:1,deco:'flowers'}},
+ {n:'Köşk',w:3,h:3,cap:12,c:{odun:40,tugla:20,altin:60},s:{wall:'#d9e2d0',wt:'wood',roof:'#2f6a5a',rt:'dome',fl:2,deco:'flowers'}},
+ {n:'Malikane',w:4,h:3,cap:20,c:{tugla:60,tas:40,altin:150},s:{wall:'#bfb7a8',wt:'stone',roof:'#4a3a5a',rt:'gable',fl:2,ch:1,deco:'banner'}},
+ {n:'Bey Konağı',w:4,h:4,cap:28,c:{tugla:90,tas:60,altin:250},s:{wall:'#e8dcc0',wt:'brick',roof:'#8a1f1f',rt:'dome',fl:2,ch:1,deco:'banner'}},
+];
+const BIZ=[
+ {n:'Oduncu',w:2,h:2,wk:2,c:{altin:10},o:{odun:2},t:4,s:{kind:'bld',wall:'#7d5230',wt:'wood',roof:'#4f6b35',rt:'gable',deco:'logs'},ds:'Ormandan odun keser.'},
+ {n:'Taş Ocağı',w:2,h:2,wk:2,c:{odun:10},o:{tas:2},t:5,s:{kind:'quarry'},ds:'Kayadan yapı taşı çıkarır.'},
+ {n:'Buğday Tarlası',w:3,h:3,wk:2,c:{odun:8},o:{bugday:3},t:6,s:{kind:'field',crop:'#e3c15a'},ds:'Değirmen ve bira evi buğday ister.'},
+ {n:'Yel Değirmeni',w:2,h:2,wk:1,c:{odun:20,tas:10},i:{bugday:2},o:{un:2},t:4,s:{kind:'mill'},ds:'Buğdayı una öğütür.'},
+ {n:'Fırıncı',w:2,h:2,wk:2,c:{odun:15,tas:10},i:{un:2,odun:1},o:{ekmek:4},t:5,s:{kind:'bld',wall:'#e0cfa8',wt:'timber',roof:'#a0442c',rt:'gable',ch:1},ds:'Odun ateşinde ekmek pişirir.'},
+ {n:'Bostan',w:3,h:2,wk:2,c:{odun:6},o:{sebze:3},t:7,s:{kind:'field',crop:'#4f9a3a',dot:'#e0702e'},ds:'Havuç, lahana, soğan yetiştirir.'},
+ {n:'Meyve Bahçesi',w:3,h:3,wk:2,c:{odun:10},o:{meyve:3},t:8,s:{kind:'orchard',dot:'#d9443b'},ds:'Elma ağaçlarından meyve toplar.'},
+ {n:'Balıkçı',w:2,h:2,wk:2,c:{odun:12},o:{balik:3},t:6,water:1,s:{kind:'bld',wall:'#6f8fa8',wt:'wood',roof:'#3e5a72',rt:'gable',deco:'net'},ds:'Suya en fazla 2 kare uzakta kurulmalı.'},
+ {n:'Avcı Kulübesi',w:2,h:2,wk:2,c:{odun:12},o:{et:2,deri:1},t:8,s:{kind:'bld',wall:'#6a4a2c',wt:'wood',roof:'#c9a24a',rt:'thatch',deco:'hide'},ds:'Av eti ve deri getirir.'},
+ {n:'Ahır',w:3,h:2,wk:2,c:{odun:20},o:{sut:3},t:6,s:{kind:'pen',animal:'cow'},ds:'İnekleri sağar.'},
+ {n:'Peynirci',w:2,h:2,wk:1,c:{odun:12,tas:6},i:{sut:2},o:{peynir:2},t:6,s:{kind:'bld',wall:'#efe2c2',wt:'mud',roof:'#b5553a',rt:'gable'},ds:'Sütü peynire çevirir.'},
+ {n:'Arıcı',w:2,h:2,wk:1,c:{odun:8},o:{bal:2},t:9,s:{kind:'bees'},ds:'Kovanlardan bal süzer.'},
+ {n:'Çoban Ağılı',w:3,h:2,wk:2,c:{odun:15},o:{yun:2},t:7,s:{kind:'pen',animal:'sheep'},ds:'Koyunları kırkar.'},
+ {n:'Dokumacı',w:2,h:2,wk:2,c:{odun:15,tas:5},i:{yun:2},o:{kumas:1},t:6,s:{kind:'bld',wall:'#c7b08a',wt:'timber',roof:'#6a4a8a',rt:'gable'},ds:'Tezgâhta yünden kumaş dokur.'},
+ {n:'Terzi',w:2,h:2,wk:1,c:{odun:15,altin:20},i:{kumas:1},o:{altin:14},t:6,s:{kind:'bld',wall:'#e6d6e6',wt:'timber',roof:'#7a3a6a',rt:'gable',deco:'flowers'},ds:'Kumaştan giysi diker, satar.'},
+ {n:'Debbağhane',w:2,h:2,wk:2,c:{odun:15,tas:8},i:{deri:1},o:{altin:9},t:6,s:{kind:'bld',wall:'#8a6a4a',wt:'wood',roof:'#5a4a3a',rt:'flat',deco:'hide'},ds:'Deriyi tabaklayıp satar.'},
+ {n:'Demir Madeni',w:2,h:2,wk:3,c:{odun:25,tas:10},o:{demir:2},t:7,s:{kind:'mine'},ds:'Dağdan demir cevheri çıkarır.'},
+ {n:'Demirci',w:2,h:2,wk:2,c:{tas:20,odun:10},i:{demir:1,odun:1},o:{alet:1},t:6,s:{kind:'bld',wall:'#7a746c',wt:'stone',roof:'#3a3a3a',rt:'gable',ch:1,deco:'anvil'},ds:'Stokta alet varken bütün işletmeler %25 hızlı çalışır.'},
+ {n:'Silah Ustası',w:2,h:2,wk:2,c:{tas:20,tugla:10},i:{demir:2,odun:1},o:{silah:1},t:8,s:{kind:'bld',wall:'#8a5040',wt:'brick',roof:'#2e2e3a',rt:'gable',ch:1,deco:'banner'},ds:'Mızrakçı, okçu ve şövalye için silah döver.'},
+ {n:'Marangoz',w:2,h:2,wk:2,c:{odun:20},i:{odun:3},o:{altin:10},t:6,s:{kind:'bld',wall:'#b07a48',wt:'wood',roof:'#7a5a3a',rt:'gable',deco:'logs'},ds:'Odundan mobilya yapıp satar.'},
+ {n:'Kil Ocağı',w:2,h:2,wk:2,c:{odun:10},o:{kil:3},t:5,s:{kind:'clay'},ds:'Çukurdan kil kazar.'},
+ {n:'Çömlekçi',w:2,h:2,wk:1,c:{odun:12,tas:5},i:{kil:2},o:{altin:8},t:6,s:{kind:'bld',wall:'#d9a878',wt:'mud',roof:'#a05a3a',rt:'flat',deco:'pots'},ds:'Çark başında testi yapar, satar.'},
+ {n:'Tuğla Ocağı',w:2,h:2,wk:2,c:{odun:15,tas:10},i:{kil:2,odun:1},o:{tugla:2},t:6,s:{kind:'bld',wall:'#a8483a',wt:'brick',roof:'#5a4038',rt:'flat',ch:1,deco:'bricks'},ds:'Kili fırında tuğla yapar.'},
+ {n:'Bira Evi',w:2,h:2,wk:2,c:{odun:20,tas:10},i:{bugday:2},o:{bira:1},t:7,s:{kind:'bld',wall:'#c89a5a',wt:'timber',roof:'#6a3a22',rt:'gable',ch:1,deco:'barrel'},ds:'Buğdaydan bira mayalar.'},
+ {n:'Üzüm Bağı',w:3,h:2,wk:2,c:{odun:10},o:{uzum:3},t:8,s:{kind:'vine'},ds:'Asmalardan üzüm toplar.'},
+ {n:'Şaraphane',w:2,h:2,wk:2,c:{tas:20,odun:15},i:{uzum:3},o:{sarap:1},t:8,s:{kind:'bld',wall:'#d8cdb8',wt:'stone',roof:'#7a1f3a',rt:'gable',deco:'barrel'},ds:'Üzümü fıçıda şaraba çevirir.'},
+ {n:'Mumcu',w:2,h:2,wk:1,c:{odun:10},i:{bal:1},o:{mum:2},t:6,s:{kind:'bld',wall:'#efe0b0',wt:'mud',roof:'#8a6a3a',rt:'thatch'},ds:'Balmumundan mum döker. Mum mutluluk verir.'},
+ {n:'Aktar',w:2,h:2,wk:1,c:{odun:12,tas:8},i:{bal:1,sebze:1},o:{ilac:1},t:8,s:{kind:'bld',wall:'#cfe0c0',wt:'timber',roof:'#3f6a4a',rt:'gable',deco:'flowers'},ds:'Şifalı ottan ilaç yapar. İlaç mutluluk verir.'},
+ {n:'Pazar Yeri',w:3,h:3,wk:2,c:{odun:30,tas:20,altin:30},o:{},t:6,special:'market',s:{kind:'market'},ds:'Stoğu 40\'ı geçen malların fazlasını altına satar.'},
+ {n:'Han',w:3,h:2,wk:2,c:{odun:30,tugla:15},i:[{bira:1},{sarap:1}],o:{altin:12},t:6,joy:1,s:{kind:'bld',wall:'#d6b88a',wt:'timber',roof:'#7a2e22',rt:'gable',fl:2,ch:1,deco:'barrel'},ds:'Bira ya da şarap satar, köylüleri eğlendirir.'},
+];
+const SOLD=[
+ {n:'Muhafız',hp:60,dmg:6,rng:1.1,cd:1,sp:30,c:{altin:30},col:'#5a9ae0',wp:'sword',ds:'Ucuz yakın dövüş askeri.'},
+ {n:'Mızrakçı',hp:90,dmg:9,rng:1.5,cd:1.1,sp:28,c:{altin:40,silah:1},col:'#f0a050',wp:'spear',ds:'Dayanıklı, uzun mızraklı.'},
+ {n:'Okçu',hp:50,dmg:7,rng:5,cd:1.2,sp:30,c:{altin:50,silah:1},col:'#5ac07a',wp:'bow',ds:'5 kare menzilden ok atar.'},
+ {n:'Şövalye',hp:180,dmg:16,rng:1.2,cd:1,sp:36,c:{altin:120,silah:2},col:'#c07ad8',wp:'knight',ds:'Zırhlı ve çok güçlü.'},
+];
+const TOWER={n:'Gözcü Kulesi',w:2,h:2,c:{tas:30,odun:15},s:{kind:'bld',wall:'#9b968e',wt:'stone',rt:'tower',deco:'banner'},ds:'6 kare menzile giren haydutlara ok atar.'};
+const TOOLS=[
+ {id:'path',n:'Toprak Yol',c:{tas:1},ds:'Kare başına 1 taş. Basılı tutup sürükleyerek çiz.'},
+ {id:'clear',n:'Ağaç Kes',c:{},ds:'Ağacı keser, 2 odun verir. Sürükleyerek de kesebilirsin.'},
+ {id:'demolish',n:'Yık',c:{},ds:'Yapıyı ya da askeri kaldırır, maliyetin yarısı geri gelir.'},
+];
+
+/* ---------- Piksel çizim ---------- */
+function mk(w,h,fn){const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');const p=(x,y,w,h,col)=>{g.fillStyle=col;g.fillRect(x|0,y|0,w|0,h|0)};fn(p,g);return c}
+
+function house(p,g,X,Y,W,H,s,sign,sd){
+  const fl=s.fl||1, yb=Y+H-2, x0=X+2, x1=X+W-2, bw=x1-x0;
+  const tower=s.rt==='tower';
+  const wallH=Math.min(fl*11+3,H-10);
+  const wt=tower?Y+9:yb-wallH;
+  const rTop=Y+(s.ch?5:2);
+  const wc=s.wall;
+  p(x0+2,yb,bw,2,'rgba(0,0,0,.28)');p(x1,wt+3,2,yb-wt-1,'rgba(0,0,0,.2)');
+  p(x0,wt,bw,yb-wt,wc);
+  const wtp=s.wt||'wood', half=wt+Math.floor((yb-wt)/2);
+  for(let y=wt;y<yb;y++)for(let x=x0;x<x1;x++){let f=0;const r=h2(x,y,sd);
+    if(wtp==='wood'){if((x-x0)%4===3)f=-.25;else if(r<.08)f=-.1}
+    else if(wtp==='stone'){const row=Math.floor((y-wt)/4),off=row%2?3:0;if((y-wt)%4===3||(x-x0+off)%6===5)f=-.3;else if(r<.2)f=.1}
+    else if(wtp==='brick'){const row=Math.floor((y-wt)/3),off=row%2?2:0;if((y-wt)%3===2||(x-x0+off)%4===3)f=-.25}
+    else if(wtp==='mud'){f=r<.12?-.12:r>.92?.12:0}
+    else if(wtp==='timber'){if(x===x0||x===x1-1||y===wt||(x-x0)%8===0||y===half)f=-.6}
+    if(f)p(x,y,1,1,shade(wc,f))}
+  p(x0,yb-1,bw,1,shade(wc,-.45));p(x0,wt,1,yb-wt,shade(wc,.18));
+  if(tower){
+    p(x0-1,wt-2,bw+2,3,shade(wc,.12));
+    for(let x=x0-1;x<x1;x+=4)p(x,wt-5,2,3,shade(wc,.12));
+    p(x0-1,wt+1,bw+2,1,shade(wc,-.4));
+  }else{
+    const rc=s.roof, rt=s.rt, rh=wt-rTop;
+    if(rt==='flat'){
+      p(x0-1,rTop+5,bw+2,wt-rTop-5,rc);
+      for(let y=rTop+7;y<wt-2;y+=3)p(x0,y,bw,1,shade(rc,-.1));
+      p(x0-1,rTop+5,bw+2,1,shade(rc,.35));p(x0-1,wt-2,bw+2,2,shade(rc,-.4));
+    }else{
+      const mid=rTop+Math.floor(rh*.45);
+      for(let y=rTop;y<wt;y++){
+        const inset=y<mid?Math.floor((mid-y)/2):0, xa=X+inset, xw=W-inset*2;
+        let col=y<mid?shade(rc,.18):rc;
+        if(y===mid)col=shade(rc,.38);
+        else if(rt!=='thatch'&&(y-mid)%3===0)col=shade(rc,-.15);
+        if(y===wt-1)col=shade(rc,-.5);
+        p(xa,y,xw,1,col);
+        p(xa,y,1,1,shade(rc,-.3));p(xa+xw-1,y,1,1,shade(rc,-.3));
+        if(rt==='thatch')for(let x=xa;x<xa+xw;x++){const r=h2(x,y,sd+7);if(r<.18)p(x,y,1,1,shade(rc,-.2));else if(r>.86)p(x,y,1,1,shade(rc,.3))}
+      }
+      if(rt==='thatch')for(let x=X;x<X+W;x+=2)p(x,wt,1,1+((h2(x,0,sd)*2)|0),shade(rc,-.35));
+      if(rt==='dome'){const r=Math.min(7,(bw/4)|0), cx=X+W/2|0, cy=mid+1;
+        for(let dy=0;dy<=r;dy++){const hw=Math.round(Math.sqrt(r*r-dy*dy));p(cx-hw,cy-dy,hw*2,1,dy>r*.6?shade('#d8b84a',.3):'#c9a23a')}
+        p(cx-1,cy-r-3,2,3,'#d8b84a')}
+    }
+  }
+  // kapı
+  const big=W>=24, dw=big?6:4, dh=big?9:6, dx=(X+W/2-dw/2)|0, dy=yb-dh;
+  p(dx-1,dy-1,dw+2,dh+1,shade(wc,-.55));p(dx,dy,dw,dh,'#5b3a22');p(dx,dy,dw,1,'#7a5232');p(dx+dw-2,dy+(dh/2|0),1,1,'#e8c060');
+  // pencereler
+  for(let f=0;f<(tower?2:fl);f++){
+    const wy=tower?(f===0?yb-15:wt+5):yb-10-11*f;
+    if(wy<wt+2)continue;
+    for(let xw=x0+3;xw+5<=x1-2;xw+=8){
+      if(f===0&&!tower&&xw+5>dx-2&&xw<dx+dw+2)continue;
+      if(tower&&f===0&&xw+5>dx-2&&xw<dx+dw+2)continue;
+      p(xw,wy,5,5,'#5a3a3a');p(xw+1,wy+1,3,3,s.glass||'#ffe08a');p(xw+1,wy+1,1,1,'#fff8d8');
+      p(xw-1,wy+5,7,1,'#8a5a3a');p(xw,wy+4,1,1,'#7ccf6a');p(xw+1,wy+4,1,1,'#ff8fab');p(xw+3,wy+4,1,1,'#ffd166');p(xw+4,wy+4,1,1,'#7ccf6a');
+    }
+  }
+  if(s.ch&&!tower){const cx=X+W-10;p(cx,rTop-4,4,9,'#857c74');p(cx,rTop-4,4,1,'#4a4440');p(cx+1,rTop-3,2,1,'#2a2420')}
+  const d=s.deco;
+  if(d==='flowers')for(let x=x0;x<x1-1;x+=3){if(x>dx-3&&x<dx+dw+2)continue;p(x,yb-1,2,1,'#3f7a2a');p(x,yb-2,2,1,['#e05a8a','#f2d14a','#ffffff','#9a6ae0'][(h2(x,1,sd)*4)|0])}
+  if(d==='barrel'){p(x0+1,yb-6,4,5,'#7a4a24');p(x0+1,yb-5,4,1,'#3a2a1a');p(x0+1,yb-3,4,1,'#3a2a1a')}
+  if(d==='banner'){const cx=(X+W/2)|0, ty=tower?wt-12:rTop-8;p(cx,ty,1,9,'#3a2a1a');p(cx+1,ty,5,4,'#c0392b');p(cx+1,ty+1,5,1,'#f2c94c')}
+  if(d==='logs'){for(let i=0;i<3;i++){p(x0,yb-3-i*2,6,2,'#8a5a2a');p(x0,yb-3-i*2,1,2,'#e0b070')}}
+  if(d==='hay'){p(x1-6,yb-5,6,4,'#e3c15a');p(x1-6,yb-4,6,1,'#b8932e')}
+  if(d==='net'){for(let y=0;y<6;y++)for(let x=0;x<5;x++)if((x+y)%2===0)p(x0+1+x,wt+3+y,1,1,'#e8e2d0')}
+  if(d==='hide'){p(x1-7,yb-9,6,7,'#3a2a1a');p(x1-6,yb-8,4,5,'#c08a5a')}
+  if(d==='anvil'){p(x1-7,yb-4,6,2,'#3a3a40');p(x1-5,yb-2,2,2,'#3a3a40');p(x1-7,yb-4,6,1,'#8a8a96')}
+  if(d==='pots'){p(x1-7,yb-4,3,4,'#c27a4a');p(x1-3,yb-3,3,3,'#a85a32');p(x1-7,yb-4,3,1,'#e0a070')}
+  if(d==='bricks'){for(let i=0;i<3;i++)p(x1-7,yb-2-i*2,6,2,i%2?'#a8483a':'#c25a44')}
+  if(d==='cumba'){const cx=(X+W/2-6)|0, cy=wt+2;p(cx,cy,12,8,shade(wc,.08));p(cx,cy+8,12,1,shade(wc,-.5));p(cx+1,cy+2,4,4,'#3a2616');p(cx+7,cy+2,4,4,'#3a2616');p(cx+2,cy+3,2,2,'#f2d27a');p(cx+8,cy+3,2,2,'#f2d27a');p(cx-1,cy-1,14,1,shade(s.roof,-.2))}
+  if(sign){let sx=dx+dw+2;if(sx+7>x1)sx=dx-9;const sy=yb-15;p(sx+3,sy-2,1,2,'#3a2616');p(sx,sy,7,7,'#5a3a1e');p(sx+1,sy+1,5,5,'#ecdcb2');glyph(g,sx+1,sy+1,sign)}
+}
+function mini(p,g,X,Y,W,H,wall,roof,sd,rt){house(p,g,X,Y,W,H,{wall,roof,wt:'wood',rt:rt||'gable'},null,sd)}
+function signPost(p,g,x,y,k){p(x+3,y+7,1,5,'#3a2616');p(x,y,7,7,'#5a3a1e');p(x+1,y+1,5,5,'#ecdcb2');glyph(g,x+1,y+1,k)}
+
+function bizSprite(d,sd){
+  const W=d.w*T, H=d.h*T+LIFT, s=d.s, sign=Object.keys(d.o)[0]||'altin';
+  return mk(W,H,(p,g)=>{
+    const y0=LIFT+1,y1=H-1,x0=1,x1=W-1;
+    const k=s.kind;
+    if(k==='bld'){house(p,g,0,0,W,H,s,sign,sd);return}
+    if(k==='field'||k==='vine'){
+      p(x0,y0,x1-x0,y1-y0,'#6e4a2a');
+      for(let y=y0+3;y<y1-1;y+=4){p(x0+1,y+1,x1-x0-2,1,'#55381e');
+        for(let x=x0+2;x<x1-2;x+=2){
+          if(k==='field'){if(s.dot){p(x,y-1,2,2,shade(s.crop,(h2(x,y,sd)-.5)*.5));if(h2(x,y,sd+3)<.3)p(x,y,1,1,s.dot)}else{p(x,y-2,1,3,shade(s.crop,(h2(x,y,sd)-.5)*.4));p(x,y-3,1,1,shade(s.crop,.35))}}
+          else{if(x%6===2)p(x,y-3,1,4,'#4a3020');p(x,y-2,1,1,'#3f7a2a');if(h2(x,y,sd)<.35)p(x,y-1,1,2,'#6a2f8a')}
+        }}
+      for(let x=x0;x<x1;x+=5)p(x,y1-3,1,3,'#8a6a40');p(x0,y1-2,x1-x0,1,'#a07a48');
+      mini(p,g,x0+1,0,15,LIFT+12,'#8a6a48','#b89a4a',sd,'thatch');
+      signPost(p,g,x1-9,LIFT-2,sign);return}
+    if(k==='orchard'||k==='bees'){
+      p(x0,y0,x1-x0,y1-y0,'#4f8a34');for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)if(h2(x,y,sd)<.1)p(x,y,1,1,'#3f7428');
+      if(k==='orchard'){for(let y=y0+8;y<y1-2;y+=11)for(let x=x0+5+((y/11|0)%2)*4;x<x1-4;x+=11){
+        if(x<18&&y<LIFT+14)continue;p(x,y,2,4,'#6a4424');p(x-3,y-7,8,7,'#3f7a2a');p(x-2,y-8,6,1,'#4f9a3a');p(x-2,y-6,2,2,'#5fae44');
+        for(let i=0;i<3;i++)p(x-2+((h2(x,y+i,sd)*6)|0),y-6+((h2(x+i,y,sd)*4)|0),1,1,s.dot)}}
+      else{for(let i=0;i<4;i++){const hx=x0+3+(i%2)*13, hy=y0+10+(i>>1)*9;if(i===0)continue;p(hx,hy,7,6,'#c8963a');p(hx,hy+2,7,1,'#8a6424');p(hx,hy+4,7,1,'#8a6424');p(hx-1,hy-1,9,2,'#e8d090');p(hx+3,hy+5,1,1,'#2a2018')}
+        for(let i=0;i<14;i++)p(x0+((h2(i,3,sd)*(x1-x0-2))|0),y0+6+((h2(3,i,sd)*(y1-y0-8))|0),1,1,['#f2d14a','#e05a8a','#fff'][i%3])}
+      mini(p,g,x0+1,0,15,LIFT+12,'#9c6a3c','#7a3b2e',sd);signPost(p,g,x1-9,LIFT-2,sign);return}
+    if(k==='pen'){
+      p(x0,y0,x1-x0,y1-y0,'#5a9a3c');for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++)if(h2(x,y,sd)<.08)p(x,y,1,1,'#7a8a3a');
+      for(let x=x0;x<x1;x+=4){p(x,y0+2,1,4,'#6a4424');p(x,y1-5,1,4,'#6a4424')}
+      p(x0,y0+3,x1-x0,1,'#a07a48');p(x0,y1-4,x1-x0,1,'#a07a48');p(x0,y0+2,1,y1-y0-2,'#a07a48');p(x1-1,y0+2,1,y1-y0-2,'#a07a48');
+      mini(p,g,x0+1,0,22,LIFT+14,'#a8483a','#5a3a2a',sd);
+      for(let i=0;i<5;i++){const ax=x0+24+((h2(i,9,sd)*(x1-x0-32))|0), ay=y0+8+((h2(9,i,sd)*(y1-y0-16))|0);
+        if(s.animal==='sheep'){p(ax,ay,5,3,'#f2efe6');p(ax+4,ay,2,2,'#2a2420');p(ax,ay+3,1,1,'#2a2420');p(ax+3,ay+3,1,1,'#2a2420')}
+        else{p(ax,ay,6,3,'#f4f0e8');p(ax+1,ay,2,2,'#5a3a22');p(ax+4,ay+1,1,1,'#5a3a22');p(ax+5,ay-1,2,2,'#e8e0d0');p(ax,ay+3,1,1,'#3a2a1a');p(ax+4,ay+3,1,1,'#3a2a1a')}}
+      signPost(p,g,x1-9,LIFT-2,sign);return}
+    if(k==='quarry'||k==='clay'){
+      const base=k==='quarry'?'#8d8a84':'#a8643c';
+      p(x0,y0,x1-x0,y1-y0,base);for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){const r=h2(x,y,sd);if(r<.15)p(x,y,1,1,shade(base,-.2));else if(r>.9)p(x,y,1,1,shade(base,.2))}
+      if(k==='quarry'){p(x0+4,y0+10,14,10,shade(base,-.35));
+        for(let i=0;i<5;i++){const bx=x0+3+((h2(i,1,sd)*20)|0), by=y0+6+((h2(1,i,sd)*14)|0);p(bx,by,6,4,'#b8b4ac');p(bx,by,6,1,'#d8d4cc');p(bx,by+4,6,1,'#5a5852')}}
+      else{p(x0+5,y0+8,16,10,'#7a4426');p(x0+8,y0+11,8,4,'#5a7a9a');p(x0+9,y0+11,3,1,'#8ab0d0');for(let i=0;i<4;i++)p(x1-8,y1-4-i*3,6,3,i%2?'#c27a4a':'#d48a58')}
+      mini(p,g,x1-15,0,14,LIFT+10,'#9c6a3c','#7a5a3a',sd,'flat');signPost(p,g,x0+1,LIFT-1,sign);return}
+    if(k==='mine'){
+      for(let y=0;y<H-2;y++){const hw=Math.min(W/2,2+y*1.1);p(W/2-hw,y+4,hw*2,1,y%5===0?'#6a6058':'#7a7068')}
+      for(let i=0;i<40;i++)p(((h2(i,2,sd)*W)|0),8+((h2(2,i,sd)*(H-12))|0),1,1,'#5a504a');
+      p(W/2-6,H-16,12,14,'#4a3020');p(W/2-5,H-15,10,13,'#120c08');p(W/2-6,H-16,12,2,'#8a5a2a');
+      p(2,H-4,W-4,1,'#4a4440');p(4,H-9,7,4,'#5a4030');p(5,H-10,5,1,'#7d8b9a');p(4,H-5,2,2,'#2a2420');p(9,H-5,2,2,'#2a2420');
+      signPost(p,g,W-9,H-20,sign);return}
+    if(k==='mill'){
+      p(4,H-2,W-6,2,'rgba(0,0,0,.25)');
+      house(p,g,5,0,W-10,H,{wall:'#d8cfc0',wt:'stone',roof:'#7a3b2a',rt:'gable',fl:2},null,sd);
+      signPost(p,g,W-8,H-14,sign);return}
+    if(k==='market'){
+      p(x0,y0,x1-x0,y1-y0,'#b8a78a');for(let y=y0;y<y1;y+=4)for(let x=x0;x<x1;x+=6)p(x+((y/4|0)%2)*3,y,1,4,'#9a8a6e'),p(x,y,6,1,'#9a8a6e');
+      const cols=['#c0392b','#2e6ab0','#d8a02a','#3f8a4a'];
+      for(let i=0;i<4;i++){const sx=x0+3+(i%2)*22, sy=y0+4+(i>>1)*18, c=cols[i];
+        p(sx,sy+6,16,6,'#7a5232');p(sx,sy+6,16,1,'#a07a48');
+        for(let j=0;j<5;j++)p(sx+1+j*3,sy+7,2,2,['#e3c15a','#d9443b','#6bb34a','#c98a3e','#f3d36b'][(j+i)%5]);
+        for(let x=0;x<18;x++)p(sx-1+x,sy,1,5,(x>>1)%2?c:'#f4ecd8');p(sx-1,sy+5,18,1,shade(c,-.4));p(sx,sy+6,1,6,'#4a3020');p(sx+15,sy+6,1,6,'#4a3020')}
+      signPost(p,g,x1-9,LIFT-4,'altin');return}
+  });
+}
+function houseSprite(d,sd){return mk(d.w*T,d.h*T+LIFT,(p,g)=>house(p,g,0,0,d.w*T,d.h*T+LIFT,d.s,null,sd))}
+HOUSES.forEach((d,i)=>d.spr=houseSprite(d,i*13+1));
+BIZ.forEach((d,i)=>d.spr=bizSprite(d,i*17+5));
+TOWER.spr=houseSprite(TOWER,999);
+const TREES=[0,1,2].map(v=>mk(16,22,(p)=>{
+  p(5,17,7,3,'rgba(0,0,0,.25)');p(7,13,2,6,'#5a3a20');
+  if(v===1){for(let y=0;y<15;y++){const hw=Math.floor(y/2)+1;p(8-hw,y,hw*2,1,y%3===0?'#3f8a4a':'#4fa05a')}p(6,4,1,1,'#8ad07a')}
+  else{const c=v===2?'#f4a6c0':'#5aa64a';p(2,4,12,9,c);p(3,2,10,2,c);p(4,1,8,1,c);p(3,13,10,2,shade(c,-.2));p(4,3,4,2,shade(c,.3));p(3,5,2,2,shade(c,.25));
+    for(let i=0;i<7;i++)p(3+((h2(i,v,4)*10)|0),5+((h2(v,i,4)*7)|0),1,1,v===2?'#ffffff':i%2?'#ff7a8a':shade(c,-.25))}
+}));
+
+/* ---------- Birim çizimi ---------- */
+function drawUnit(g,x,y,o){
+  x=Math.round(x);y=Math.round(y);const f=o.frame,b=f?-1:0;
+  const blink=((perf+(o.bo||0))%3600)<130;
+  const P=(c,a,bb,w,h)=>{g.fillStyle=c;g.fillRect(a,bb,w,h)};
+  P('rgba(60,30,60,.22)',x-3,y-1,7,2);
+  P('#5a3a52',x-2,y-2+(f?-1:0),2,2);P('#5a3a52',x+1,y-2,2,2);
+  P(o.body,x-2,y-5+b,5,3);P(shade(o.body,.3),x-2,y-5+b,5,1);
+  const sk=o.skin||'#f6cfa8';
+  P(sk,x-3,y-10+b,7,5);P(sk,x-2,y-11+b,5,1);
+  const wp=o.wp;
+  if(wp==='knight'){P('#c8d0dc',x-3,y-12+b,7,3);P('#c8d0dc',x-3,y-10+b,1,4);P('#c8d0dc',x+3,y-10+b,1,4);P('#ff8fab',x,y-14+b,2,2)}
+  else if(o.hat){P(o.hat,x-3,y-12+b,7,2);P(o.hat,x-2,y-13+b,5,1);if(o.hood){P(o.hat,x-3,y-10+b,1,3);P(o.hat,x+3,y-10+b,1,3)}}
+  else{P(o.hair||'#7a4a30',x-3,y-12+b,7,2);P(o.hair||'#7a4a30',x-3,y-10+b,1,2);P(o.hair||'#7a4a30',x+3,y-10+b,1,2)}
+  if(o.mask){P('#3a2a3a',x-3,y-9+b,7,2);P('#fff',x-2,y-9+b,1,1);P('#fff',x+1,y-9+b,1,1)}
+  else{P('#3a2438',x-2,y-8+b,1,blink?1:2);P('#3a2438',x+1,y-8+b,1,blink?1:2);if(!blink){P('#fff',x-2,y-8+b,1,1);P('#fff',x+1,y-8+b,1,1)}}
+  P('#ff9aaa',x-3,y-6+b,1,1);P('#ff9aaa',x+3,y-6+b,1,1);
+  if(wp==='sword'||wp==='knight'){P('#e8eef4',x+4,y-9+b,1,5);P('#c9963a',x+3,y-5+b,3,1)}
+  else if(wp==='spear'){P('#a8743a',x+4,y-12+b,1,11);P('#e8eef4',x+4,y-14+b,1,2)}
+  else if(wp==='bow'){P('#a8743a',x+4,y-10+b,1,1);P('#a8743a',x+5,y-9+b,1,4);P('#a8743a',x+4,y-5+b,1,1);P('#fff6e0',x+4,y-9+b,1,4)}
+  else if(wp==='dagger'){P('#d8dce0',x+4,y-6+b,1,3)}
+  if(o.hpf!=null&&o.hpf<1){P('#6a2a3a',x-4,y-17,8,1);P(o.hpf>.5?'#7ce08a':'#ffb648',x-4,y-17,Math.max(1,Math.round(8*o.hpf)),1)}
+}
+function pastel(c){const g=c.getContext('2d'),im=g.getImageData(0,0,c.width,c.height),d=im.data;
+  for(let i=0;i<d.length;i+=4){if(!d[i+3])continue;for(let j=0;j<3;j++)d[i+j]=d[i+j]+(255-d[i+j])*.14}g.putImageData(im,0,0);return c}
+const HEART=[".#.#.","#####",".###.","..#.."];
+const SKIN=['#f6cfa8','#e0a878','#ffdcbc','#c08a5e'];
+HOUSES.forEach(d=>pastel(d.spr));BIZ.forEach(d=>pastel(d.spr));pastel(TOWER.spr);TREES.forEach(pastel);
+function soldierLook(ty){const D=SOLD[ty];return {body:D.col,hat:'#9aa3ab',wp:D.wp,skin:'#e8b88a'}}
+function unitThumb(look){return mk(14,18,g2=>{})}
+function thumbOf(look){const c=document.createElement('canvas');c.width=12;c.height=17;drawUnit(c.getContext('2d'),5,16,{...look,frame:0});return c.toDataURL()}
+
+/* ---------- Harita ---------- */
+let ter,tree;
+function genMap(){
+  ter=new Uint8Array(MW*MH);tree=new Uint8Array(MW*MH);
+  for(let y=0;y<MH;y++){const cx=51+Math.sin(y*.18)*3+Math.sin(y*.05+1)*3;for(let x=0;x<MW;x++)if(Math.abs(x-cx)<1.7)ter[y*MW+x]=1}
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){const dx=x-11,dy=(y-38)*1.3;if(dx*dx+dy*dy<11)ter[y*MW+x]=1}
+  const cl=[];for(let i=0;i<18;i++)cl.push([h2(i,1,77)*MW,h2(1,i,77)*MH,2.5+h2(i,i,77)*4.5]);
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++){const i=y*MW+x;if(ter[i])continue;
+    if(x>=20&&x<=44&&y>=13&&y<=35)continue;
+    let pr=.015;for(const [cx,cy,r] of cl){const d=Math.hypot(x-cx,y-cy);if(d<r)pr=Math.max(pr,.7-d/r*.4)}
+    if(x<2||y<2||x>MW-3||y>MH-3)pr=Math.max(pr,.5);
+    if(h2(x,y,31)<pr)tree[i]=1}
+}
+const terrain=document.createElement('canvas');terrain.width=MW*T;terrain.height=MH*T;
+let terDirty=true;
+function renderTerrain(cnv,tt,tr){
+  const own=!cnv;cnv=cnv||terrain;tt=tt||ter;tr=tr||tree;
+  const g=cnv.getContext('2d'),W=MW*T,H=MH*T,img=g.createImageData(W,H),d=img.data;
+  const tile=(px,py)=>{const x=px>>4,y=py>>4;return (x<0||y<0||x>=MW||y>=MH)?0:tt[y*MW+x]};
+  for(let py=0;py<H;py++)for(let px=0;px<W;px++){
+    const t=tile(px,py);let r,gg,b;const n=h2(px,py,5);
+    if(t===1){r=112;gg=186;b=232;if((py%6===0&&n<.25)||n<.03){r=196;gg=232;b=252}else if(n>.93){r=92;gg=164;b=214}}
+    else{const near=tile(px-3,py)===1||tile(px+3,py)===1||tile(px,py-3)===1||tile(px,py+3)===1;
+      if(near){r=246;gg=228;b=180;if(n<.15){r=230;gg=208;b=158}}
+      else if(t===2){r=222;gg=186;b=140;if(n<.12){r=200;gg=164;b=120}else if(n>.92){r=240;gg=210;b=168}
+        if((px&15)===0||(py&15)===0){const nb=(px&15)===0?tile(px-1,py):tile(px,py-1);if(nb!==2){r=150;gg=200;b=110}}}
+      else{const bl=h2(px>>3,py>>3,9);r=128+bl*10;gg=200+bl*12;b=108;if(n<.08){r=110;gg=182;b=94}else if(n>.965){r=160;gg=220;b=128}
+        const tx=px>>4,ty=py>>4,fh=h2(tx,ty,11);
+        if(fh<.22){const fx=3+((h2(tx,ty,12)*10)|0),fy=3+((h2(tx,ty,13)*10)|0),lx=px&15,ly=py&15;
+          const pc=[[255,170,196],[255,255,255],[255,214,102],[196,170,255]][(h2(tx,ty,14)*4)|0];
+          if(lx===fx&&ly===fy){r=255;gg=214;b=90}else if(Math.abs(lx-fx)+Math.abs(ly-fy)===1){[r,gg,b]=pc}}}}
+    const o=(py*W+px)*4;d[o]=r;d[o+1]=gg;d[o+2]=b;d[o+3]=255}
+  g.putImageData(img,0,0);
+  for(let y=0;y<MH;y++)for(let x=0;x<MW;x++)if(tr[y*MW+x])g.drawImage(TREES[(h2(x,y,3)*3)|0],x*T,y*T-6);
+  if(own)terDirty=false;
+}
+
+/* ---------- Durum ---------- */
+let S, occ=new Int32Array(MW*MH), bandits=[], walkers=[], parts=[], fxs=[], arrows=[], visit=null;
+const R0=()=>{const r={};for(const k in RES)r[k]=0;return r};
+function rebuildOcc(){occ.fill(0);for(const b of S.blds){const d=defOf(b);for(let y=0;y<d.h;y++)for(let x=0;x<d.w;x++)occ[(b.y+y)*MW+b.x+x]=b.id}}
+function defOf(b){return b.k==='house'?HOUSES[b.d]:b.k==='biz'?BIZ[b.d]:TOWER}
+function cap(){let c=0;for(const b of S.blds)if(b.k==='house')c+=HOUSES[b.d].cap;return c}
+function addB(k,d,x,y){const b={id:S.nid++,k,d,x,y,p:0,run:false,w:0,st:'',cd:0};S.blds.push(b);rebuildOcc();return b}
+function addS(ty,tx,ty2){const D=SOLD[ty];S.sold.push({ty,x:tx*T+8,y:ty2*T+12,hx:tx*T+8,hy:ty2*T+12,hp:D.hp,cd:0,wk:0})}
+function newGame(){
+  genMap();
+  S={res:R0(),pop:6,happy:60,t:0,cyc:0,grow:0,blds:[],sold:[],nid:1,nextRaid:240,wave:0};
+  Object.assign(S.res,{altin:120,odun:60,tas:30,ekmek:20,bugday:6});
+  for(let x=25;x<=40;x++)ter[23*MW+x]=2;
+  for(let y=17;y<=31;y++)ter[y*MW+32]=2;
+  addB('house',0,27,20);addB('house',0,30,20);addB('house',3,33,20);addB('house',1,36,20);
+  addB('biz',0,26,24);addB('biz',2,28,24);addB('biz',3,33,24);addB('biz',4,36,24);addB('biz',1,26,27);
+  addS(0,31,28);addS(0,35,28);
+  bandits=[];walkers=[];terDirty=true;
+}
+function save(silent){try{localStorage.setItem('pikselkoy1',JSON.stringify({...S,ter:Array.from(ter).join(''),tree:Array.from(tree).join('')}));if(!silent)log('Oyun kaydedildi.','good')}catch(e){if(!silent)log('Kayıt yapılamadı: tarayıcı depolamaya izin vermiyor.','bad')}}
+function load(){try{const j=JSON.parse(localStorage.getItem('pikselkoy1')||'null');if(!j||!j.blds)return false;
+  ter=Uint8Array.from(j.ter,c=>+c);tree=Uint8Array.from(j.tree,c=>+c);delete j.ter;delete j.tree;S=j;S.res={...R0(),...S.res};terDirty=true;return true}catch(e){return false}}
+if(!load())newGame();
+rebuildOcc();
+
+/* ---------- Mesajlar ---------- */
+function log(t,cls){const el=document.createElement('div');el.textContent=t;if(cls)el.className=cls;const L=$('#log');L.appendChild(el);while(L.children.length>5)L.firstChild.remove();setTimeout(()=>{el.style.opacity=0;setTimeout(()=>el.remove(),700)},7000)}
+function fx(x,y,k,q){if(!visit&&fxs.length<60)fxs.push({x,y,k,q,t:0})}
+const cen=b=>{const d=defOf(b);return {x:b.x*T+d.w*T/2,y:b.y*T+d.h*T/2}};
+const door=b=>{const d=defOf(b);return {x:b.x*T+d.w*T/2,y:(b.y+d.h)*T+3}};
+
+/* ---------- Ekonomi ---------- */
+function affordable(c){for(const k in c)if((S.res[k]||0)<c[k])return false;return true}
+function pay(c,m=1){for(const k in c)S.res[k]-=Math.round(c[k]*m)}
+function refund(c){for(const k in c)S.res[k]+=Math.floor(c[k]/2)}
+function inputOpt(d){if(!d.i)return {};const opts=Array.isArray(d.i)?d.i:[d.i];for(const o of opts)if(affordable(o))return o;return null}
+function missing(d){const o=Array.isArray(d.i)?d.i[0]:d.i;if(Array.isArray(d.i))return d.i.map(x=>RES[Object.keys(x)[0]][0]).join(' ya da ');return Object.keys(o).filter(k=>S.res[k]<o[k]).map(k=>RES[k][0]).join(', ')}
+function econ(dt){
+  S.t+=dt;
+  let free=S.pop;
+  for(const b of S.blds){if(b.k!=='biz')continue;const d=BIZ[b.d];b.w=Math.min(d.wk,free);free-=b.w}
+  S.idle=free;
+  const bonus=S.res.alet>0?1.25:1;
+  for(const b of S.blds){
+    if(b.k!=='biz')continue;const d=BIZ[b.d];
+    if(!b.w){b.st='İşçi yok, ev yap';b.run=false;continue}
+    if(d.special==='market'){b.p+=dt*b.w/d.wk;b.run=true;if(b.p>=d.t){b.p=0;let gsum=0;
+      for(const k in PRICE){const a=S.res[k]||0;if(a>40){const q=Math.min(6,a-40);S.res[k]-=q;gsum+=q*PRICE[k]}}
+      if(gsum){S.res.altin+=gsum;const c=cen(b);fx(c.x,c.y-10,'altin',gsum)}b.st=gsum?'Son satış: '+gsum+' altın':'Satılacak fazla mal yok'}continue}
+    if(!b.run){const o=inputOpt(d);if(!o){b.st='Bekliyor: '+missing(d);continue}pay(o);b.run=true;b.st='Çalışıyor'}
+    b.p+=dt*(b.w/d.wk)*bonus;
+    if(b.p>=d.t){b.p=0;b.run=false;const c=cen(b);let n=0;
+      for(const k in d.o){S.res[k]+=d.o[k];fx(c.x,c.y-10-n*7,k,d.o[k]);n++}
+      if(d.joy)S.happy=Math.min(100,S.happy+d.joy)}
+  }
+  for(const k in S.res)if(S.res[k]<0)S.res[k]=0;
+  const C=cap();
+  S.grow+=dt;if(S.grow>=3){S.grow=0;const food=FOOD.reduce((a,k)=>a+S.res[k],0);
+    if(S.pop<C&&S.happy>=30&&(food>0||S.pop<4)){S.pop++}if(S.pop>C)S.pop=C}
+  S.cyc+=dt;if(S.cyc>=10){S.cyc-=10;
+    const need=Math.ceil(S.pop/3);let got=0;const av=FOOD.filter(k=>S.res[k]>0);let i=0;
+    while(got<need&&av.some(k=>S.res[k]>0)){const k=av[i++%av.length];if(S.res[k]>0){S.res[k]--;got++}}
+    let dh=0;if(S.pop>0){if(got<need)dh-=2+12*(1-got/need);else dh+=1+av.length*.6}
+    if(S.happy>75)dh-=1.5;
+    for(const k of ['mum','ilac']){const q=Math.max(1,Math.ceil(S.pop/12));if(S.pop&&S.res[k]>=q){S.res[k]-=q;dh+=2}}
+    S.happy=clamp(S.happy+dh,0,100);
+    const tax=Math.round(S.pop*.5*(.4+S.happy/100));S.res.altin+=tax;
+    S.res.altin=Math.max(0,S.res.altin-S.sold.length);
+    S.food=[got,need];
+    if(got<need&&S.pop>0)log('Yiyecek yetmiyor! Fırıncı, bostan ya da balıkçı kur.','bad');
+    if(S.happy<20&&S.pop>0){S.pop--;log('Mutsuz bir köylü köyü terk etti.','bad')}
+  }
+  if(S.t>=S.nextRaid){if(S.blds.length)spawnRaid();S.nextRaid=S.t+150+Math.random()*60}
+}
+
+/* ---------- Savaş ---------- */
+const EDGES=['kuzeyden','güneyden','batıdan','doğudan'];
+function spawnRaid(){
+  S.wave++;const n=2+S.wave, side=(Math.random()*4)|0;
+  for(let i=0;i<n;i++){let x,y;const r=Math.random();
+    if(side===0){x=r*MW*T;y=-8}else if(side===1){x=r*MW*T;y=MH*T+8}else if(side===2){x=-8;y=r*MH*T}else{x=MW*T+8;y=r*MH*T}
+    bandits.push({x,y,hp:35+S.wave*6,mx:35+S.wave*6,dmg:4+S.wave,sp:24,st:'go',tb:0,cd:0,wk:0,side,loot:null})}
+  log(`${S.wave}. baskın: ${n} haydut ${EDGES[side]} geliyor!`,'bad');
+}
+function move(o,tx,ty,step){const dx=tx-o.x,dy=ty-o.y,d=Math.hypot(dx,dy);if(d<=step){o.x=tx;o.y=ty;return true}o.x+=dx/d*step;o.y+=dy/d*step;o.wk+=step;return false}
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+function hurt(e,dmg){e.hp-=dmg;parts.push({x:e.x,y:e.y-6,vx:0,vy:-10,t:0,life:.4,c:'#e04040'})}
+function war(dt){
+  for(const s of S.sold){const D=SOLD[s.ty];s.cd-=dt;
+    let tg=null,best=1e9;for(const e of bandits){if(Math.hypot(e.x-s.hx,e.y-s.hy)<7*T){const d=dist(e,s);if(d<best){best=d;tg=e}}}
+    if(tg){if(best>D.rng*T)move(s,tg.x,tg.y,D.sp*dt);else if(s.cd<=0){s.cd=D.cd;hurt(tg,D.dmg);if(D.rng>2&&!visit)arrows.push({x:s.x,y:s.y-8,tx:tg.x,ty:tg.y-6,t:0})}s.face=tg.x<s.x}
+    else{if(!move(s,s.hx,s.hy,D.sp*.7*dt))s.face=s.hx<s.x;else s.hp=Math.min(D.hp,s.hp+3*dt)}}
+  for(const b of S.blds){if(b.k!=='tower')continue;b.cd-=dt;if(b.cd>0)continue;const c=cen(b);
+    let tg=null,best=6*T;for(const e of bandits){const d=dist(e,c);if(d<best){best=d;tg=e}}
+    if(tg){b.cd=1.3;hurt(tg,6);if(!visit)arrows.push({x:c.x,y:c.y-24,tx:tg.x,ty:tg.y-6,t:0})}}
+  for(const e of bandits){e.cd-=dt;
+    let near=null,nd=1e9;for(const s of S.sold){const d=dist(e,s);if(d<nd){nd=d;near=s}}
+    if(near&&nd<15&&e.st!=='flee'){if(e.cd<=0){e.cd=1.1;hurt(near,e.dmg)}e.face=near.x<e.x;continue}
+    if(e.st==='go'){let b=S.blds.find(b=>b.id===e.tb);
+      if(!b){const list=S.blds.filter(b=>b.k!=='tower');b=list[(Math.random()*list.length)|0];if(!b){e.st='flee';continue}e.tb=b.id}
+      const c=door(b);e.face=c.x<e.x;if(move(e,c.x,c.y,e.sp*dt)){e.st='loot';e.t=3}}
+    else if(e.st==='loot'){e.t-=dt;if(e.t<=0){
+      const ks=['altin','ekmek','odun','tas','tugla','un','bira','sarap','silah','peynir'];let k=ks[0];for(const x of ks)if(S.res[x]>S.res[k])k=x;
+      const q=Math.min(S.res[k],10+S.wave*4);if(q>0){S.res[k]-=q;e.loot={k,q};log(`Haydutlar ${q} ${RES[k][0].toLowerCase()} çaldı!`,'bad')}
+      e.st='flee';const sd=e.side;e.ex=sd===2?-20:sd===3?MW*T+20:e.x;e.ey=sd===0?-20:sd===1?MH*T+20:e.y}}
+    else if(e.st==='flee'){e.face=e.ex<e.x;if(move(e,e.ex,e.ey,e.sp*1.1*dt))e.hp=-999}
+  }
+  bandits=bandits.filter(e=>{if(e.hp>0)return true;
+    if(e.hp>-999){const bounty=6+S.wave;S.res.altin+=bounty;fx(e.x,e.y-12,'altin',bounty);if(e.loot){S.res[e.loot.k]+=e.loot.q;log(`Çalınan ${RES[e.loot.k][0].toLowerCase()} geri alındı.`,'good')}
+      for(let i=0;i<6;i++)parts.push({x:e.x,y:e.y-5,vx:(Math.random()-.5)*30,vy:-Math.random()*25,t:0,life:.6,c:'#7a1e1e'})}
+    return false});
+  const before=S.sold.length;S.sold=S.sold.filter(s=>s.hp>0);if(S.sold.length<before)log('Bir asker şehit düştü.','bad');
+}
+
+/* ---------- Köylüler & efektler ---------- */
+function walkSim(dt,walkers,blds,want){
+  while(walkers.length<want&&blds.length){const b=blds[(Math.random()*blds.length)|0],c=door(b);
+    walkers.push({x:c.x,y:c.y,tx:c.x,ty:c.y,wait:Math.random()*2,wk:0,bo:Math.random()*3600,body:['#ff8fab','#7ab8f0','#8ad48a','#ffc46b','#c8a0f0','#ff9a7a'][(Math.random()*6)|0],skin:SKIN[(Math.random()*4)|0],hair:['#5a3424','#8a5434','#e8b85a','#3a2430','#d8704a'][(Math.random()*5)|0]})}
+  if(walkers.length>want)walkers.length=want;
+  for(const w of walkers){if(w.wait>0){w.wait-=dt;continue}
+    if(move(w,w.tx,w.ty,14*dt)){w.wait=1+Math.random()*3;const b=blds[(Math.random()*blds.length)|0];if(b){const c=door(b);w.tx=c.x+(Math.random()-.5)*8;w.ty=c.y}}w.face=w.tx<w.x}
+}
+let smokeT=0,heartT=0,flies=[];
+function effects(dt,rdt){
+  smokeT+=dt;if(smokeT>.25&&!visit){smokeT=0;for(const b of S.blds){const d=defOf(b);if(!d.s.ch||d.s.rt==='tower')continue;if(b.k==='biz'&&!b.run)continue;if(Math.random()<.35)
+    parts.push({x:b.x*T+d.w*T-8+Math.random()*2,y:b.y*T-LIFT+(d.s.ch?1:0),vx:4+Math.random()*3,vy:-8-Math.random()*4,t:0,life:2.2,c:'smoke'})}}
+  heartT+=dt;if(heartT>1.2){heartT=0;if(S.happy>=60&&!visit){const hs=S.blds.filter(b=>b.k==='house');const b=hs[(Math.random()*hs.length)|0];
+    if(b){const c=cen(b);parts.push({x:c.x-2,y:b.y*T-LIFT+4,vx:(Math.random()-.5)*4,vy:-9,t:0,life:1.8,c:'heart'})}}}
+  while(flies.length<12)flies.push({x:Math.random()*MW*T,y:Math.random()*MH*T,vx:0,vy:0,ph:Math.random()*6,c:['#ffb3c8','#fff3a0','#c8b8ff','#ffffff'][(Math.random()*4)|0]});
+  for(const f of flies){f.vx=clamp(f.vx+(Math.random()-.5)*60*rdt,-12,12);f.vy=clamp(f.vy+(Math.random()-.5)*60*rdt,-12,12);f.x=clamp(f.x+f.vx*rdt,0,MW*T);f.y=clamp(f.y+f.vy*rdt,0,MH*T)}
+  for(const p of parts){p.t+=rdt;p.x+=p.vx*rdt;p.y+=p.vy*rdt}parts=parts.filter(p=>p.t<p.life);
+  for(const f of fxs)f.t+=rdt;fxs=fxs.filter(f=>f.t<1.6);
+  for(const a of arrows)a.t+=rdt*4;arrows=arrows.filter(a=>a.t<1);
+}
+
+/* ---------- Kamera & giriş ---------- */
+const cv=$('#cv'),ctx=cv.getContext('2d');
+let dpr=1,zoom=innerWidth>1100?3:2,cam={x:32*T,y:24*T},hover=null,tool=null,selB=null,speed=1;
+const ZL=[1,2,3,4,5];
+function resize(){dpr=window.devicePixelRatio||1;const r=cv.getBoundingClientRect();cv.width=Math.max(1,Math.round(r.width*dpr));cv.height=Math.max(1,Math.round(r.height*dpr))}
+new ResizeObserver(resize).observe(cv);resize();
+function vw(){return cv.width/dpr/zoom}function vh(){return cv.height/dpr/zoom}
+cam.x-=vw()/2;cam.y-=vh()/2;
+function clampCam(){const W=MW*T,H=MH*T;cam.x=vw()>W?(W-vw())/2:clamp(cam.x,-40,W-vw()+40);cam.y=vh()>H?(H-vh())/2:clamp(cam.y,-40,H-vh()+40)}
+function toWorld(e){const r=cv.getBoundingClientRect();return {x:cam.x+(e.clientX-r.left)/zoom,y:cam.y+(e.clientY-r.top)/zoom}}
+function setZoom(nz,sx,sy){const r=cv.getBoundingClientRect();if(sx==null){sx=r.width/2;sy=r.height/2}const wx=cam.x+sx/zoom,wy=cam.y+sy/zoom;zoom=nz;cam.x=wx-sx/zoom;cam.y=wy-sy/zoom;clampCam()}
+cv.addEventListener('wheel',e=>{e.preventDefault();const i=ZL.indexOf(zoom);const ni=clamp(i+(e.deltaY<0?1:-1),0,ZL.length-1);const r=cv.getBoundingClientRect();setZoom(ZL[ni],e.clientX-r.left,e.clientY-r.top)},{passive:false});
+$('#zin').onclick=()=>setZoom(ZL[clamp(ZL.indexOf(zoom)+1,0,4)]);$('#zout').onclick=()=>setZoom(ZL[clamp(ZL.indexOf(zoom)-1,0,4)]);
+let pd=null,lastPaint=-1;
+const isPaint=()=>tool&&(tool.k==='tool')&&(tool.id==='path'||tool.id==='clear');
+cv.addEventListener('contextmenu',e=>{e.preventDefault();setTool(null)});
+cv.addEventListener('pointerdown',e=>{if(e.button===2)return;cv.setPointerCapture(e.pointerId);pd={x:e.clientX,y:e.clientY,cx:cam.x,cy:cam.y,moved:false,paint:isPaint()};lastPaint=-1;if(pd.paint)paintAt(toWorld(e))});
+cv.addEventListener('pointermove',e=>{const w=toWorld(e);hover={tx:Math.floor(w.x/T),ty:Math.floor(w.y/T),wx:w.x,wy:w.y};
+  if(!pd)return;if(pd.paint){paintAt(w);return}
+  const dx=e.clientX-pd.x,dy=e.clientY-pd.y;if(!pd.moved&&Math.hypot(dx,dy)>6)pd.moved=true;
+  if(pd.moved){cam.x=pd.cx-dx/zoom;cam.y=pd.cy-dy/zoom;clampCam()}});
+cv.addEventListener('pointerup',e=>{if(pd&&!pd.moved&&!pd.paint)clickAt(toWorld(e));pd=null});
+cv.addEventListener('pointerleave',()=>{if(!pd)hover=null});
+const keys={};addEventListener('keydown',e=>{if(e.key==='Escape')setTool(null);keys[e.key.toLowerCase()]=1});addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=0});
+
+function canPlace(d,tx,ty){if(tx<0||ty<0||tx+d.w>MW||ty+d.h>MH)return false;
+  for(let y=ty;y<ty+d.h;y++)for(let x=tx;x<tx+d.w;x++){const i=y*MW+x;if(ter[i]||tree[i]||occ[i])return false}
+  if(d.water){let ok=false;for(let y=ty-2;y<ty+d.h+2;y++)for(let x=tx-2;x<tx+d.w+2;x++)if(x>=0&&y>=0&&x<MW&&y<MH&&ter[y*MW+x]===1)ok=true;if(!ok)return false}
+  return true}
+function toolDef(){if(!tool)return null;return tool.k==='house'?HOUSES[tool.i]:tool.k==='biz'?BIZ[tool.i]:tool.k==='tower'?TOWER:null}
+function costTxt(c){return Object.keys(c).filter(k=>(S.res[k]||0)<c[k]).map(k=>`${c[k]-Math.floor(S.res[k])} ${RES[k][0].toLowerCase()}`).join(', ')}
+function paintAt(w){const tx=Math.floor(w.x/T),ty=Math.floor(w.y/T);if(tx<0||ty<0||tx>=MW||ty>=MH)return;const i=ty*MW+tx;if(i===lastPaint)return;lastPaint=i;
+  if(tool.id==='path'){if(ter[i]===0&&!tree[i]&&!occ[i]){if(S.res.tas<1){log('Yol için taş lazım.','bad');return}S.res.tas--;ter[i]=2;terDirty=true}}
+  else if(tool.id==='clear'){if(tree[i]){tree[i]=0;S.res.odun+=2;fx(tx*T+8,ty*T,'odun',2);terDirty=true}}}
+function clickAt(w){
+  if(visit)return;
+  const tx=Math.floor(w.x/T),ty=Math.floor(w.y/T);
+  if(tool){
+    const d=toolDef();
+    if(d){const ox=tx-Math.floor((d.w-1)/2),oy=ty-Math.floor((d.h-1)/2);
+      if(!canPlace(d,ox,oy)){log(d.water?'Buraya kurulamaz. Balıkçı su kenarında olmalı.':'Buraya kurulamaz: yer dolu, ağaç ya da su var.','bad');return}
+      if(!affordable(d.c)){log('Yetersiz: '+costTxt(d.c),'bad');return}
+      pay(d.c);const b=addB(tool.k,tool.i,ox,oy);for(let i=0;i<8;i++)parts.push({x:ox*T+Math.random()*d.w*T,y:(oy+d.h)*T,vx:(Math.random()-.5)*20,vy:-Math.random()*15,t:0,life:.6,c:'#c9b48a'});
+      log(d.n+' kuruldu.','good');refreshCards();return}
+    if(tool.k==='sold'){const D=SOLD[tool.i];if(tx<0||ty<0||tx>=MW||ty>=MH||ter[ty*MW+tx]===1||occ[ty*MW+tx]){log('Asker buraya konamaz.','bad');return}
+      if(!affordable(D.c)){log('Yetersiz: '+costTxt(D.c),'bad');return}pay(D.c);addS(tool.i,tx,ty);log(D.n+' göreve başladı.','good');refreshCards();return}
+    if(tool.id==='demolish'){
+      const s=S.sold.find(s=>Math.hypot(s.x-w.x,s.y-6-w.y)<7);if(s){refund(SOLD[s.ty].c);S.sold.splice(S.sold.indexOf(s),1);log(SOLD[s.ty].n+' terhis edildi.');return}
+      const id=occ[ty*MW+tx]||0;const b=S.blds.find(b=>b.id===id);if(b){const d=defOf(b);refund(d.c);S.blds.splice(S.blds.indexOf(b),1);rebuildOcc();if(selB===b.id)selB=null;log(d.n+' yıkıldı.');if(b.k==='house'&&S.pop>cap())S.pop=cap()}
+      return}
+    return}
+  const s=S.sold.find(s=>Math.hypot(s.x-w.x,s.y-6-w.y)<7);
+  if(s){selB='s'+S.sold.indexOf(s);showDetail();return}
+  const id=(tx>=0&&ty>=0&&tx<MW&&ty<MH)?occ[ty*MW+tx]:0;selB=id||null;showDetail();
+}
+
+/* ---------- Çizim ---------- */
+function drawB(b){const d=defOf(b),x=b.x*T,y=b.y*T-LIFT;ctx.drawImage(d.spr,x,y);
+  if(b.k==='biz'&&d.s.kind==='mill'){const cx=x+d.w*T/2,cy=y+13,a=(b.run?S.t*2.2:0)+b.id;
+    for(let i=0;i<4;i++){const an=a+i*Math.PI/2,c=Math.cos(an),s=Math.sin(an);
+      for(let r=1;r<14;r++){ctx.fillStyle='#4a3020';ctx.fillRect(Math.round(cx+c*r),Math.round(cy+s*r),1,1);
+        if(r>4){ctx.fillStyle='#efe6cf';for(let k=1;k<=3;k++)ctx.fillRect(Math.round(cx+c*r-s*k),Math.round(cy+s*r+c*k),1,1)}}}
+    ctx.fillStyle='#2a2018';ctx.fillRect(cx-1,cy-1,2,2)}
+  if(b.k==='biz'&&b.st&&!b.run&&BIZ[b.d].special!=='market'&&Math.floor(perf/500)%2){ctx.fillStyle='#e04a2a';ctx.fillRect(x+d.w*T-6,y+LIFT+1,4,5);ctx.fillStyle='#fff';ctx.fillRect(x+d.w*T-5,y+LIFT+2,2,2);ctx.fillRect(x+d.w*T-5,y+LIFT+5,2,1)}
+  if(selB===b.id){ctx.strokeStyle='#f2c94c';ctx.lineWidth=1;ctx.strokeRect(b.x*T+.5,b.y*T+.5,d.w*T-1,d.h*T-1)}}
+let perf=0;
+function render(){
+  const z=zoom*dpr;ctx.setTransform(1,0,0,1,0,0);ctx.fillStyle='#8cc870';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.setTransform(z,0,0,z,-Math.round(cam.x*z),-Math.round(cam.y*z));ctx.imageSmoothingEnabled=false;
+  if(terDirty)renderTerrain();ctx.drawImage(visit?visit.terrain:terrain,0,0);
+  const L=[];
+  for(const b of (visit?visit.blds:S.blds))L.push([(b.y+defOf(b).h)*T,()=>drawB(b)]);
+  const fr=o=>((o.wk/4)|0)%2;
+  if(visit)for(const u of visit.units){if(u.hp<=0)continue;const D=SOLD[u.ty];L.push([u.y,()=>drawUnit(ctx,u.x,u.y,{body:D.col,hat:u.team==='a'?'#ff8fab':'#b8c4d4',wp:D.wp,frame:fr(u),hpf:u.hp/D.hp,bo:u.bo})])}
+  else for(const [i,s] of S.sold.entries()){const D=SOLD[s.ty];L.push([s.y,()=>{drawUnit(ctx,s.x,s.y,{body:D.col,hat:'#b8c4d4',wp:D.wp,frame:fr(s),hpf:s.hp/D.hp,bo:(s.hx*7)%3600});if(selB==='s'+i){ctx.strokeStyle='#ffd166';ctx.strokeRect(Math.round(s.x)-5.5,Math.round(s.y)-15.5,11,17)}}])}
+  if(!visit)for(const e of bandits)L.push([e.y,()=>drawUnit(ctx,e.x,e.y,{body:'#6a5a7a',hat:'#8a4a6a',hood:1,mask:1,wp:'dagger',frame:fr(e),hpf:e.hp/e.mx})]);
+  for(const w of (visit?visit.walkers:walkers))L.push([w.y,()=>drawUnit(ctx,w.x,w.y,{body:w.body,skin:w.skin,hair:w.hair,frame:w.wait>0?0:fr(w),bo:w.bo})]);
+  L.sort((a,b)=>a[0]-b[0]);for(const l of L)l[1]();
+  for(const f of flies){const up=Math.sin(perf/70+f.ph)>0;ctx.fillStyle=f.c;const x=Math.round(f.x),y=Math.round(f.y);
+    if(up){ctx.fillRect(x-2,y-1,2,2);ctx.fillRect(x+1,y-1,2,2)}else{ctx.fillRect(x-1,y,1,2);ctx.fillRect(x+1,y,1,2)}ctx.fillStyle='#5a3a52';ctx.fillRect(x,y-1,1,3)}
+  for(const p of parts){const a=1-p.t/p.life;if(p.c==='heart'){ctx.globalAlpha=Math.min(1,a*2);ctx.fillStyle='#ff6f91';for(let j=0;j<4;j++)for(let i=0;i<5;i++)if(HEART[j][i]==='#')ctx.fillRect(Math.round(p.x)+i,Math.round(p.y)+j,1,1);ctx.globalAlpha=1;continue}
+    if(p.c==='smoke'){ctx.fillStyle=`rgba(210,206,200,${a*.55})`;const s=p.t>1?3:2;ctx.fillRect(Math.round(p.x),Math.round(p.y),s,s)}else{ctx.globalAlpha=a;ctx.fillStyle=p.c;ctx.fillRect(Math.round(p.x),Math.round(p.y),1,1);ctx.globalAlpha=1}}
+  ctx.fillStyle='#3a2a1a';for(const a of arrows){const x=a.x+(a.tx-a.x)*a.t,y=a.y+(a.ty-a.y)*a.t-Math.sin(a.t*Math.PI)*8;ctx.fillRect(Math.round(x),Math.round(y),2,1)}
+  ctx.font='600 8px "Pixelify Sans", monospace';ctx.textBaseline='middle';
+  for(const f of fxs){const a=1-f.t/1.6,y=Math.round(f.y-f.t*12);ctx.globalAlpha=a;ctx.drawImage(glyphC[f.k],Math.round(f.x)-6,y-3);ctx.fillStyle='#1a120a';ctx.fillText('+'+f.q,Math.round(f.x)+1,y+1);ctx.fillStyle='#fff6d0';ctx.fillText('+'+f.q,Math.round(f.x),y);ctx.globalAlpha=1}
+  if(tool&&hover){const d=toolDef();
+    if(d){const ox=hover.tx-Math.floor((d.w-1)/2),oy=hover.ty-Math.floor((d.h-1)/2),ok=canPlace(d,ox,oy)&&affordable(d.c);
+      ctx.fillStyle=ok?'rgba(90,220,90,.35)':'rgba(230,60,40,.4)';ctx.fillRect(ox*T,oy*T,d.w*T,d.h*T);ctx.globalAlpha=.75;ctx.drawImage(d.spr,ox*T,oy*T-LIFT);ctx.globalAlpha=1}
+    else if(tool.k==='sold'){const D=SOLD[tool.i];ctx.globalAlpha=.7;drawUnit(ctx,hover.tx*T+8,hover.ty*T+12,{body:D.col,hat:'#9aa3ab',wp:D.wp,frame:0});ctx.globalAlpha=1;
+      ctx.strokeStyle='rgba(242,201,76,.5)';ctx.beginPath();ctx.arc(hover.tx*T+8,hover.ty*T+12,7*T,0,7);ctx.stroke()}
+    else{ctx.strokeStyle=tool.id==='demolish'?'#e04a2a':'#f2c94c';ctx.strokeRect(hover.tx*T+.5,hover.ty*T+.5,T-1,T-1)}}
+}
+const glyphC={};for(const k in RES){const c=document.createElement('canvas');c.width=c.height=5;glyph(c.getContext('2d'),0,0,k);glyphC[k]=c}
+
+/* ---------- Arayüz ---------- */
+const costHTML=c=>Object.keys(c).map(k=>`<i><img src="${ICON[k]}" alt="">${c[k]}</i>`).join('')||'<i>bedava</i>';
+const ioHTML=o=>Object.keys(o).map(k=>`<i><img src="${ICON[k]}" alt="">${o[k]} ${RES[k][0]}</i>`).join(' ');
+let tab='house';
+const thumbs={};
+function cardList(){
+  if(tab==='house')return HOUSES.map((d,i)=>({k:'house',i,d,img:d.spr.toDataURL(),sub:`${d.cap} kişi`}));
+  if(tab==='biz')return BIZ.map((d,i)=>({k:'biz',i,d,img:d.spr.toDataURL()}));
+  if(tab==='mil')return [...SOLD.map((d,i)=>({k:'sold',i,d,img:thumbOf({body:d.col,hat:'#9aa3ab',wp:d.wp})})),{k:'tower',i:0,d:TOWER,img:TOWER.spr.toDataURL()}];
+  return TOOLS.map((d,i)=>({k:'tool',i,id:d.id,d,img:null}));
+}
+function renderCards(){
+  const box=$('#cards');box.innerHTML='';
+  if(tab==='net'){renderNet();return}
+  for(const it of cardList()){const b=document.createElement('button');b.className='card';b.dataset.k=it.k;b.dataset.i=it.i;
+    b.innerHTML=`<span class="th">${it.img?`<img src="${it.img}" alt="">`:`<span style="font-family:var(--f-disp);font-size:24px">${it.id==='path'?'▦':it.id==='clear'?'⚒':'✕'}</span>`}</span><span class="nm">${it.d.n}</span><span class="co">${it.sub?`<i>${it.sub}</i>`:''}${costHTML(it.d.c)}</span>`;
+    b.onclick=()=>{const same=tool&&tool.k===it.k&&tool.i===it.i;setTool(same?null:{k:it.k,i:it.i,id:it.id})};
+    b.onmouseenter=()=>showDef(it);b.onfocus=()=>showDef(it);
+    box.appendChild(b)}
+  refreshCards();
+}
+function refreshCards(){for(const c of document.querySelectorAll('.card')){const k=c.dataset.k,i=+c.dataset.i;const d=k==='house'?HOUSES[i]:k==='biz'?BIZ[i]:k==='sold'?SOLD[i]:k==='tower'?TOWER:TOOLS[i];
+  c.classList.toggle('poor',!affordable(d.c));c.classList.toggle('sel',!!tool&&tool.k===k&&tool.i===i)}}
+function setTool(t){tool=t;if(t)selB=null;refreshCards();if(t){const list=cardList();const it=list.find(x=>x.k===t.k&&x.i===t.i);if(it)showDef(it)}else showDetail()}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{tab=b.dataset.t;document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('on',x===b));renderCards()});
+function showDef(it){const d=it.d,el=$('#detail');let h=`<h3>${d.n}</h3>`;
+  if(it.k==='house')h+=`<div class="row"><span class="lbl">Barınma:</span> ${d.cap} köylü · ${d.w}×${d.h} kare</div>`;
+  if(it.k==='biz'){h+=`<div class="row"><span class="lbl">İşçi:</span> ${d.wk} · <span class="lbl">Süre:</span> ${d.t} sn · ${d.w}×${d.h}</div>`;
+    if(d.special!=='market')h+=`<div class="row io">${d.i?(Array.isArray(d.i)?d.i.map(ioHTML).join(' ya da '):ioHTML(d.i)):'<i>Hammadde istemez</i>'} → ${ioHTML(d.o)}</div>`}
+  if(it.k==='sold')h+=`<div class="row"><span class="lbl">Can:</span> ${d.hp} · <span class="lbl">Hasar:</span> ${d.dmg} · <span class="lbl">Menzil:</span> ${d.rng>2?d.rng+' kare':'yakın'}</div><div class="row"><span class="lbl">Bakım:</span> 10 sn'de 1 altın</div>`;
+  if(d.ds)h+=`<div class="row">${d.ds}</div>`;
+  h+=`<div class="row co" style="justify-content:flex-start"><span class="lbl">Maliyet:</span> ${costHTML(d.c)}</div>`;
+  if(tool&&tool.k===it.k&&tool.i===it.i)h+=`<div class="row lbl">${it.k==='tool'?'Haritada kullan.':'Haritaya tıklayıp yerleştir.'} Bırakmak için Esc.</div>`;
+  el.innerHTML=h}
+function showDetail(){const el=$('#detail');
+  if(typeof selB==='string'){const s=S.sold[+selB.slice(1)];if(!s){selB=null;return showDetail()}const D=SOLD[s.ty];
+    el.innerHTML=`<h3>${D.n}</h3><div class="row"><span class="lbl">Can:</span> ${Math.ceil(s.hp)} / ${D.hp} · <span class="lbl">Hasar:</span> ${D.dmg}</div><div class="row">${D.ds}</div><div class="row lbl">Görev yerinin 7 kare çevresini korur.</div>`;return}
+  const b=S.blds.find(b=>b.id===selB);
+  if(!b){el.innerHTML=`<h3>Köyünü kur</h3><div class="row">Bir yapı seç, sonra haritaya tıkla. Köylüler evlere yerleşir ve işletmelerde çalışır.</div><div class="row lbl">Zincir: Tarla → Değirmen → Fırın. Köylüler her 10 saniyede yemek yer, vergi öder. Haydutlara karşı asker koy.</div>`;return}
+  const d=defOf(b);let h=`<h3>${d.n}</h3>`;
+  if(b.k==='house')h+=`<div class="row">${d.cap} köylü barınıyor.</div>`;
+  if(b.k==='tower')h+=`<div class="row">${d.ds}</div>`;
+  if(b.k==='biz'){h+=`<div class="row"><span class="lbl">İşçi:</span> ${b.w} / ${d.wk} · <span class="lbl">Durum:</span> ${b.st||'—'}</div><div class="bar"><span style="width:${Math.min(100,b.p/d.t*100)}%"></span></div>`;
+    if(d.special!=='market')h+=`<div class="row io">${d.i?(Array.isArray(d.i)?d.i.map(ioHTML).join(' ya da '):ioHTML(d.i)):'<i>Hammadde istemez</i>'} → ${ioHTML(d.o)}</div>`;else h+=`<div class="row">${d.ds}</div>`}
+  h+=`<button class="btn" id="dem">Yık (yarısı geri gelir)</button>`;el.innerHTML=h;
+  $('#dem').onclick=()=>{refund(d.c);S.blds.splice(S.blds.indexOf(b),1);rebuildOcc();selB=null;log(d.n+' yıkıldı.');if(S.pop>cap())S.pop=cap();showDetail()}}
+
+const resBox=$('#res'),chipEls={};
+for(const k in RES){const c=document.createElement('span');c.className='chip';c.title=RES[k][0];c.innerHTML=`<img src="${ICON[k]}" alt="${RES[k][0]}"><span></span>`;resBox.appendChild(c);chipEls[k]=c}
+function hud(){
+  for(const k in RES){const v=Math.floor(S.res[k]||0),c=chipEls[k];c.lastChild.textContent=v;c.classList.toggle('z',v===0)}
+  const C=cap(),rt=Math.max(0,S.nextRaid-S.t),m=(rt/60)|0,s=(rt%60)|0;
+  const food=FOOD.reduce((a,k)=>a+Math.floor(S.res[k]),0);
+  $('#stats').innerHTML=`<span>Nüfus <b>${S.pop}/${C}</b></span><span>Boşta <b>${S.idle??0}</b></span><span>Mutluluk <b>${Math.round(S.happy)}%</b></span><span>Yemek <b>${food}</b></span><span>Asker <b>${S.sold.length}</b></span><span>Baskın <b>${bandits.length?'ŞİMDİ':m+':'+String(s).padStart(2,'0')}</b></span>`;
+  refreshCards();if(selB!=null&&!tool&&!$('#detail').matches(':hover'))showDetail();
+}
+function setSpeed(v){speed=v;for(const [id,s] of [['sp0',0],['sp1',1],['sp2',2],['sp4',4]])$('#'+id).classList.toggle('on',s===v)}
+$('#sp0').onclick=()=>setSpeed(0);$('#sp1').onclick=()=>setSpeed(1);$('#sp2').onclick=()=>setSpeed(2);$('#sp4').onclick=()=>setSpeed(4);
+$('#save').onclick=()=>save();
+let newArm=0;$('#new').onclick=()=>{const b=$('#new');if(Date.now()-newArm<3000){newGame();rebuildOcc();try{localStorage.removeItem('pikselkoy1')}catch(e){}selB=null;tool=null;b.textContent='Yeni';log('Yeni köy kuruldu.','good');showDetail();return}newArm=Date.now();b.textContent='Emin misin?';setTimeout(()=>b.textContent='Yeni',3000)};
+
+/* ---------- Online: komşular, ziyaret, savaş ---------- */
+const NET={db:null,user:null,me:null,villages:{},events:{},myEv:null,online:new Set(),names:{},status:'Bağlanıyor…',loaded:false,last:'',writing:false,ro:false,evQ:Promise.resolve()};
+const num=(v,max)=>clamp(Math.floor(+v||0),0,max);
+async function netInit(){
+  const C=window.claude;
+  if(!C||!C.use){NET.status='Bu sürüm tek kişilik. Komşuları ziyaret etmek ve savaşmak için online sürümü aç.';NET.offline=true;renderNet();return}
+  const [db,user]=await Promise.all([C.use('db'),C.use('user')]);
+  const me=user?await user.id():null;
+  if(!db||!me){NET.status='Online şu an kullanılamıyor. claude.ai hesabınla giriş yapmış olmalısın.';renderNet();return}
+  NET.db=db;NET.user=user;NET.me=me;S.joined=S.joined||Date.now();
+  const to=setTimeout(()=>{if(!NET.loaded){NET.status='Sunucuya henüz ulaşılamadı, deneniyor…';renderNet()}},10000);
+  db.collection('villages').onSnapshot(s=>{const v={};for(const d of s.docs)if(d.exists)v[d.id]=d.data();NET.villages=v;
+      if(!s.metadata.fromCache&&!NET.loaded){NET.loaded=true;clearTimeout(to);pushVillage()}NET.status=NET.ro?NET.status:'';renderNet()},
+    ()=>{clearTimeout(to);NET.status='Komşu listesine bağlantı koptu. Sayfayı yeniden açınca düzelir.';renderNet()});
+  db.collection('events').onSnapshot(s=>{const v={};for(const d of s.docs)if(d.exists)v[d.id]=d.data();NET.events=v;
+      if(NET.myEv==null&&!s.metadata.fromCache)NET.myEv=Array.isArray(v[me]&&v[me].list)?[...v[me].list]:[];processInbox()},()=>{});
+  C.use('room').then(room=>{if(!room)return;room.presence({v:1}).catch(()=>{});
+    room.onPeers(ch=>{NET.online=new Set(ch.peers.map(p=>p.by).filter(Boolean));renderNet()},()=>{})});
+}
+function myPower(){let p=0;for(const s of S.sold){const D=SOLD[s.ty];p+=D.hp*D.dmg/30}for(const b of S.blds)if(b.k==='tower')p+=25;return Math.round(p)}
+function villageDoc(){return {name:(S.name||'').slice(0,40),ter:Array.from(ter).join(''),tree:Array.from(tree).join(''),
+  b:S.blds.map(b=>[b.k[0],b.d,b.x,b.y]),s:S.sold.map(s=>[s.ty,Math.round(s.hx),Math.round(s.hy)]),pop:S.pop,happy:Math.round(S.happy),
+  res:{altin:Math.floor(S.res.altin),ekmek:Math.floor(S.res.ekmek),odun:Math.floor(S.res.odun),tas:Math.floor(S.res.tas),tugla:Math.floor(S.res.tugla)},pow:myPower()}}
+async function pushVillage(){if(!NET.db||!NET.loaded||NET.ro||NET.writing)return;const d=villageDoc(),j=JSON.stringify(d);if(j===NET.last)return;NET.writing=true;
+  try{await NET.db.doc('villages/'+NET.me).set({...d,t:Date.now()});NET.last=j}
+  catch(e){if(e&&e.code==='invalid_argument'){NET.ro=true;NET.status='Köyünü paylaşmak için bu oyunda en az Katkıda bulunan (Contributor) iznin olmalı. Sadece izleyebilirsin.';renderNet()}}
+  NET.writing=false}
+function addEvent(ev){if(!NET.db||NET.ro)return;ev={...ev,id:Math.random().toString(36).slice(2,10),ts:Date.now()};
+  NET.evQ=NET.evQ.then(async()=>{NET.myEv=[...(NET.myEv||[]),ev].slice(-30);try{await NET.db.doc('events/'+NET.me).set({list:NET.myEv})}catch(e){}})}
+function nameOf(uid){const v=NET.villages[uid];return (v&&typeof v.name==='string'&&v.name)||NET.names[uid]||'Bir komşu'}
+function processInbox(){if(!NET.me)return;S.done=S.done||[];S.joined=S.joined||Date.now();const done=new Set(S.done);let ch=false;
+  for(const uid in NET.events){if(uid===NET.me)continue;const list=(NET.events[uid]||{}).list;if(!Array.isArray(list))continue;
+    for(const ev of list){if(!ev||ev.to!==NET.me||typeof ev.id!=='string'||done.has(ev.id)||!(ev.ts>S.joined))continue;done.add(ev.id);S.done.push(ev.id);ch=true;applyEvent(ev,uid)}}
+  if(S.done.length>300)S.done=S.done.slice(-300);if(ch)save(true)}
+function applyEvent(ev,uid){const nm=nameOf(uid);
+  if(ev.type==='visit')log(`${nm} köyünü ziyarete geldi!`,'good');
+  else if(ev.type==='gift'){const g=ev.items||{},t=[];for(const k of ['ekmek','altin']){const q=num(g[k],20);if(q){S.res[k]+=q;t.push(q+' '+RES[k][0].toLowerCase())}}if(t.length)log(`${nm} hediye gönderdi: ${t.join(', ')}`,'good')}
+  else if(ev.type==='attack'){const kill=num(ev.kill,60);if(kill)S.sold.splice(0,Math.min(kill,S.sold.length));
+    if(ev.win){const l=ev.loot||{},t=[];for(const k of ['altin','ekmek','odun','tas','tugla']){const q=num(l[k],k==='altin'?400:150);if(q){S.res[k]=Math.max(0,S.res[k]-q);t.push(q+' '+RES[k][0].toLowerCase())}}
+      log(`${nm} köyüne saldırıp kazandı! Kaybın: ${t.join(', ')||'yok'}${kill?`, ${kill} asker`:''}`,'bad')}
+    else log(`${nm} saldırdı ama askerlerin püskürttü!${kill?` (${kill} asker şehit)`:''}`,'good')}}
+function renderNet(){if(tab!=='net')return;const box=$('#cards');
+  if(!$('#netbox')){box.innerHTML=`<div id="netbox"><div id="netst"></div><div class="nrow"><input id="vname" maxlength="40" placeholder="Köyünün adı" aria-label="Köyünün adı"><button class="btn" id="vsave">Adı kaydet</button></div><div id="netlist" style="display:flex;flex-direction:column;gap:6px"></div></div>`;
+    $('#vname').value=S.name||'';$('#vsave').onclick=()=>{S.name=$('#vname').value.trim().slice(0,40);save(true);pushVillage();log('Köy adı kaydedildi.','good')}}
+  const ids=Object.keys(NET.villages).sort((a,b)=>num(NET.villages[b].pow,1e6)-num(NET.villages[a].pow,1e6));
+  $('#netst').textContent=NET.status||`${ids.length} köy · ${NET.online.size} oyuncu çevrimiçi`;
+  if(NET.offline){const a=document.createElement('a');a.className='btn';a.href='https://claude.ai/artifact/9o1tSbcQ4quiT6SAL79DK7';a.target='_blank';a.rel='noopener';a.textContent='Online sürümü aç';a.style.cssText='display:inline-block;margin-top:6px;text-decoration:none';$('#netst').append(document.createElement('br'),a)}
+  const L=$('#netlist');L.innerHTML='';
+  if(NET.db&&!ids.some(i=>i!==NET.me)){const e=document.createElement('div');e.className='nempty';e.textContent='Henüz başka köy yok. Oyunu arkadaşlarınla paylaş; açtıklarında köyleri burada görünür.';L.appendChild(e)}
+  for(const id of ids){const v=NET.villages[id],me=id===NET.me,row=document.createElement('div');row.className='nv';
+    row.innerHTML=`<span class="dot ${NET.online.has(id)?'on':''}" title="${NET.online.has(id)?'Çevrimiçi':'Çevrimdışı'}"></span><div class="ninfo"><b></b><small></small></div>${me?'<span class="you">sen</span>':'<button class="btn">Ziyaret</button>'}`;
+    row.querySelector('b').textContent=(typeof v.name==='string'&&v.name)||'Adsız köy';
+    row.querySelector('small').textContent=`${NET.names[id]||'Oyuncu'} · ${num(v.pop,9999)} nüfus · güç ${num(v.pow,99999)}`;
+    if(!me)row.querySelector('button').onclick=()=>startVisit(id);
+    L.appendChild(row)}
+  const need=ids.filter(i=>!(i in NET.names));
+  if(need.length&&NET.user){for(const i of need)NET.names[i]='';NET.user.profiles(need).then(ps=>{for(const i of need)NET.names[i]=(ps[i]&&ps[i].name)||'';renderNet()})}}
+function startVisit(uid){const v=NET.villages[uid];
+  if(!v||typeof v.ter!=='string'||v.ter.length!==MW*MH||typeof v.tree!=='string'){log('Bu köy henüz yüklenemedi.','bad');return}
+  const tt=Uint8Array.from(v.ter,c=>+c||0),tr=Uint8Array.from(v.tree,c=>+c||0),blds=[];let id=1;
+  for(const r of (Array.isArray(v.b)?v.b:[]).slice(0,600)){if(!Array.isArray(r))continue;const k={h:'house',b:'biz',t:'tower'}[r[0]],d=num(r[1],99),x=num(r[2],MW-1),y=num(r[3],MH-1);
+    if(!k||(k==='house'&&!HOUSES[d])||(k==='biz'&&!BIZ[d]))continue;blds.push({id:id++,k,d,x,y,p:0,run:k==='biz',cd:0})}
+  const units=[];for(const r of (Array.isArray(v.s)?v.s:[]).slice(0,60)){if(!Array.isArray(r)||!SOLD[r[0]])continue;const hx=clamp(+r[1]||0,0,MW*T),hy=clamp(+r[2]||0,0,MH*T);
+    units.push({team:'d',ty:r[0],x:hx,y:hy,hx,hy,hp:SOLD[r[0]].hp,cd:0,wk:0,bo:Math.random()*3600})}
+  const cnv=document.createElement('canvas');cnv.width=MW*T;cnv.height=MH*T;renderTerrain(cnv,tt,tr);
+  const c=blds.length?blds.reduce((a,b)=>{const q=cen(b);return {x:a.x+q.x/blds.length,y:a.y+q.y/blds.length}},{x:0,y:0}):{x:MW*T/2,y:MH*T/2};
+  setTool(null);selB=null;arrows=[];parts=[];fxs=[];
+  visit={uid,blds,units,walkers:[],want:Math.min(num(v.pop,999),25),terrain:cnv,battle:null,home:{x:cam.x,y:cam.y},res:{...(v.res||{})},center:c};
+  cam.x=c.x-vw()/2;cam.y=c.y-vh()/2;clampCam();
+  addEvent({type:'visit',to:uid});visitBar();log(`${nameOf(uid)} köyüne geldin.`,'good')}
+function endVisit(){if(!visit||(visit.battle&&!visit.battle.done))return;cam.x=visit.home.x;cam.y=visit.home.y;visit=null;arrows=[];parts=[];visitBar();clampCam()}
+function visitBar(msg){const el=$('#visitbar');if(!visit){el.hidden=true;return}el.hidden=false;const b=visit.battle;
+  el.innerHTML=`<b></b><span id="vmsg"></span><span class="vb">${b?'':'<button class="btn" id="vgift">Hediye gönder</button><button class="btn" id="vatk">Saldır</button>'}<button class="btn" id="vhome"${b&&!b.done?' disabled':''}>Köyüme dön</button></span>`;
+  el.querySelector('b').textContent=nameOf(visit.uid);$('#vmsg').textContent=msg||'';
+  if(!b){$('#vgift').onclick=sendGift;$('#vatk').onclick=startBattle}$('#vhome').onclick=endVisit}
+function sendGift(){const g={ekmek:Math.min(20,Math.floor(S.res.ekmek)),altin:Math.min(20,Math.floor(S.res.altin))};
+  if(!g.ekmek&&!g.altin){log('Gönderecek ekmeğin ya da altının yok.','bad');return}
+  S.res.ekmek-=g.ekmek;S.res.altin-=g.altin;addEvent({type:'gift',to:visit.uid,items:g});log(`Hediye gönderildi: ${g.ekmek} ekmek, ${g.altin} altın.`,'good');$('#vgift').disabled=true}
+function recentAttack(uid){let last=0;for(const id in NET.events){const l=(NET.events[id]||{}).list;if(Array.isArray(l))for(const e of l)if(e&&e.type==='attack'&&e.to===uid&&e.ts>last)last=e.ts}return last}
+function startBattle(){if(!visit||visit.battle)return;if(!S.sold.length){visitBar('Saldırmak için önce kendi köyüne asker koy.');return}
+  const left=recentAttack(visit.uid)+10*60000-Date.now();if(left>0){visitBar(`Bu köy az önce saldırıya uğradı, ${Math.ceil(left/60000)} dk korumada.`);return}
+  const sx=Math.max(8,visit.center.x-11*T);
+  S.sold.forEach((s,i)=>visit.units.push({team:'a',ty:s.ty,idx:i,x:sx-(i%3)*10,y:visit.center.y-24+(i*11)%48,hx:0,hy:0,hp:s.hp,cd:0,wk:0,bo:Math.random()*3600}));
+  visit.battle={t:0,done:false};visitBar('Savaş başladı!');log(`${S.sold.length} askerle saldırıya geçtin!`,'bad')}
+function battleUpd(dt){const B=visit.battle,live=B&&!B.done;
+  if(live)for(const b of visit.blds){if(b.k!=='tower')continue;b.cd-=dt;if(b.cd>0)continue;const c=cen(b);let tg=null,best=6*T;
+    for(const u of visit.units)if(u.team==='a'&&u.hp>0){const d=dist(u,c);if(d<best){best=d;tg=u}}
+    if(tg){b.cd=1.3;hurt(tg,6);arrows.push({x:c.x,y:c.y-24,tx:tg.x,ty:tg.y-6,t:0})}}
+  for(const u of visit.units){if(u.hp<=0)continue;const D=SOLD[u.ty];u.cd-=dt;let tg=null,best=1e9;
+    if(live)for(const e of visit.units){if(e.team===u.team||e.hp<=0)continue;if(u.team==='d'&&Math.hypot(e.x-u.hx,e.y-u.hy)>7*T)continue;const d=dist(u,e);if(d<best){best=d;tg=e}}
+    if(tg){if(best>D.rng*T)move(u,tg.x,tg.y,D.sp*dt);else if(u.cd<=0){u.cd=D.cd;hurt(tg,D.dmg);if(D.rng>2)arrows.push({x:u.x,y:u.y-8,tx:tg.x,ty:tg.y-6,t:0})}}
+    else if(u.team==='d')move(u,u.hx,u.hy,D.sp*.7*dt);
+    else move(u,visit.center.x+(u.idx%5-2)*10,visit.center.y+(u.idx%3)*8,D.sp*dt)}
+  if(!live)return;B.t+=dt;
+  const a=visit.units.some(u=>u.team==='a'&&u.hp>0),d=visit.units.some(u=>u.team==='d'&&u.hp>0);
+  if(!a)endBattle(false);else if(!d&&B.t>8)endBattle(true);else if(B.t>120)endBattle(false)}
+function endBattle(win){visit.battle.done=true;
+  const att=visit.units.filter(u=>u.team==='a'),dead=att.filter(u=>u.hp<=0).map(u=>u.idx).sort((x,y)=>y-x);
+  for(const u of att)if(u.hp>0&&S.sold[u.idx])S.sold[u.idx].hp=Math.max(1,u.hp);
+  for(const i of dead)if(S.sold[i])S.sold.splice(i,1);
+  const kill=visit.units.filter(u=>u.team==='d'&&u.hp<=0).length,loot={};
+  if(win){const r=visit.res;loot.altin=Math.min(400,Math.floor(num(r.altin,1e6)*.25));for(const k of ['ekmek','odun','tas','tugla'])loot[k]=Math.min(150,Math.floor(num(r[k],1e6)*.15));for(const k in loot)S.res[k]+=loot[k]}
+  addEvent({type:'attack',to:visit.uid,win,loot,kill});
+  const msg=win?`Zafer! Ganimet: ${loot.altin} altın, ${loot.ekmek} ekmek, ${loot.odun} odun, ${loot.tas} taş, ${loot.tugla} tuğla.`:'Yenildin, askerlerin geri çekildi.';
+  log(msg+(dead.length?` ${dead.length} asker kaybettin.`:''),win?'good':'bad');visitBar(msg);save(true);pushVillage()}
+
+/* ---------- Döngü ---------- */
+let last=performance.now(),hudT=0,saveT=0,netT=0;
+function loop(now){const rdt=Math.min(.1,(now-last)/1000);last=now;perf=now;
+  const sp=200*rdt/zoom;if(keys.a||keys.arrowleft)cam.x-=sp;if(keys.d||keys.arrowright)cam.x+=sp;if(keys.w||keys.arrowup)cam.y-=sp;if(keys.s||keys.arrowdown)cam.y+=sp;clampCam();
+  const dt=rdt*speed;
+  if(dt>0){econ(dt);war(dt);if(visit){walkSim(dt,visit.walkers,visit.blds,visit.want);battleUpd(dt)}else walkSim(dt,walkers,S.blds,Math.min(S.pop,30))}
+  netT+=rdt;if(netT>30){netT=0;pushVillage()}
+  effects(dt,rdt);render();
+  hudT+=rdt;if(hudT>.25){hudT=0;hud()}
+  saveT+=rdt;if(saveT>20){saveT=0;save(true)}
+  requestAnimationFrame(loop)}
+renderCards();showDetail();clampCam();hud();netInit();
+addEventListener('pagehide',()=>save(true));
+document.addEventListener('visibilitychange',()=>{if(document.hidden)save(true)});
+log('Hoş geldin! Köyün ilk evleri ve fırını hazır.','good');
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
