@@ -6,7 +6,7 @@ window.KSB_GAMES = [
     keys: [['WASD', 'yürü'], ['Sol / Sağ tık', 'elle tut'], ['Boşluk', 'zıpla'], ['R', 'geri dön']],
     note: 'Arkadaşlarınla oynamak için oyunda ODA KUR, kodu paylaş; onlar KATIL ile gelsin.',
     web: true, dl: 'https://github.com/keremsarpb-web/keremsarpb-web.github.io/releases/download/yalpa-v1.0.0/Yalpa.exe' },
-  { id: 'ragdoll-kaos', title: 'Ragdoll Kaos', genre: 'aksiyon', label: 'Unity · Online kapışma', plat: ['Windows', 'Mac'], fit: 'land',
+  { id: 'ragdoll-kaos', title: 'Ragdoll Kaos', genre: 'aksiyon', label: 'Unity · Online kapışma', plat: ['Tarayıcı', 'Windows', 'Mac'], fit: 'land',
     pitch: 'Unity ile yapılmış online fizik kapışması. Yalpalayan ragdoll karakterinle rakiplerini tut, yumrukla, uçan tekme at ve arenadan aşağı fırlat. Kılıç, çekiç, lazer tabanca ve bazukayla 9 haritada kapış: Dev Mutfak, Mahalle, Kedi Durağı ve dahası. Oda koduyla arkadaşlarınla oyna, Griddy dansı yap, evcil hayvanını seç.',
     keys: [['WASD', 'yürü'], ['Shift', 'koş'], ['Boşluk', 'zıpla'], ['F', 'yumruk · uçan tekme'], ['Sol / Sağ tık', 'elle tut'], ['B', 'dans']],
     note: 'Windows ve Mac bilgisayara indirilip oynanır; iki sistemdeki oyuncular birlikte oynayabilir. Bir kişi ODA KUR’a bassın, diğerleri çıkan kodu yazıp KODLA KATIL’a bassın; internetten çalışır.',
