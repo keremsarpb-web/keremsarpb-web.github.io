@@ -2,7 +2,7 @@
 // genre: aksiyon | korku | rahat | bulmaca · fit: 'land' = yatay ekran için yapılmış (masaüstünde geniş çerçeve)
 window.KSB_GAMES = [
   { id: 'mech-kit-studio', title: 'Mech Kit Studio', genre: 'aksiyon', label: 'Unity · Mech savaşı', plat: ['Tarayıcı', 'Telefon', 'Windows', 'Mac'], fit: 'land',
-    pitch: 'Kendi dev robotunu parça parça monte et, 9 silahtan seç (ısı kılıcı, roketatar, ray tüfeği...) ve karanlık, sisli bir gece şehrinde savaşa çık. Kokpit görüşünde her adım kabini sarsar. İsabetler kurşun deliği bırakır, zırh plakaları düşer, kollar kopar, mech duman ve alevler içinde parçalanır.',
+    pitch: 'Kendi dev robotunu parça parça monte et, 9 silahtan seç (ısı kılıcı, roketatar, ray tüfeği...) ve yağmurlu, karanlık bir gece şehrinde savaşa çık. Kokpit görüşünde her adım kabini sarsar. İsabetler kurşun deliği bırakır, zırh plakaları düşer, kollar kopar, mech duman ve alevler içinde parçalanır.',
     keys: [['WASD', 'yürü'], ['Fare', 'nişan'], ['Sol / Sağ tık', 'iki kolun silahı'], ['Shift', 'boost'], ['Boşluk', 'zıpla · uç'], ['V', 'kokpit görüşü']],
     note: 'Tarayıcıda botlara karşı ANTRENMAN oynanır. Arkadaşlarınla online için Windows ya da Mac sürümünü indir: biri SUNUCU KUR’a bassın, diğerleri onun IP adresiyle KATIL’sın.',
     app: true, dl: 'https://github.com/keremsarpb-web/keremsarpb-web.github.io/releases/download/mech-kit-studio-v1.0/MechKitStudio-Windows.zip', dlMac: 'https://github.com/keremsarpb-web/keremsarpb-web.github.io/releases/download/mech-kit-studio-v1.0/MechKitStudio-Mac.zip' },
