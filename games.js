@@ -1,7 +1,7 @@
 // KSB Games oyun listesi: ana sayfa (index.html) ve kaydırmalı akış (kaydir.html) bu listeyi okur.
 // genre: aksiyon | korku | rahat | bulmaca · fit: 'land' = yatay ekran için yapılmış (masaüstünde geniş çerçeve)
 window.KSB_GAMES = [
-  { id: 'mech-kit-studio', title: 'Mech Kit Studio', genre: 'aksiyon', label: 'Unity · Mech savaşı', plat: ['Tarayıcı', 'Windows', 'Mac'], fit: 'land',
+  { id: 'mech-kit-studio', title: 'Mech Kit Studio', genre: 'aksiyon', label: 'Unity · Mech savaşı', plat: ['Tarayıcı', 'Telefon', 'Windows', 'Mac'], fit: 'land',
     pitch: 'Kendi dev robotunu parça parça monte et: kafa, gövde, kollar, bacaklar, itici ve silahlar. Savaştan dönmüş gibi paslı, çamurlu, kurşun izli; boya, sonra savaşa çık. İsabetler kurşun deliği bırakır, zırh plakaları düşer, kollar kopar, mech duman ve alevler içinde parçalanır.',
     keys: [['WASD', 'yürü'], ['Fare', 'nişan'], ['Sol / Sağ tık', 'iki kolun silahı'], ['Shift', 'boost'], ['Boşluk', 'zıpla · uç']],
     note: 'Tarayıcıda botlara karşı ANTRENMAN oynanır. Arkadaşlarınla online için Windows ya da Mac sürümünü indir: biri SUNUCU KUR’a bassın, diğerleri onun IP adresiyle KATIL’sın.',
