@@ -1,6 +1,11 @@
 // KSB Games oyun listesi: ana sayfa (index.html) ve kaydırmalı akış (kaydir.html) bu listeyi okur.
 // genre: aksiyon | korku | rahat | bulmaca · fit: 'land' = yatay ekran için yapılmış (masaüstünde geniş çerçeve)
 window.KSB_GAMES = [
+  { id: 'mech-kit-studio', title: 'Mech Kit Studio', genre: 'aksiyon', label: 'Unity · Mech savaşı', plat: ['Tarayıcı', 'Windows', 'Mac'], fit: 'land',
+    pitch: 'Kendi dev robotunu parça parça monte et: kafa, gövde, kollar, bacaklar, itici ve silahlar. Boya, eskit, sonra savaşa çık. İsabetler kurşun deliği bırakır, zırh plakaları düşer, kollar kopar, mech duman ve alevler içinde parçalanır.',
+    keys: [['WASD', 'yürü'], ['Fare', 'nişan'], ['Sol / Sağ tık', 'iki kolun silahı'], ['Shift', 'boost'], ['Boşluk', 'zıpla · uç']],
+    note: 'Tarayıcıda botlara karşı ANTRENMAN oynanır. Arkadaşlarınla online için Windows ya da Mac sürümünü indir: biri SUNUCU KUR’a bassın, diğerleri onun IP adresiyle KATIL’sın.',
+    app: true, dl: 'https://github.com/keremsarpb-web/keremsarpb-web.github.io/releases/download/mech-kit-studio-v1.0/MechKitStudio-Windows.zip', dlMac: 'https://github.com/keremsarpb-web/keremsarpb-web.github.io/releases/download/mech-kit-studio-v1.0/MechKitStudio-Mac.zip' },
   { id: 'yalpa', title: 'Yalpa', genre: 'aksiyon', label: 'Ragdoll · Online', plat: ['PC'], fit: 'land',
     pitch: 'Human Fall Flat tarzı yalpalayan karakterinle 6 bölümü geç: tahterevalli, kale kapısı, değirmen, kule ve gökyüzü. Kutuları taşı, duvarlara tırman, 20 kozmetikle karakterini süsle.',
     keys: [['WASD', 'yürü'], ['Sol / Sağ tık', 'elle tut'], ['Boşluk', 'zıpla'], ['R', 'geri dön']],
