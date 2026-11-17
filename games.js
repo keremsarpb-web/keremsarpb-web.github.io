@@ -1,6 +1,11 @@
 // KSB Games oyun listesi: ana sayfa (index.html) ve kaydırmalı akış (kaydir.html) bu listeyi okur.
 // genre: aksiyon | korku | rahat | bulmaca · fit: 'land' = yatay ekran için yapılmış (masaüstünde geniş çerçeve)
 window.KSB_GAMES = [
+  { id: 'celik-muhafiz', title: 'Çelik Muhafız', genre: 'aksiyon', label: 'Unity · Mech vs kaiju roguelike', plat: ['Tarayıcı', 'Telefon'], fit: 'land',
+    pitch: 'Fırtınalı bir gece, karanlık bir liman. Dev bir savaş robotunun kokpitindesin ve denizden kaiju dalgaları geliyor: sürü halinde koşan sürüngenler, pike yapan gece kanatları, asit tükürenler ve hücum eden boynuzlu devler. Her bölgeden sonra mech\'ine yeni bir modül tak; her 5. bölgede denizden Kategori 5 bir canavar yükseliyor. V tuşuyla kokpit görüşüne geç.',
+    keys: [['WASD', 'yürü'], ['Fare', 'bak · sol tık ateş'], ['Boşluk', 'boost'], ['V', 'kokpit görüşü'], ['1 2 3', 'modül seç']],
+    note: 'Telefonda solda sürükleyerek yürü, sağda sürükleyerek bak, sağa çift dokunarak boost yap; ateş otomatik.',
+    web: true },
   { id: 'mech-kit-studio', title: 'Mech Kit Studio', genre: 'aksiyon', label: 'Unity · Mech savaşı', plat: ['Tarayıcı', 'Telefon', 'Windows', 'Mac'], fit: 'land',
     pitch: 'Kendi dev robotunu parça parça monte et, 9 silahtan seç (ısı kılıcı, roketatar, ray tüfeği...) ve yağmurlu, karanlık bir gece şehrinde savaşa çık. Kokpit görüşünde her adım kabini sarsar. İsabetler kurşun deliği bırakır, zırh plakaları düşer, kollar kopar, mech duman ve alevler içinde parçalanır.',
     keys: [['WASD', 'yürü'], ['Fare', 'nişan'], ['Sol / Sağ tık', 'iki kolun silahı'], ['Shift', 'boost'], ['Boşluk', 'zıpla · uç'], ['V', 'kokpit görüşü']],
