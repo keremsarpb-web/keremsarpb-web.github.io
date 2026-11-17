@@ -1,0 +1,112 @@
+﻿<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pastel Mech Atölyesi</title>
+  <link rel="icon" href="icon.png" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+    { "imports": { "three": "./lib/three.module.js", "three/addons/": "./lib/addons/" } }
+  </script>
+  <script src="lib/peerjs.min.js"></script>
+</head>
+<body>
+  <canvas id="c"></canvas>
+
+  <!-- ANA MENÜ -->
+  <section id="menu" class="screen">
+    <div class="menu-card">
+      <h1>Pastel Mech<br /><span>Atölyesi</span></h1>
+      <p class="sub">Kitini kopar, birleştir, boya — sonra kokpite gir!</p>
+      <button data-go="workshop" class="big">🔧 Atölye</button>
+      <button data-go="hangar">🏠 Hangar</button>
+      <button data-go="training">🎯 Antrenman</button>
+      <button data-go="online">🌐 Online Savaş</button>
+      <div class="menu-foot">
+        <span id="active-name"></span>
+        <button id="mute-btn" class="tiny" title="Ses">🔊</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ATÖLYE -->
+  <section id="workshop-ui" class="screen hidden">
+    <div class="steps" id="steps"></div>
+    <aside class="panel" id="ws-panel"></aside>
+    <div class="ws-hint" id="ws-hint"></div>
+    <div class="ws-nav">
+      <button id="ws-back" class="ghost">← Menü</button>
+      <button id="ws-next">İleri →</button>
+    </div>
+    <div class="orbit-tip">Sağ tık + sürükle: döndür · Tekerlek: yakınlaş</div>
+  </section>
+
+  <!-- HANGAR -->
+  <section id="hangar" class="screen hidden">
+    <div class="panel wide">
+      <h2>Hangar</h2>
+      <p class="muted">Kaydettiğin mech'ler. Birini seç, savaşta onu kullan.</p>
+      <div id="hangar-list" class="hangar-list"></div>
+      <div class="row">
+        <button data-go="menu" class="ghost">← Menü</button>
+        <button data-go="workshop">+ Yeni Mech Yap</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ONLINE -->
+  <section id="online" class="screen hidden">
+    <div class="panel wide">
+      <h2>Online Savaş</h2>
+      <p class="muted">Arkadaşın Windows, Mac ya da tarayıcıdan katılabilir. Oda kur, kodu paylaş!</p>
+      <label>Pilot adın <input id="pilot-name" maxlength="16" placeholder="Pilot" /></label>
+      <div class="online-grid">
+        <div class="box">
+          <h3>Oda Kur</h3>
+          <p class="muted">5 harfli bir kod alırsın.</p>
+          <button id="host-btn">Oda Kur</button>
+        </div>
+        <div class="box">
+          <h3>Odaya Katıl</h3>
+          <input id="join-code" maxlength="5" placeholder="KOD" class="code-input" />
+          <button id="join-btn">Katıl</button>
+        </div>
+      </div>
+      <p id="online-status" class="status"></p>
+      <div class="row"><button data-go="menu" class="ghost">← Menü</button></div>
+    </div>
+  </section>
+
+  <!-- OYUN İÇİ HUD -->
+  <section id="hud" class="hidden">
+    <div id="cockpit" class="cockpit"></div>
+    <div class="crosshair"></div>
+    <div id="hitmark" class="hitmark"></div>
+    <div id="dmg-flash" class="dmg-flash"></div>
+    <div class="hud-bl">
+      <div class="bar"><span>CAN</span><div class="track"><div id="hp-fill" class="fill hp"></div></div><b id="hp-text"></b></div>
+      <div class="bar" id="fuel-bar"><span id="fuel-label">YAKIT</span><div class="track"><div id="fuel-fill" class="fill fuel"></div></div></div>
+    </div>
+    <div class="hud-tr">
+      <div id="room-code" class="room-code"></div>
+      <div id="scoreboard" class="scoreboard"></div>
+    </div>
+    <div id="feed" class="feed"></div>
+    <div id="center-msg" class="center-msg"></div>
+    <div class="help">WASD hareket · Fare nişan · Sol/Sağ tık: sol/sağ kol · Boşluk zıpla/uç · V kamera · Esc duraklat</div>
+    <div id="pause" class="pause hidden">
+      <div class="panel">
+        <h2>Duraklatıldı</h2>
+        <button id="resume-btn">Devam</button>
+        <button id="view-btn" class="ghost">Kamera: Kokpit</button>
+        <button id="quit-btn" class="ghost">Menüye Dön</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

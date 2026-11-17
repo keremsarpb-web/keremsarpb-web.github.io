@@ -1,6 +1,11 @@
 // KSB Games oyun listesi: ana sayfa (index.html) ve kaydırmalı akış (kaydir.html) bu listeyi okur.
 // genre: aksiyon | korku | rahat | bulmaca · fit: 'land' = yatay ekran için yapılmış (masaüstünde geniş çerçeve)
 window.KSB_GAMES = [
+  { id: 'pastel-mech', title: 'Pastel Mech Atölyesi', genre: 'aksiyon', label: 'Maket mech · Online', plat: ['Tarayıcı', 'Windows', 'Mac'], fit: 'land',
+    pitch: 'Maket kitini plastik çerçeveden kopar, parçaları tık diye birleştir, pastel renklere boya. Sonra kokpite gir: botlarla antrenman yap ya da oda koduyla arkadaşlarınla savaş. Jet çantayla uç, kanatla süzül, baloncuk topuyla vur.',
+    keys: [['WASD', 'yürü'], ['Fare', 'nişan'], ['Sol / Sağ tık', 'iki kolun silahı'], ['Boşluk', 'zıpla · uç'], ['V', 'kokpit görüşü']],
+    note: 'Arkadaşlarınla oynamak için ONLINE SAVAŞ > ODA KUR, kodu paylaş; onlar kodu yazıp KATIL’a bassın. Tarayıcı, Mac ve Windows birlikte oynar.',
+    web: true, dl: 'https://github.com/keremsarpb-web/keremsarpb-web.github.io/releases/download/pastel-mech-v1.0/PastelMech-Windows.zip' },
   { id: 'celik-muhafiz', title: 'Çelik Muhafız', genre: 'aksiyon', label: 'Unity · Mech vs kaiju roguelike', plat: ['Tarayıcı', 'Telefon'], fit: 'land',
     pitch: 'Fırtınalı bir gece, karanlık bir liman. Dev bir savaş robotunun kokpitindesin ve denizden kaiju dalgaları geliyor: sürü halinde koşan sürüngenler, pike yapan gece kanatları, asit tükürenler ve hücum eden boynuzlu devler. Her bölgeden sonra mech\'ine yeni bir modül tak; her 5. bölgede denizden Kategori 5 bir canavar yükseliyor. V tuşuyla kokpit görüşüne geç.',
     keys: [['WASD', 'yürü'], ['Fare', 'bak · sol tık ateş'], ['Boşluk', 'boost'], ['V', 'kokpit görüşü'], ['1 2 3', 'modül seç']],
