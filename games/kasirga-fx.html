@@ -1,0 +1,1696 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Kasırga FX: ücretsiz anime video stüdyosu. Topaç savaşı kur, videonu yükle, anime efekt, meme ve kurgu ekle.">
+<link rel="icon" href="../favicon.svg">
+</head>
+<body>
+<title>Kasırga FX</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Bungee&family=Dela+Gothic+One&family=JetBrains+Mono:wght@500&family=Rubik:wght@400;500;700&display=swap">
+<style>
+/* Layout: editor console. Stage + timeline left; tabbed tool panel (AI, effects, memes, edit, arena) + layer list right; stacks on phones. Single dark look by choice (video editor at night). */
+:root{
+  --ink:#0b0d18; --panel:#141829; --panel2:#1b2036; --line:#2a3152;
+  --fg:#eef0ff; --muted:#8f96c2;
+  --volt:#3fd9ff; --plasma:#ff3d9a; --ember:#ffb13d; --ok:#5ef2a0; --bad:#ff6b6b; --slow:#4d8bff; --frz:#b26bff;
+  --f-display:"Bungee","Impact","Arial Black",sans-serif;
+  --f-body:"Rubik",system-ui,"Segoe UI",sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--ink);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45;margin:0;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 28px;
+  background-image:radial-gradient(1200px 500px at 15% -10%,rgba(63,217,255,.09),transparent 60%),radial-gradient(900px 500px at 100% 0%,rgba(255,61,154,.08),transparent 60%)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+:focus-visible{outline:2px solid var(--volt);outline-offset:2px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;max-width:1440px;margin:0 auto 14px}
+.logo{font-family:var(--f-display);font-size:26px;letter-spacing:.02em;line-height:1;
+  background:linear-gradient(95deg,var(--volt),#fff 45%,var(--plasma));-webkit-background-clip:text;background-clip:text;color:transparent}
+.tag{color:var(--muted);font-size:13px;flex:1 1 220px;min-width:0}
+.btn{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:8px 13px;font-weight:500;display:inline-flex;align-items:center;gap:7px;transition:border-color .15s,background .15s;text-decoration:none;white-space:nowrap}
+.btn:hover{border-color:var(--volt)}
+.btn.hot{background:linear-gradient(135deg,var(--volt),#2a8cff);border-color:transparent;color:#04121c;font-weight:700}
+.btn.pink{background:linear-gradient(135deg,var(--plasma),#ff7a3d);border-color:transparent;color:#1c0410;font-weight:700}
+.btn.frz{background:linear-gradient(135deg,var(--frz),#ff3d9a);border-color:transparent;color:#14041c;font-weight:700}
+.btn.sm{padding:5px 10px;font-size:12px;border-radius:8px}
+.btn:disabled{opacity:.5;cursor:default}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 410px;gap:16px;max-width:1440px;margin:0 auto;align-items:start}
+@media (max-width:1000px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px}
+.stagewrap{padding:10px;display:flex;flex-direction:column;gap:10px;min-width:0;position:sticky;top:10px}
+@media (max-width:1000px){.stagewrap{position:static}}
+.screen{position:relative;border-radius:10px;overflow:hidden;background:#000;line-height:0;display:flex;justify-content:center}
+#stage{max-width:100%;max-height:70vh;width:auto;height:auto;display:block;cursor:crosshair}
+.drop{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(11,13,24,.82);border:2px dashed var(--volt);border-radius:10px;font-family:var(--f-display);font-size:20px;color:var(--volt);line-height:1.2;text-align:center;padding:20px}
+.badge{position:absolute;left:10px;top:10px;line-height:1;font:500 11px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;background:rgba(0,0,0,.55);padding:6px 8px;border-radius:6px;color:var(--fg);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec{position:absolute;right:10px;top:10px;line-height:1;font:700 12px var(--f-mono);background:#c4161c;color:#fff;padding:6px 9px;border-radius:6px}
+.transport{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tc{font-family:var(--f-mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;min-width:112px}
+#scrub{flex:1 1 180px;accent-color:var(--volt);min-width:0}
+.lanes{position:relative;background:var(--panel2);border-radius:8px;padding:4px 0 6px;max-height:190px;overflow-y:auto;cursor:pointer}
+.lane{position:relative;height:15px;margin:3px 0}
+.bar{position:absolute;top:0;height:15px;border-radius:4px;font:500 10px/15px var(--f-mono);padding:0 5px;color:#05060c;white-space:nowrap;overflow:hidden;opacity:.85}
+.bar.sel{outline:2px solid #fff;opacity:1}
+.piece{position:absolute;top:0;height:15px;font:500 10px/15px var(--f-mono);padding:0 4px;overflow:hidden;white-space:nowrap;color:#05060c}
+.piece.normal{background:#3a4168;color:var(--muted)} .piece.slow{background:var(--slow)} .piece.fast{background:var(--ember)} .piece.freeze{background:var(--frz)}
+.playhead{position:absolute;top:0;bottom:0;width:2px;background:#fff;pointer-events:none;box-shadow:0 0 8px #fff;z-index:2}
+.hint{color:var(--muted);font-size:12px}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.tabs{display:flex;gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:4px;overflow-x:auto}
+.tab{flex:1 0 auto;border:0;background:transparent;border-radius:8px;padding:8px 10px;font-weight:500;color:var(--muted)}
+.tab[aria-selected=true]{background:var(--panel2);color:var(--fg);box-shadow:inset 0 -2px 0 var(--plasma)}
+.panel{padding:14px;display:flex;flex-direction:column;gap:10px}
+.panel h4{margin:4px 0 0;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:500}
+.aihead{display:flex;align-items:center;gap:10px}
+.orb{width:34px;height:34px;border-radius:50%;flex:none;background:radial-gradient(circle at 35% 35%,#fff,var(--volt) 35%,var(--plasma) 80%);box-shadow:0 0 18px rgba(63,217,255,.6)}
+.orb.busy{animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg);filter:hue-rotate(180deg)}}
+.aihead h2{margin:0;font-family:var(--f-display);font-size:17px;font-weight:400;letter-spacing:.02em}
+.aihead p{margin:0;color:var(--muted);font-size:12px}
+.log{display:flex;flex-direction:column;gap:8px;max-height:240px;overflow-y:auto;padding-right:4px}
+.msg{padding:8px 11px;border-radius:10px;max-width:92%;font-size:13px;overflow-wrap:anywhere}
+.msg.me{align-self:flex-end;background:#24305a}
+.msg.bot{align-self:flex-start;background:var(--panel2);border:1px solid var(--line)}
+.msg.err{border-color:var(--bad)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:5px 10px;font-size:12px;color:var(--muted)}
+.chip:hover{color:var(--fg);border-color:var(--plasma)}
+.ask{display:flex;gap:8px;align-items:flex-end}
+#prompt{flex:1;min-width:0;resize:vertical;min-height:44px;max-height:140px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:9px 11px}
+.fxgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px}
+.fxb{border:1px solid var(--line);background:var(--panel2);border-radius:9px;padding:7px 8px;font-size:12px;text-align:left;display:flex;gap:6px;align-items:center;min-width:0}
+.fxb span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fxb:hover{border-color:var(--volt)}
+.packs{display:flex;flex-wrap:wrap;gap:6px}
+.pack{border:0;border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;color:#05060c}
+.emojis{display:flex;flex-wrap:wrap;gap:4px}
+.emo{border:1px solid var(--line);background:var(--panel2);border-radius:8px;font-size:22px;line-height:1;padding:6px;font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif}
+.emo:hover{border-color:var(--plasma)}
+.frow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.frow label,.lab{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+select,.inp{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.num{width:66px;background:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 6px;font-family:var(--f-mono);font-size:12px}
+input[type=range]{accent-color:var(--plasma)}
+input[type=color]{width:28px;height:24px;border:0;padding:0;background:none}
+.elist{display:flex;flex-direction:column;gap:6px}
+.eitem{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--panel2);border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:6px 8px;font-size:12px}
+.eitem b{min-width:74px}
+.topcards{display:grid;gap:8px}
+.topcard{display:grid;grid-template-columns:84px minmax(0,1fr);gap:10px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px}
+.topcard canvas{width:84px;height:84px;background:radial-gradient(circle,#252c4d,#10142a);border-radius:10px}
+.topcard .nm{width:100%;background:var(--ink);border:1px solid var(--line);border-radius:6px;padding:4px 7px;font-weight:700}
+.stat{display:grid;grid-template-columns:70px minmax(0,1fr) 20px;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.stat input{width:100%}
+.result{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px}
+.result b{color:var(--ember)}
+.layers{padding:14px;display:flex;flex-direction:column;gap:8px}
+.lhead{display:flex;align-items:center;gap:8px}
+.lhead h3{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:500;flex:1}
+.list{display:flex;flex-direction:column;gap:6px;max-height:520px;overflow-y:auto}
+.lrow{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-left:4px solid var(--c,#fff);border-radius:8px;padding:6px 8px;cursor:pointer}
+.lrow.sel{border-color:#fff;border-left-color:var(--c,#fff)}
+.lrow .n{flex:1;min-width:0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lrow .t{font-family:var(--f-mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.x{border:0;background:transparent;color:var(--muted);font-size:18px;line-height:1;padding:0 4px}
+.x:hover{color:var(--bad)}
+.editor{background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px;display:grid;gap:8px;margin:-2px 0 4px}
+.editor input[type=text]{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:4px 7px}
+.editor input[type=range]{width:100px}
+.empty{color:var(--muted);font-size:13px;padding:6px 0}
+.out{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.out video{width:100%;border-radius:8px;max-width:100%;max-height:320px;background:#000}
+.foot{max-width:1440px;margin:18px auto 0;color:var(--muted);font-size:12px}
+@media (prefers-reduced-motion:reduce){.orb.busy{animation:none}}
+</style>
+
+<header class="top">
+  <div class="logo">KASIRGA FX</div>
+  <div class="tag">Ücretsiz anime video stüdyosu: topaç savaşı kur, videonu yükle, efekt, meme ve kurgu ekle, indir.</div>
+  <input type="file" id="file" accept="video/*" hidden>
+  <button class="btn" id="loadBtn">📁 Video yükle</button>
+  <button class="btn" id="arenaBtn">🌀 Topaç arenası</button>
+  <button class="btn" id="undoBtn" title="Geri al (Ctrl+Z)">↶ Geri al</button>
+  <button class="btn pink" id="exportBtn">⬇ Videoyu indir</button>
+</header>
+
+<main class="grid">
+  <section class="card stagewrap">
+    <div class="screen" id="screen">
+      <canvas id="stage" width="1280" height="720"></canvas>
+      <div class="badge" id="srcBadge" hidden></div>
+      <div class="rec" id="recBadge" hidden>● KAYIT</div>
+      <div class="drop" id="drop" hidden>Videoyu buraya bırak</div>
+    </div>
+    <div class="transport">
+      <button class="btn" id="playBtn" aria-label="Oynat">▶</button>
+      <button class="btn frz" id="pauseFxBtn" title="F tuşu">⏸ Anime duraklaması</button>
+      <span class="tc" id="tc">00:00.0 / 00:08.0</span>
+      <input type="range" id="scrub" min="0" max="1000" value="0" aria-label="Zaman">
+      <button class="btn" id="muteBtn" title="Hoparlör">🔊</button>
+    </div>
+    <div class="lanes" id="lanes" title="Tıklayarak zamana git"></div>
+    <div class="hint">Boşluk: oynat · F: anime duraklaması · Ctrl+Z: geri al · Del: seçili efekti sil · Bir efekt seçip görüntüye tıklarsan oraya taşınır.</div>
+  </section>
+
+  <aside class="side">
+    <nav class="tabs" role="tablist">
+      <button class="tab" role="tab" data-tab="ai" aria-selected="true">Nova</button>
+      <button class="tab" role="tab" data-tab="fx" aria-selected="false">Efektler</button>
+      <button class="tab" role="tab" data-tab="meme" aria-selected="false">Memeler</button>
+      <button class="tab" role="tab" data-tab="edit" aria-selected="false">Kurgu</button>
+      <button class="tab" role="tab" data-tab="arena" aria-selected="false">Arena</button>
+    </nav>
+
+    <section class="card panel" id="tab-ai">
+      <div class="aihead">
+        <div class="orb" id="orb"></div>
+        <div><h2 id="aiName">NOVA</h2><p id="aiMode">Efekt yapay zekâsı</p></div>
+      </div>
+      <div class="log" id="log"></div>
+      <div class="chips" id="chips"></div>
+      <div class="ask">
+        <textarea id="prompt" rows="2" placeholder="Örn: en büyük çarpışmada zamanı durdur, ドン yazsın, sonra ağır çekim"></textarea>
+        <button class="btn hot" id="askBtn">Yap</button>
+      </div>
+    </section>
+
+    <section class="card panel" id="tab-fx" hidden>
+      <h4>Anime paketleri</h4><div class="packs" id="packs"></div>
+      <h4>Anime efektleri</h4><div class="fxgrid" data-cat="anime"></div>
+      <h4>Yazılar</h4><div class="fxgrid" data-cat="yazi"></div>
+      <h4>Filtreler</h4><div class="fxgrid" id="filterGrid"></div>
+    </section>
+
+    <section class="card panel" id="tab-meme" hidden>
+      <h4>Meme paketleri</h4><div class="packs" id="memePacks"></div>
+      <h4>Memeler</h4><div class="fxgrid" data-cat="meme"></div>
+      <h4>Emoji yağdır</h4><div class="emojis" id="emojiGrid"></div>
+      <h4>Ses efektleri (tıkla: dinle ve ekle)</h4><div class="fxgrid" id="sfxGrid"></div>
+    </section>
+
+    <section class="card panel" id="tab-edit" hidden>
+      <h4>Ekran boyutu</h4>
+      <div class="frow">
+        <select id="fmtSel" aria-label="Format"><option value="16:9">Yatay 16:9 (YouTube)</option><option value="9:16">Dikey 9:16 (TikTok, Shorts)</option><option value="1:1">Kare 1:1</option></select>
+        <select id="fitSel" aria-label="Sığdırma"><option value="contain">Sığdır (bulanık arka plan)</option><option value="cover">Doldur (kırp)</option></select>
+      </div>
+      <label class="lab">Kaydır <input type="range" id="panR" min="-1" max="1" step=".05" value="0"></label>
+      <h4>Kırp</h4>
+      <div class="frow">
+        <label>Başlangıç <input class="num" type="number" id="trimIn" step=".1" min="0"></label>
+        <label>Bitiş <input class="num" type="number" id="trimOut" step=".1" min="0"></label>
+        <button class="btn sm" id="cutIn">Buradan başlat</button>
+        <button class="btn sm" id="cutOut">Burada bitir</button>
+      </div>
+      <h4>Zaman: duraklama ve hız</h4>
+      <div class="frow">
+        <button class="btn sm" id="addFreeze">⏸ Kareyi dondur</button>
+        <button class="btn sm" id="addSlow">🐢 Ağır çekim</button>
+        <button class="btn sm" id="addFast">⚡ Hızlandır</button>
+      </div>
+      <div class="elist" id="editList"></div>
+      <h4>Görüntü ayarı</h4>
+      <div class="frow">
+        <label>Parlaklık <input type="range" id="adjB" min=".5" max="1.6" step=".05" value="1"></label>
+        <label>Kontrast <input type="range" id="adjC" min=".5" max="1.8" step=".05" value="1"></label>
+        <label>Canlılık <input type="range" id="adjS" min="0" max="2.2" step=".05" value="1"></label>
+      </div>
+      <h4>Ses</h4>
+      <div class="frow">
+        <label><input type="checkbox" id="vidSound" checked> Videonun sesi</label>
+        <label><input type="checkbox" id="arenaSound" checked> Arena çarpışma sesleri</label>
+        <label>Efekt sesi <input type="range" id="sfxVol" min="0" max="1.5" step=".05" value=".8"></label>
+      </div>
+    </section>
+
+    <section class="card panel" id="tab-arena" hidden>
+      <div class="frow">
+        <label>Topaç sayısı <select id="nTops"><option>2</option><option>3</option><option>4</option></select></label>
+        <label>Fırlatma gücü <input type="range" id="power" min=".4" max="1.6" step=".05" value="1"></label>
+        <label><input type="checkbox" id="hud" checked> Göstergeler</label>
+      </div>
+      <div class="frow">
+        <button class="btn hot" id="battleBtn">⚔ Savaşı başlat</button>
+        <button class="btn pink" id="autoBtn">✨ Otomatik anime efektleri</button>
+      </div>
+      <div class="result" id="result">Savaş başlatınca sonuç burada görünür.</div>
+      <h4>Topaçlarını tasarla</h4>
+      <div class="topcards" id="topcards"></div>
+      <h4>Kendi videona topaç koy</h4>
+      <div class="hint">Bir topaç savaşı videosu yükle, sonra aşağıdan seç: senin topacın hareket eden topacın üstüne oturur ve onu takip eder.</div>
+      <div class="frow" id="putTops"></div>
+    </section>
+
+    <section class="card layers">
+      <div class="lhead"><h3 id="lcount">Katmanlar</h3><button class="btn sm" id="clearBtn">Hepsini sil</button></div>
+      <div class="list" id="list"></div>
+    </section>
+
+    <section class="card out" id="outCard" hidden>
+      <strong id="outTitle">Video hazır</strong>
+      <video id="outVideo" controls playsinline></video>
+      <a class="btn hot" id="outLink" download="kasirga-fx.webm" href="#">Kaydet</a>
+    </section>
+  </aside>
+</main>
+<p class="foot">Videon bilgisayarından dışarı çıkmaz: tüm kurgu ve efektler tarayıcında işlenir. Topaçlar ve isimleri bu uygulamaya özgüdür; kendi topaç resmini Arena sekmesinden yükleyebilirsin.</p>
+
+<script>
+(() => {
+"use strict";
+const AI_NAME = "Nova";            // yapay zekânın adı
+const TAU = Math.PI * 2;
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const cv = $("#stage"), ctx = cv.getContext("2d");
+let W = 1280, H = 720;
+const mkCanvas = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; };
+const tmpA = mkCanvas(W, H), ta = tmpA.getContext("2d");
+const tmpB = mkCanvas(W, H), tb = tmpB.getContext("2d");
+const arenaCv = mkCanvas(1280, 720), ax = arenaCv.getContext("2d");
+const EMOJI_FONT = '"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif';
+const F_DISPLAY = '"Bungee","Impact","Arial Black",sans-serif';
+const F_MEME = '"Anton","Impact","Arial Black",sans-serif';
+const F_JP = '"Dela Gothic One","Yu Gothic","Meiryo","Hiragino Sans",sans-serif';
+const F_BODY = '"Rubik",system-ui,"Segoe UI",sans-serif';
+const F_MONO = '"JetBrains Mono",Consolas,monospace';
+
+/* ---------- helpers ---------- */
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const easeOut = t => 1 - Math.pow(1 - clamp(t, 0, 1), 3);
+const easeBack = t => { t = clamp(t, 0, 1); const c = 1.9; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+function rnd(n){ const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+function prng(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function rgb(h){ const n = parseInt(String(h).replace("#",""), 16) || 0; return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function rgba(h, a){ const [r,g,b] = rgb(h); return `rgba(${r},${g},${b},${clamp(a,0,1)})`; }
+function mix(h1, h2, k, a){ const A = rgb(h1), B = rgb(h2); return `rgba(${A.map((v,i)=>Math.round(v+(B[i]-v)*k)).join(",")},${clamp(a,0,1)})`; }
+function fmt(t){ t = Math.max(0, t); const m = Math.floor(t/60), s = t - m*60; return String(m).padStart(2,"0")+":"+s.toFixed(1).padStart(4,"0"); }
+const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; };
+
+/* ---------- effect catalogue ---------- */
+const EMO = ["😂","💀","🔥","😱","💯","⚡","🌀","👑","😭","🗿","😎","🤯"];
+const SFX_NAMES = ["Boom","Korna","Vuuş","Ding","Plak cızırtısı","Metal çarpma","Dramatik","Bas düşüşü","Ta-da"];
+const FILTERS = ["Anime","Siyah-beyaz","Sepya","Neon","Sıcak","Soğuk","VHS"];
+const GLYPHS = ["ドン","ゴゴゴ","バキッ","ズドン","シュッ","ドドド"];
+const FX = {
+  aura:       {label:"Enerji Aurası", icon:"🔵", cat:"anime", color:"#2fb8ff", color2:"#ffffff", dur:3, pos:1},
+  vortex:     {label:"Dönüş Girdabı", icon:"🌀", cat:"anime", color:"#7a5cff", color2:"#3fd9ff", dur:3, pos:1},
+  speedlines: {label:"Hız Çizgileri", icon:"💨", cat:"anime", color:"#ffffff", color2:"#ffffff", dur:1.2, pos:1},
+  sparks:     {label:"Kıvılcım", icon:"✨", cat:"anime", color:"#ffb13d", color2:"#fff6c2", dur:1.5, pos:1},
+  lightning:  {label:"Şimşek", icon:"⚡", cat:"anime", color:"#9b7bff", color2:"#ffffff", dur:1.5, pos:1},
+  shockwave:  {label:"Şok Dalgası", icon:"💥", cat:"anime", color:"#3fd9ff", color2:"#ffffff", dur:.9, pos:1},
+  slash:      {label:"Kılıç Kesiği", icon:"🗡️", cat:"anime", color:"#9fe0ff", color2:"#ffffff", dur:1, pos:1},
+  beam:       {label:"Enerji Işını", icon:"🔆", cat:"anime", color:"#3fd9ff", color2:"#ffffff", dur:1.8, pos:1, opts:["Sağa","Sola","Yukarı","Aşağı"], opt:"Sağa"},
+  impactframe:{label:"Darbe Karesi", icon:"🎞️", cat:"anime", color:"#ff1f3d", dur:.4},
+  onomato:    {label:"Manga Sesi", icon:"🈯", cat:"anime", color:"#ffffff", color2:"#8a2cff", dur:1.5, pos:1, opts:GLYPHS, opt:"ドン"},
+  chroma:     {label:"Renk Kayması", icon:"🌈", cat:"anime", dur:.6},
+  manga:      {label:"Manga Sayfası", icon:"📖", cat:"anime", dur:2},
+  flash:      {label:"Parlama", icon:"⚪", cat:"anime", color:"#ffffff", dur:.3},
+  shake:      {label:"Kamera Sarsıntısı", icon:"📳", cat:"anime", dur:.6},
+  zoom:       {label:"Yakınlaştır", icon:"🔍", cat:"anime", dur:1.2, pos:1},
+  title:      {label:"Saldırı Adı", icon:"🔤", cat:"yazi", color:"#ffe14d", color2:"#ff3d9a", dur:1.6, pos:1, text:"KASIRGA SALDIRISI!"},
+  caption:    {label:"Meme Yazısı", icon:"🅰️", cat:"yazi", dur:3, text:"ÜST YAZI|ALT YAZI"},
+  subtitle:   {label:"Altyazı", icon:"💬", cat:"yazi", dur:2.5, text:"Bu topaç durdurulamaz..."},
+  filter:     {label:"Filtre", icon:"🎨", cat:"filtre", color:"#2f6bff", color2:"#ff3d9a", dur:"all", opts:FILTERS, opt:"Anime"},
+  sunglasses: {label:"Havalı Gözlük", icon:"😎", cat:"meme", dur:3, pos:1, text:"İŞTE BÖYLE"},
+  emojirain:  {label:"Emoji Yağmuru", icon:"🌧️", cat:"meme", dur:2.5, opts:EMO, opt:"😂"},
+  reaction:   {label:"Tepki Emojisi", icon:"😱", cat:"meme", dur:2, pos:1, opts:EMO, opt:"😱"},
+  devam:      {label:"Devam Edecek", icon:"➡️", cat:"meme", dur:3, text:"DEVAM EDECEK"},
+  elendin:    {label:"Elendin Ekranı", icon:"☠️", cat:"meme", dur:3, text:"ELENDİN"},
+  dramazoom:  {label:"Dramatik Zoom", icon:"🎬", cat:"meme", dur:2, pos:1},
+  hitmarker:  {label:"Vuruş İşareti", icon:"❌", cat:"meme", dur:1.5, pos:1},
+  circle:     {label:"Kırmızı Daire", icon:"⭕", cat:"meme", dur:2.5, pos:1, text:"BURAYA BAK"},
+  sfx:        {label:"Ses Efekti", icon:"🔊", cat:"ses", dur:.8, opts:SFX_NAMES, opt:"Boom"},
+  top:        {label:"Topaç Koy", icon:"🌀", cat:"topac", dur:"all", pos:1, opts:["Topaç 1","Topaç 2","Topaç 3","Topaç 4"], opt:"Topaç 1"}
+};
+const DESC = {
+  aura:"glowing energy flames around a point", vortex:"spinning wind/energy rings around a spinning top", speedlines:"anime radial speed/focus lines converging on a point (use #000000 for manga black lines)",
+  sparks:"sparks flying from a point (clashes)", lightning:"crackling lightning bolts", shockwave:"expanding impact rings with a burst", slash:"anime sword slash crescents",
+  beam:"energy beam shooting from a point; opt Sağa|Sola|Yukarı|Aşağı", impactframe:"anime impact frame: flickering inverted black-white/red frames, 0.3-0.5s",
+  onomato:"big manga sound-effect glyph; opt one of " + GLYPHS.join(" "), chroma:"RGB split glitch, short", manga:"turns picture into black-white manga page",
+  flash:"full screen flash, 0.2-0.4s", shake:"camera shake 0.3-0.8s", zoom:"punch zoom into a point",
+  title:"big anime attack-name text (text field, max 24 chars)", caption:"classic meme caption, text 'TOP|BOTTOM'", subtitle:"subtitle line typed at bottom",
+  filter:"color filter for a range, opt one of " + FILTERS.join(", "), sunglasses:"pixel 'deal with it' sunglasses drop on a point + text", emojirain:"emoji rain, opt is the emoji",
+  reaction:"big reaction emoji pops at a point, opt is the emoji", devam:"sepia + 'to be continued' style arrow banner, text", elendin:"grey 'eliminated' screen with big red text",
+  dramazoom:"dramatic zoom with red vignette", hitmarker:"MLG hitmarkers around point", circle:"red circle + arrow pointing at point, text", sfx:"sound effect at start, opt one of " + SFX_NAMES.join(", "),
+  top:"draw one of the user's designed spinning tops on the point (opt Topaç 1..4), whole duration, usually track auto"
+};
+
+/* ---------- state ---------- */
+const state = {
+  source:"arena", srcDur:8, T:0, playing:false, sel:null, layers:[],
+  edit:{trimIn:0, trimOut:8, speeds:[], freezes:[]},
+  fmt:"16:9", fit:"contain", pan:0, adj:{b:1, c:1, s:1},
+  videoSound:true, arenaSound:true, sfxVol:.8, muted:false, hud:true, nTops:2, power:1
+};
+let uid = 1, pieces = [], outDur = 8;
+
+/* ---------- time map: trim, speed, freeze ---------- */
+function buildPieces(e = state.edit){
+  const a = clamp(e.trimIn, 0, state.srcDur), b = clamp(e.trimOut, Math.min(state.srcDur, a + .1), state.srcDur);
+  const pts = new Set([a, b]);
+  for (const sp of e.speeds){ if (sp.a > a && sp.a < b) pts.add(sp.a); if (sp.b > a && sp.b < b) pts.add(sp.b); }
+  for (const f of e.freezes) if (f.at >= a && f.at <= b) pts.add(f.at);
+  const P = [...pts].sort((x, y) => x - y), out = []; let o = 0;
+  for (let i = 0; i < P.length; i++){
+    const p = P[i];
+    for (const f of e.freezes) if (Math.abs(f.at - p) < 1e-6){ out.push({o0:o, od:f.dur, s0:p, rate:0, kind:"freeze"}); o += f.dur; }
+    if (i < P.length - 1){
+      const q = P[i+1], mid = (p + q) / 2; let rate = 1;
+      for (const sp of e.speeds) if (mid > sp.a && mid < sp.b) rate = sp.rate;
+      out.push({o0:o, od:(q - p)/rate, s0:p, rate, kind: rate < 1 ? "slow" : rate > 1 ? "fast" : "normal"}); o += (q - p)/rate;
+    }
+  }
+  return {pieces:out, dur:Math.max(.1, o)};
+}
+function pieceAt(T, P = pieces){ for (const pc of P) if (T < pc.o0 + pc.od) return pc; return P[P.length-1]; }
+function mapT(T, P = pieces){ const pc = pieceAt(T, P); if (!pc) return {s:0, rate:1}; const s = pc.s0 + clamp(T - pc.o0, 0, pc.od) * pc.rate; return {s, rate:pc.rate, pc}; }
+function invS(s, P = pieces){
+  if (!P.length) return 0;
+  if (s <= P[0].s0) return 0;
+  for (const pc of P){
+    if (pc.rate === 0){ if (Math.abs(pc.s0 - s) < 1e-6) return pc.o0; }
+    else if (s >= pc.s0 - 1e-9 && s < pc.s0 + pc.od*pc.rate - 1e-9) return pc.o0 + (s - pc.s0)/pc.rate;
+  }
+  return P[P.length-1].o0 + P[P.length-1].od;
+}
+function rebuild(){ const r = buildPieces(); pieces = r.pieces; outDur = r.dur; state.T = clamp(state.T, 0, outDur); }
+const anchorOf = T => { const s = mapT(T).s; return {s, off: T - invS(s)}; };
+const fromAnchor = a => invS(a.s) + a.off;
+function changeEdit(fn, noHist){
+  if (!noHist) pushHistory();
+  const anchors = state.layers.map(L => [anchorOf(L.start), anchorOf(L.end), L.end >= outDur - .02, L.start <= .01]);
+  const Ta = anchorOf(state.T);
+  fn(state.edit);
+  rebuild();
+  state.layers.forEach((L, i) => {
+    const [a, b, full, zero] = anchors[i];
+    L.start = zero ? 0 : clamp(fromAnchor(a), 0, outDur);
+    L.end = full ? outDur : clamp(fromAnchor(b), 0, outDur);
+    clampLayer(L);
+  });
+  seek(fromAnchor(Ta)); renderAll();
+}
+
+/* ---------- layers ---------- */
+function clampLayer(L){
+  L.start = clamp(+L.start || 0, 0, Math.max(0, outDur - .05));
+  L.end = clamp(+L.end || 0, L.start + .05, outDur);
+  return L;
+}
+function mk(type, o = {}){
+  const d = FX[type], dur = d.dur === "all" ? outDur : d.dur;
+  const L = {id:uid++, type, start:state.T, end:state.T + dur, x:.5, y:.5, track: d.pos ? "auto" : "",
+    color:d.color || "#ffffff", color2:d.color2 || "#ffffff", size:1, intensity:1, text:d.text || "", opt:d.opt || ""};
+  if (d.dur === "all"){ L.start = 0; L.end = outDur; }
+  if (type === "reaction"){ L.track = ""; L.x = .82; L.y = .26; }
+  Object.assign(L, o);
+  if (o.start !== undefined && o.end === undefined) L.end = d.dur === "all" ? outDur : o.start + dur;
+  return clampLayer(L);
+}
+function add(type, o){ const L = mk(type, o); state.layers.push(L); return L; }
+
+/* ---------- history ---------- */
+const hist = [];
+function pushHistory(){ hist.push(JSON.stringify({layers:state.layers, edit:state.edit})); if (hist.length > 40) hist.shift(); }
+function undo(){
+  const h = hist.pop(); if (!h){ toastMsg("Geri alınacak bir şey yok."); return; }
+  const o = JSON.parse(h); state.layers = o.layers; state.edit = o.edit; rebuild(); seek(state.T); renderAll();
+}
+let histArmed = true, histTimer = 0;
+function armHist(){ if (histArmed){ pushHistory(); histArmed = false; } clearTimeout(histTimer); histTimer = setTimeout(() => histArmed = true, 900); }
+
+/* ---------- top designs ---------- */
+const DEF_TOPS = [
+  {name:"Mavi Fırtına", color:"#2f8bff", color2:"#bfe9ff", shape:"yıldız", blades:3, atk:8, def:4, sta:5, img:"", imgFull:false},
+  {name:"Kızıl Kurt", color:"#ff3d3d", color2:"#ffd23d", shape:"pençe", blades:4, atk:6, def:5, sta:6, img:"", imgFull:false},
+  {name:"Yeşil Kale", color:"#2fd67a", color2:"#e8ffe0", shape:"dişli", blades:6, atk:3, def:9, sta:6, img:"", imgFull:false},
+  {name:"Gece Kuzgunu", color:"#8a5cff", color2:"#ff9be8", shape:"pençe", blades:3, atk:5, def:4, sta:9, img:"", imgFull:false}
+];
+let designs = DEF_TOPS.map(d => ({...d}));
+try { const s = JSON.parse(localStorage.getItem("kfx_tops") || "null"); if (Array.isArray(s) && s.length === 4) designs = s.map((d, i) => ({...DEF_TOPS[i], ...d})); } catch (e) {}
+designs.forEach(loadImg);
+function loadImg(d){ d.imgEl = null; if (d.img){ const im = new Image(); im.onload = () => { d.imgEl = im; }; im.src = d.img; } }
+function saveTops(){ try { localStorage.setItem("kfx_tops", JSON.stringify(designs.map(({imgEl, ...r}) => r))); } catch (e) {} }
+
+function topBody(c, d, R, a){
+  c.save(); c.rotate(a);
+  if (d.imgEl && d.imgFull){
+    c.save(); c.beginPath(); c.arc(0, 0, R, 0, TAU); c.clip(); c.drawImage(d.imgEl, -R, -R, R*2, R*2); c.restore();
+    c.lineWidth = R*.1; c.strokeStyle = d.color; c.beginPath(); c.arc(0, 0, R*.95, 0, TAU); c.stroke();
+    c.restore(); return;
+  }
+  const N = d.blades, step = TAU / N;
+  c.fillStyle = d.color; c.strokeStyle = "rgba(0,0,0,.6)"; c.lineWidth = R*.05; c.lineJoin = "round";
+  c.beginPath();
+  if (d.shape === "yıldız"){ for (let k = 0; k <= N*2; k++){ const r = k % 2 ? R*.6 : R, an = k/(N*2)*TAU; c.lineTo(Math.cos(an)*r, Math.sin(an)*r); } }
+  else if (d.shape === "pençe"){
+    const P = (r, an) => [Math.cos(an)*r, Math.sin(an)*r];
+    for (let k = 0; k < N; k++){ const b = k*step;
+      c.lineTo(...P(R*.6, b)); c.quadraticCurveTo(...P(R*1.1, b + step*.35), ...P(R*.98, b + step*.62)); c.lineTo(...P(R*.62, b + step*.78)); }
+  } else { const M = N*2; for (let k = 0; k < M; k++){ const a0 = k/M*TAU, a1 = (k+.5)/M*TAU, a2 = (k+1)/M*TAU; c.arc(0, 0, R, a0, a1); c.arc(0, 0, R*.84, a1, a2); } }
+  c.closePath(); c.fill(); c.stroke();
+  const mg = c.createRadialGradient(-R*.2, -R*.2, R*.05, 0, 0, R*.62); mg.addColorStop(0, "#f4f6ff"); mg.addColorStop(1, "#59618a");
+  c.fillStyle = mg; c.beginPath(); c.arc(0, 0, R*.6, 0, TAU); c.fill(); c.stroke();
+  c.fillStyle = d.color2; c.beginPath(); c.arc(0, 0, R*.42, 0, TAU); c.fill();
+  if (d.imgEl){ c.save(); c.beginPath(); c.arc(0, 0, R*.4, 0, TAU); c.clip(); c.drawImage(d.imgEl, -R*.4, -R*.4, R*.8, R*.8); c.restore(); }
+  else {
+    c.fillStyle = d.color; for (let k = 0; k < 3; k++){ c.save(); c.rotate(k*TAU/3); c.fillRect(R*.1, -R*.04, R*.28, R*.08); c.restore(); }
+    c.fillStyle = "#10142a"; c.font = `${R*.36}px ${F_DISPLAY}`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText((d.name || "?").trim().charAt(0).toLocaleUpperCase("tr"), 0, R*.02);
+  }
+  c.restore();
+}
+function drawTop(c, d, x, y, R, ang, squash, alpha, blur, tilt){
+  c.save(); c.translate(x, y); c.rotate(tilt || 0); c.scale(1, squash);
+  if (blur){ for (let g = 2; g >= 1; g--){ c.globalAlpha = alpha*.2; topBody(c, d, R, ang - g*.4); } }
+  c.globalAlpha = alpha; topBody(c, d, R, ang);
+  c.globalAlpha = alpha*.25; c.strokeStyle = "#fff"; c.lineWidth = R*.08; c.beginPath(); c.arc(0, 0, R*.8, Math.PI*1.1, Math.PI*1.5); c.stroke();
+  c.restore();
+}
+
+/* ---------- battle simulation ---------- */
+let sim = null;
+function simulate(ds, seed, power){
+  const r = prng(seed*7919 + 13), n = ds.length, dt = 1/120, maxT = 40;
+  const B = ds.map((d, i) => {
+    const a = i/n*TAU + (r() - .5)*.6 + Math.PI/2, sp = .75 + .35*power;
+    return {x:Math.cos(a)*.78, y:Math.sin(a)*.78, vx:-Math.sin(a)*sp + (r()-.5)*.3, vy:Math.cos(a)*sp + (r()-.5)*.3,
+      ang:r()*TAU, spin:1, st:0, oz:0, vz:0, wob:0, outT:0, atk:d.atk, def:d.def, sta:d.sta, m:1 + d.def*.07, rad:.1};
+  });
+  const frames = B.map(() => []), clashes = [], events = [], lastC = {};
+  let t = 0, step = 0, endT = null, finishT = null;
+  while (t < maxT){
+    B.forEach((b, i) => {
+      if (b.st === 0){
+        let axx = -1.5*b.x, ayy = -1.5*b.y;
+        const orb = (.25 + b.atk*.06)*b.spin;
+        axx += -b.y*orb; ayy += b.x*orb;
+        if (b.wt === undefined || t > b.wt){ b.wt = t + .25 + r()*.5; b.kx = (r() - .5)*2.6; b.ky = (r() - .5)*2.6; }
+        axx += b.kx*b.spin; ayy += b.ky*b.spin;
+        let best = null, bd = 9;
+        for (const o of B) if (o !== b && o.st === 0){ const dd = Math.hypot(o.x - b.x, o.y - b.y); if (dd < bd){ bd = dd; best = o; } }
+        if (best){ const hunt = (.5 + b.atk*.2)*b.spin/Math.max(.25, bd); axx += (best.x - b.x)*hunt; ayy += (best.y - b.y)*hunt;
+          if (b.dt === undefined || t > b.dt){ b.dt = t + .7 + r()*1.3 - b.atk*.05; if (r() < .45 + b.atk*.05){ const dash = (.5 + b.atk*.09)*b.spin; b.vx += (best.x - b.x)/bd*dash; b.vy += (best.y - b.y)/bd*dash; } } }
+        b.vx += axx*dt; b.vy += ayy*dt;
+        const damp = 1 - (.3 + (1 - b.spin)*.8)*dt; b.vx *= damp; b.vy *= damp;
+        b.x += b.vx*dt; b.y += b.vy*dt;
+        b.spin -= dt*(.085 - b.sta*.0055);
+        b.wob = Math.max(0, .35 - b.spin)*1.4;
+        const d = Math.hypot(b.x, b.y), lim = 1 - b.rad*.6;
+        if (d > lim){
+          const nx = b.x/d, ny = b.y/d, vn = b.vx*nx + b.vy*ny;
+          if (vn > .85 && t > 3 && t - (b.hitT ?? -9) < .7 && r() < .45 + (vn - .85)){ b.st = 1; b.vz = 1.2 + vn*.4; b.outT = t; events.push({t, type:"out", i, x:b.x, y:b.y}); }
+          else { if (vn > 0){ b.vx -= 1.75*vn*nx; b.vy -= 1.75*vn*ny; b.spin -= .012*vn; } b.x = nx*lim; b.y = ny*lim; }
+        }
+        if (b.st === 0 && b.spin < .07){ b.st = 2; events.push({t, type:"stop", i, x:b.x, y:b.y}); }
+      } else if (b.st === 1){
+        b.x += b.vx*dt; b.y += b.vy*dt; b.vz -= 3*dt; b.oz = Math.max(0, b.oz + b.vz*dt); b.spin = Math.max(0, b.spin - dt*.2);
+        if (t - b.outT > 1.2) b.st = 3;
+      } else if (b.st === 2){
+        b.vx *= .96; b.vy *= .96; b.x += b.vx*dt; b.y += b.vy*dt; b.spin = Math.max(0, b.spin - dt*.06); b.wob = Math.min(1.2, b.wob + dt*1.6);
+      }
+      b.ang += b.spin*dt*45;
+    });
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++){
+      const A = B[i], C = B[j]; if (A.st !== 0 || C.st !== 0) continue;
+      const dx = C.x - A.x, dy = C.y - A.y, d = Math.hypot(dx, dy), mn = A.rad + C.rad;
+      if (d >= mn || d === 0) continue;
+      const nx = dx/d, ny = dy/d, ov = (mn - d)/2;
+      A.x -= nx*ov; A.y -= ny*ov; C.x += nx*ov; C.y += ny*ov;
+      const rel = (A.vx - C.vx)*nx + (A.vy - C.vy)*ny;
+      if (rel < -.05) continue;
+      const jimp = 1.55*Math.max(rel, .15)/(1/A.m + 1/C.m);
+      A.vx -= jimp/A.m*nx; A.vy -= jimp/A.m*ny; C.vx += jimp/C.m*nx; C.vy += jimp/C.m*ny;
+      const kA = C.atk*C.spin*.13/A.m*(.4 + r()), kC = A.atk*A.spin*.13/C.m*(.4 + r());
+      A.vx -= nx*kA; A.vy -= ny*kA; C.vx += nx*kC; C.vy += ny*kC;
+      const tx = -ny, ty = nx; A.vx += tx*.15*C.spin; A.vy += ty*.15*C.spin; C.vx -= tx*.15*A.spin; C.vy -= ty*.15*A.spin;
+      A.spin -= (.018 + .045*Math.max(0, rel))*C.atk/(A.def*.6 + 2);
+      C.spin -= (.018 + .045*Math.max(0, rel))*A.atk/(C.def*.6 + 2);
+      A.hitT = C.hitT = t;
+      const key = i + "-" + j;
+      if (!(t - (lastC[key] ?? -9) < .12)){ clashes.push({t, x:(A.x + C.x)/2, y:(A.y + C.y)/2, power: Math.max(0, rel) + (kA + kC)*2, a:i, b:j}); lastC[key] = t; }
+    }
+    const alive = B.filter(b => b.st === 0).length;
+    if (finishT === null && alive <= 1){ finishT = t; endT = t + 2.2; }
+    if (step % 2 === 0) B.forEach((b, i) => frames[i].push(b.x, b.y, b.ang, b.spin, b.st, b.oz, b.wob));
+    t += dt; step++;
+    if (endT !== null && t >= endT) break;
+  }
+  if (finishT === null) finishT = t;
+  const order = B.map((b, i) => i).sort((a, b) => (B[a].st === 0) - (B[b].st === 0) || B[a].spin - B[b].spin);
+  const winner = order[order.length - 1];
+  const lastEv = events.filter(e => e.t <= finishT + .01).pop();
+  const finish = t >= maxT - .01 && B.filter(b => b.st === 0).length > 1 ? "Süre doldu" : lastEv?.type === "out" ? "Dışarı atma" : "Durdurma";
+  return {frames: frames.map(a => Float32Array.from(a)), n: frames[0].length/7, dur: t, clashes, events, winner, finishT, finish, ids: ds.map((d, i) => i)};
+}
+function frameOf(i, s){
+  if (!sim || !sim.frames[i]) return null;
+  const f = sim.frames[i], k = clamp(s*60, 0, sim.n - 1), a = Math.floor(k), b = Math.min(sim.n - 1, a + 1), u = k - a;
+  const g = (o) => f[a*7 + o] + (f[b*7 + o] - f[a*7 + o])*u;
+  return {x:g(0), y:g(1), ang:g(2), spin:g(3), st:f[a*7 + 4], oz:g(5), wob:g(6)};
+}
+const ACX = 640, ACY = 410, ARX = 440, ARY = 220;
+const arenaPx = (x, y, oz = 0) => [ACX + x*ARX, ACY + y*ARY - oz*260];
+
+function renderArena(s){
+  const c = ax, w = 1280, h = 720;
+  const bg = c.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, "#0d1026"); bg.addColorStop(1, "#05060e");
+  c.fillStyle = bg; c.fillRect(0, 0, w, h);
+  for (let i = 0; i < 3; i++){ const lx = 260 + i*380, g = c.createRadialGradient(lx, -40, 10, lx, -40, 520); g.addColorStop(0, "rgba(120,150,255,.16)"); g.addColorStop(1, "rgba(120,150,255,0)"); c.fillStyle = g; c.fillRect(0, 0, w, h); }
+  c.fillStyle = "rgba(160,170,230,.08)"; for (let i = 0; i < 160; i++){ c.beginPath(); c.arc(rnd(i)*w, 40 + rnd(i + 50)*120, 3 + rnd(i + 9)*3, 0, TAU); c.fill(); }
+  c.save(); c.translate(ACX, ACY + 14); c.scale(1, ARY/ARX);
+  const rim = c.createLinearGradient(0, -ARX - 40, 0, ARX + 40); rim.addColorStop(0, "#9aa6d6"); rim.addColorStop(.5, "#39406a"); rim.addColorStop(1, "#151935");
+  c.fillStyle = rim; c.beginPath(); c.arc(0, 0, ARX + 34, 0, TAU); c.fill();
+  c.restore();
+  c.save(); c.translate(ACX, ACY); c.scale(1, ARY/ARX);
+  const fl = c.createRadialGradient(0, 0, 20, 0, 0, ARX); fl.addColorStop(0, "#36437a"); fl.addColorStop(.7, "#1c2246"); fl.addColorStop(1, "#0c1029");
+  c.fillStyle = fl; c.beginPath(); c.arc(0, 0, ARX, 0, TAU); c.fill();
+  c.strokeStyle = "rgba(150,170,255,.16)"; c.lineWidth = 3;
+  for (let k = 1; k <= 4; k++){ c.beginPath(); c.arc(0, 0, ARX*k/4.3, 0, TAU); c.stroke(); }
+  for (let k = 0; k < 12; k++){ const a = k/12*TAU; c.beginPath(); c.moveTo(Math.cos(a)*40, Math.sin(a)*40); c.lineTo(Math.cos(a)*ARX, Math.sin(a)*ARX); c.stroke(); }
+  c.strokeStyle = "#05060e"; c.lineWidth = 18; for (const a of [-.4, 1.7, 3.8]){ c.beginPath(); c.arc(0, 0, ARX + 14, a, a + .45); c.stroke(); }
+  c.restore();
+  if (!sim) return;
+  const order = sim.ids.map(i => ({i, f:frameOf(i, s)})).filter(o => o.f && o.f.st !== 3).sort((a, b) => a.f.y - b.f.y);
+  for (const {i, f} of order){
+    const d = designs[i], [px, py] = arenaPx(f.x, f.y, f.oz), R = 40*(1 + f.oz*.4);
+    const alpha = f.st === 1 ? clamp(1 - f.oz*.6, .2, 1) : 1;
+    if (f.st === 0 && f.spin > .2){
+      for (let k = 6; k >= 1; k--){ const g = frameOf(i, s - k*.025); if (!g) continue; const [qx, qy] = arenaPx(g.x, g.y, g.oz);
+        c.strokeStyle = rgba(d.color, .1*(7 - k)/6*f.spin); c.lineWidth = 6; c.beginPath(); c.ellipse(qx, qy, R, R*.5, 0, 0, TAU); c.stroke(); }
+    }
+    const [gx, gy] = arenaPx(f.x, f.y, 0);
+    c.fillStyle = `rgba(0,0,0,${.45*alpha})`; c.beginPath(); c.ellipse(gx, gy + 10, R*1.05, R*.4, 0, 0, TAU); c.fill();
+    const tilt = f.st === 2 ? Math.min(.9, f.wob*.7) : Math.sin(f.ang*.05)*f.wob*.25;
+    drawTop(c, d, px, py, R, f.ang, .52 - (f.st === 2 ? f.wob*.1 : 0), alpha, f.spin > .3, tilt);
+  }
+  if (state.hud){
+    sim.ids.forEach((i, k) => {
+      const d = designs[i], f = frameOf(i, s), right = k % 2 === 1, x = right ? w - 330 : 30, y = 24 + Math.floor(k/2)*62;
+      c.fillStyle = "rgba(5,6,14,.6)"; c.fillRect(x, y, 300, 50);
+      c.fillStyle = d.color; c.fillRect(x, y, 6, 50);
+      c.font = `500 20px ${F_BODY}`; c.fillStyle = "#eef0ff"; c.textAlign = "left"; c.textBaseline = "top"; c.fillText(d.name.slice(0, 18), x + 16, y + 5);
+      const sp = f ? (f.st === 0 ? f.spin : 0) : 0;
+      c.fillStyle = "#262c4a"; c.fillRect(x + 16, y + 33, 268, 8);
+      c.fillStyle = sp > .3 ? d.color : "#ff6b6b"; c.fillRect(x + 16, y + 33, 268*clamp(sp, 0, 1), 8);
+      if (f && f.st !== 0){ c.font = `700 14px ${F_MONO}`; c.fillStyle = "#ff6b6b"; c.textAlign = "right"; c.fillText(f.st === 2 ? "DURDU" : "DIŞARI", x + 284, y + 8); }
+    });
+  }
+}
+
+/* ---------- sources ---------- */
+const video = document.createElement("video");
+video.playsInline = true; video.preload = "auto";
+let cov = {sc:1, dx:0, dy:0, dw:1280, dh:720};
+function coverOf(sw, sh){
+  const sc = state.fit === "cover" ? Math.max(W/sw, H/sh) : Math.min(W/sw, H/sh);
+  const dw = sw*sc, dh = sh*sc;
+  let dx = (W - dw)/2, dy = (H - dh)/2;
+  if (state.fit === "cover"){ if (dw > W) dx = (W - dw)/2*(1 + state.pan); if (dh > H) dy = (H - dh)/2*(1 + state.pan); }
+  return {sc, dx, dy, dw, dh};
+}
+const FMTS = {"16:9":[1280,720], "9:16":[720,1280], "1:1":[960,960]};
+function setFormat(f){
+  state.fmt = f; [W, H] = FMTS[f]; cv.width = W; cv.height = H;
+  tmpA.width = tmpB.width = W; tmpA.height = tmpB.height = H; resetTracker(); $("#fmtSel").value = f;
+}
+
+/* ---------- motion tracker (hareket takibi) ---------- */
+const TW = 96, TH = 54;
+const tc = mkCanvas(TW, TH), tctx = tc.getContext("2d", {willReadFrequently:true});
+let prevLum = null; const trk = {x:.5, y:.55};
+function resetTracker(){ prevLum = null; }
+function updateTracker(){
+  tctx.drawImage(cv, 0, 0, TW, TH);
+  const d = tctx.getImageData(0, 0, TW, TH).data, lum = new Float32Array(TW*TH);
+  for (let i = 0; i < TW*TH; i++) lum[i] = d[i*4]*.3 + d[i*4+1]*.59 + d[i*4+2]*.11;
+  if (prevLum){
+    let sx = 0, sy = 0, sw = 0;
+    for (let y = 0; y < TH; y++) for (let x = 0; x < TW; x++){
+      const i = y*TW + x, df = Math.abs(lum[i] - prevLum[i]);
+      if (df > 28){ const w = df - 28; sx += x*w; sy += y*w; sw += w; }
+    }
+    if (sw > 400){ trk.x += (sx/sw/TW - trk.x)*.35; trk.y += (sy/sw/TH - trk.y)*.35; }
+  }
+  prevLum = lum;
+}
+
+/* ---------- points ---------- */
+function arenaOut(x, y, oz){ const [px, py] = arenaPx(x, y, oz); return [px*cov.sc + cov.dx, py*cov.sc + cov.dy]; }
+function pointFor(L, info){
+  if (!L.track) return [L.x*W, L.y*H];
+  if (state.source === "arena" && sim){
+    const i = L.track === "auto" ? sim.winner : +L.track.slice(1);
+    const f = frameOf(i, info.s);
+    if (f){ const [px, py] = arenaOut(f.x, f.y, f.oz); if (!info.M) return [px, py]; const q = info.M.transformPoint({x:px, y:py}); return [q.x, q.y]; }
+  }
+  return [trk.x*W, trk.y*H];
+}
+
+/* ---------- effect drawing ---------- */
+function env(L, lt){ const d = L.end - L.start; const fi = L.start <= .01 ? 1 : lt/.12, fo = L.end >= outDur - .01 ? 1 : (d - lt)/.2; return clamp(Math.min(fi, fo, 1), 0, 1); }
+function copyFrame(){ ta.globalCompositeOperation = "source-over"; ta.filter = "none"; ta.clearRect(0, 0, W, H); ta.drawImage(cv, 0, 0); }
+let halftone = null;
+function halftonePat(){ if (!halftone){ const c = mkCanvas(9, 9), g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, 9, 9); g.fillStyle = "#777"; g.beginPath(); g.arc(4.5, 4.5, 2, 0, TAU); g.fill(); halftone = ctx.createPattern(c, "repeat"); } return halftone; }
+function bolt(x1, y1, x2, y2, r, disp){
+  let pts = [[x1,y1],[x2,y2]];
+  for (let it = 0; it < 5; it++){
+    const np = [];
+    for (let i = 0; i < pts.length - 1; i++){
+      const [ax1, ay1] = pts[i], [bx, by] = pts[i+1], dx = bx - ax1, dy = by - ay1, l = Math.hypot(dx, dy) || 1, o = (r() - .5)*disp;
+      np.push(pts[i], [(ax1 + bx)/2 - dy/l*o, (ay1 + by)/2 + dx/l*o]);
+    }
+    np.push(pts[pts.length - 1]); pts = np; disp /= 2;
+  }
+  return pts;
+}
+function strokePath(pts, col, w, a, blur){
+  ctx.strokeStyle = rgba(col, a); ctx.lineWidth = w; ctx.shadowColor = col; ctx.shadowBlur = blur;
+  ctx.beginPath(); pts.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)); ctx.stroke(); ctx.shadowBlur = 0;
+}
+function fitFont(text, family, size, maxW, weight = ""){
+  ctx.font = `${weight} ${size}px ${family}`; const w = ctx.measureText(text).width;
+  if (w > maxW){ size *= maxW/w; ctx.font = `${weight} ${size}px ${family}`; }
+  return size;
+}
+function speedlinesAt(X, Y, S, lt, color, alpha, n){
+  const b = Math.floor(lt*24), R = Math.hypot(W, H)*1.2;
+  ctx.fillStyle = rgba(color, alpha);
+  for (let i = 0; i < n; i++){
+    const a = rnd(b*131 + i)*TAU, inner = S*(.38 + rnd(b*7 + i)*.6), w = .004 + rnd(i + b*3)*.012;
+    ctx.beginPath(); ctx.moveTo(X + Math.cos(a)*inner, Y + Math.sin(a)*inner);
+    ctx.lineTo(X + Math.cos(a - w)*R, Y + Math.sin(a - w)*R); ctx.lineTo(X + Math.cos(a + w)*R, Y + Math.sin(a + w)*R); ctx.closePath(); ctx.fill();
+  }
+}
+const S0 = () => Math.min(W, H);
+const draw = {
+  aura(L, lt, X, Y, S, e){
+    const I = L.intensity, pulse = .85 + .15*Math.sin(lt*14);
+    ctx.globalCompositeOperation = "lighter";
+    const g = ctx.createRadialGradient(X, Y, 0, X, Y, S*.38*pulse);
+    g.addColorStop(0, rgba(L.color2, .5*I*e)); g.addColorStop(.35, rgba(L.color, .42*I*e)); g.addColorStop(1, rgba(L.color, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(X, Y, S*.38*pulse, 0, TAU); ctx.fill();
+    const n = Math.round(70*I);
+    for (let i = 0; i < n; i++){
+      const ph = (lt*1.3 + rnd(i)) % 1, a = rnd(i + 7)*TAU, r0 = S*.15*(.35 + rnd(i + 3));
+      const px = X + Math.cos(a)*r0*(1 - ph*.4) + Math.sin(lt*7 + i)*S*.02, py = Y + Math.sin(a)*r0*.5 - ph*S*.5;
+      const sz = S*.055*(1 - ph)*(.5 + rnd(i + 11));
+      const pg = ctx.createRadialGradient(px, py, 0, px, py, sz);
+      pg.addColorStop(0, mix(L.color2, L.color, ph, .9*e)); pg.addColorStop(1, rgba(L.color, 0));
+      ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(px, py, sz, 0, TAU); ctx.fill();
+    }
+  },
+  vortex(L, lt, X, Y, S, e){
+    ctx.globalCompositeOperation = "lighter"; ctx.shadowColor = L.color; ctx.shadowBlur = S*.04; ctx.lineCap = "round";
+    for (let k = 0; k < 6; k++){
+      const r = S*(.13 + k*.055), rot = lt*(16 + k*3)*(k % 2 ? -1 : 1)*.5 + k;
+      ctx.strokeStyle = mix(L.color2, L.color, k/5, .9*e*L.intensity); ctx.lineWidth = S*.016*(1 - k/9);
+      ctx.beginPath(); ctx.ellipse(X, Y - k*S*.03, r, r*.42, 0, rot, rot + Math.PI*1.25); ctx.stroke();
+      ctx.strokeStyle = rgba(L.color, .18*e); ctx.lineWidth = S*.006;
+      ctx.beginPath(); ctx.ellipse(X, Y - k*S*.03, r, r*.42, 0, 0, TAU); ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+    for (let i = 0; i < 24*L.intensity; i++){
+      const ph = (lt*1.6 + rnd(i + 40)) % 1, a = rnd(i + 3)*TAU + lt*6, r = S*(.12 + ph*.3);
+      ctx.fillStyle = rgba(L.color2, (1 - ph)*.8*e); ctx.beginPath(); ctx.arc(X + Math.cos(a)*r, Y + Math.sin(a)*r*.42 - ph*S*.35, S*.008, 0, TAU); ctx.fill();
+    }
+  },
+  speedlines(L, lt, X, Y, S, e){ speedlinesAt(X, Y, S, lt, L.color, .78*e, Math.round(80*L.intensity)); },
+  sparks(L, lt, X, Y, S, e){
+    ctx.globalCompositeOperation = "lighter"; ctx.lineCap = "round";
+    const rate = 55*L.intensity, life = .6;
+    for (let j = Math.max(0, Math.floor((lt - life)*rate)); j <= Math.floor(lt*rate); j++){
+      const age = lt - j/rate; if (age < 0 || age > life) continue;
+      const a = rnd(j + L.id)*TAU, v = S*(1.3 + rnd(j + 1)*2.2), gy = S*4;
+      const p = q => [X + Math.cos(a)*v*q, Y + Math.sin(a)*v*q*.7 + .5*gy*q*q];
+      const [x1, y1] = p(age), [x0, y0] = p(Math.max(0, age - .035));
+      ctx.strokeStyle = mix(L.color2, L.color, age/life, (1 - age/life)*e); ctx.lineWidth = S*.008*(1 - age/life) + 1;
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    }
+    const fl = .5 + .5*rnd(Math.floor(lt*30)), g = ctx.createRadialGradient(X, Y, 0, X, Y, S*.12*fl);
+    g.addColorStop(0, rgba(L.color2, .9*e)); g.addColorStop(1, rgba(L.color, 0));
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(X, Y, S*.12*fl, 0, TAU); ctx.fill();
+  },
+  lightning(L, lt, X, Y, S, e){
+    ctx.globalCompositeOperation = "lighter"; ctx.lineJoin = "round";
+    const b = Math.floor(lt/.07), n = Math.round(3*L.intensity) + 1;
+    for (let k = 0; k < n; k++){
+      const r = prng(b*97 + k*13 + L.id*1000); if (r() < .25) continue;
+      const a = r()*TAU, len = S*(.45 + r()*.55), pts = bolt(X, Y, X + Math.cos(a)*len, Y + Math.sin(a)*len, r, len*.35);
+      strokePath(pts, L.color, S*.03, .35*e, S*.05); strokePath(pts, L.color2, S*.008, e, 0);
+      const bi = 3 + Math.floor(r()*(pts.length - 6)), [bx, by] = pts[bi], ba = a + (r() - .5)*1.6;
+      strokePath(bolt(bx, by, bx + Math.cos(ba)*len*.4, by + Math.sin(ba)*len*.4, r, len*.12), L.color, S*.005, .8*e, S*.03);
+    }
+  },
+  shockwave(L, lt, X, Y, S, e){
+    ctx.globalCompositeOperation = "lighter";
+    for (let k = 0; k < 3; k++){
+      const rt = lt - k*.12; if (rt < 0 || rt > .8) continue;
+      const q = rt/.8, r = S*(.08 + rt*1.7);
+      ctx.strokeStyle = mix(L.color2, L.color, q, (1 - q)*e*L.intensity); ctx.lineWidth = S*.045*(1 - q) + 1;
+      ctx.beginPath(); ctx.ellipse(X, Y, r, r*.62, 0, 0, TAU); ctx.stroke();
+    }
+    if (lt < .3){ const q = lt/.3, g = ctx.createRadialGradient(X, Y, 0, X, Y, S*.6); g.addColorStop(0, rgba(L.color2, (1 - q)*.95)); g.addColorStop(1, rgba(L.color, 0)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); }
+  },
+  slash(L, lt, X, Y, S, e){
+    ctx.globalCompositeOperation = "lighter"; ctx.shadowColor = L.color; ctx.shadowBlur = S*.05;
+    const n = Math.floor(lt/.16) + 1;
+    for (let j = 0; j < n; j++){
+      const age = lt - j*.16; if (age > .35 || age < 0) continue;
+      const r = prng(j*17 + L.id*3), cx = X + (r() - .5)*S*.3, cy = Y + (r() - .5)*S*.3, a = r()*TAU, R = S*(.25 + r()*.2);
+      const prog = Math.min(1, age/.1), fade = (1 - Math.max(0, (age - .1)/.25))*e, sw = Math.PI*1.1*prog;
+      ctx.save(); ctx.translate(cx, cy); ctx.rotate(a);
+      ctx.fillStyle = mix(L.color2, L.color, 1 - fade, fade);
+      ctx.beginPath(); ctx.arc(0, 0, R, -sw/2, sw/2); ctx.arc(-R*.16, 0, R*.98, sw/2, -sw/2, true); ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+    ctx.shadowBlur = 0;
+  },
+  beam(L, lt, X, Y, S, e){
+    const dir = {"Sağa":0, "Sola":Math.PI, "Yukarı":-Math.PI/2, "Aşağı":Math.PI/2}[L.opt] ?? 0;
+    const len = Math.hypot(W, H)*easeOut(lt/.25), th = S*.07*(1 + .12*Math.sin(lt*40))*e*L.intensity;
+    ctx.save(); ctx.translate(X, Y); ctx.rotate(dir); ctx.globalCompositeOperation = "lighter";
+    const g = ctx.createLinearGradient(0, -th*1.8, 0, th*1.8);
+    g.addColorStop(0, rgba(L.color, 0)); g.addColorStop(.5, rgba(L.color, .7)); g.addColorStop(1, rgba(L.color, 0));
+    ctx.fillStyle = g; ctx.fillRect(0, -th*1.8, len, th*3.6);
+    ctx.shadowColor = L.color; ctx.shadowBlur = th; ctx.fillStyle = rgba(L.color2, .95); ctx.fillRect(0, -th*.35, len, th*.7); ctx.shadowBlur = 0;
+    ctx.strokeStyle = rgba(L.color, .8); ctx.lineWidth = Math.max(1, th*.12);
+    for (const sgn of [-1, 1]){ ctx.beginPath(); for (let x = 0; x < len; x += 12) ctx.lineTo(x, sgn*th*(.8 + .25*Math.sin(x*.05 - lt*40))); ctx.stroke(); }
+    const bg = ctx.createRadialGradient(0, 0, 0, 0, 0, th*2.2); bg.addColorStop(0, rgba(L.color2, 1)); bg.addColorStop(1, rgba(L.color, 0));
+    ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(0, 0, th*2.2, 0, TAU); ctx.fill();
+    for (let i = 0; i < 30; i++){ const u = (lt*2 + rnd(i)) % 1; ctx.fillStyle = rgba(L.color2, (1 - u)); ctx.beginPath(); ctx.arc(u*len, (rnd(i + 3) - .5)*th*2.6, th*.12, 0, TAU); ctx.fill(); }
+    ctx.restore();
+  },
+  impactframe(L, lt, X, Y, S, e){
+    const f = Math.floor(lt*24) % 4; copyFrame();
+    ctx.filter = f % 2 === 0 ? "grayscale(1) contrast(6) invert(1)" : "grayscale(1) contrast(6)";
+    ctx.drawImage(tmpA, 0, 0); ctx.filter = "none";
+    if (f === 1){ ctx.globalCompositeOperation = "multiply"; ctx.fillStyle = L.color; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = "source-over"; }
+    speedlinesAt(W/2, H/2, S0()*.9, lt, f % 2 === 0 ? "#000000" : "#ffffff", .9, 70);
+  },
+  onomato(L, lt, X, Y, S, e){
+    const g = L.opt || "ドン", many = g === "ゴゴゴ" || g === "ドドド";
+    const drawG = (txt, x, y, fs, rot) => {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.font = `${fs}px ${F_JP}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+      ctx.lineWidth = fs*.22; ctx.strokeStyle = "#05060c"; ctx.strokeText(txt, 0, 0);
+      ctx.lineWidth = fs*.1; ctx.strokeStyle = L.color; ctx.strokeText(txt, 0, 0);
+      ctx.fillStyle = L.color2; ctx.fillText(txt, 0, 0); ctx.restore();
+    };
+    ctx.globalAlpha = e;
+    if (many){
+      const ch = g.charAt(0);
+      for (let k = 0; k < 6; k++){ const a = rnd(k + 3)*TAU, r = S*(.25 + rnd(k)*.2), j = Math.sin(lt*60 + k)*S*.006;
+        drawG(ch, X + Math.cos(a)*r*1.4 + j, Y + Math.sin(a)*r - S*.08, S*(.12 + rnd(k + 8)*.06), (rnd(k + 2) - .5)*.6); }
+    } else {
+      const pop = lt < .15 ? 2.2 - 1.2*(lt/.15) : 1, j = Math.sin(lt*70)*S*.005;
+      drawG(g, X + S*.18 + j, Y - S*.22, S*.24*pop, -.12);
+    }
+  },
+  chroma(L, lt, X, Y, S, e){
+    const d = S0()*.014*L.intensity*(.6 + .4*Math.sin(lt*30))*e; if (d < .5) return;
+    copyFrame();
+    tb.globalCompositeOperation = "source-over"; tb.drawImage(tmpA, 0, 0); tb.globalCompositeOperation = "multiply"; tb.fillStyle = "#00ffff"; tb.fillRect(0, 0, W, H);
+    ctx.drawImage(tmpB, -d, 0);
+    tb.globalCompositeOperation = "source-over"; tb.drawImage(tmpA, 0, 0); tb.globalCompositeOperation = "multiply"; tb.fillStyle = "#ff0000"; tb.fillRect(0, 0, W, H); tb.globalCompositeOperation = "source-over";
+    ctx.globalCompositeOperation = "screen"; ctx.drawImage(tmpB, d, 0); ctx.globalCompositeOperation = "source-over";
+    const b = Math.floor(lt*20);
+    for (let k = 0; k < 3; k++){ const y = rnd(b*5 + k)*H, h = H*(.02 + rnd(b + k)*.05); ctx.drawImage(cv, 0, y, W, h, (rnd(b*3 + k) - .5)*d*6, y, W, h); }
+  },
+  manga(L, lt, X, Y, S, e){
+    copyFrame(); ctx.globalAlpha = e;
+    ctx.filter = `grayscale(1) contrast(${1.8 + .6*L.intensity}) brightness(1.08)`; ctx.drawImage(tmpA, 0, 0); ctx.filter = "none";
+    ctx.globalCompositeOperation = "multiply"; ctx.globalAlpha = .5*e; ctx.fillStyle = halftonePat(); ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = .55*e; ctx.fillStyle = "#f1ead8"; ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = e; ctx.strokeStyle = "#000"; ctx.lineWidth = S0()*.014; const m = S0()*.03; ctx.strokeRect(m, m, W - m*2, H - m*2);
+  },
+  flash(L, lt, X, Y, S, e){ const d = Math.max(.05, L.end - L.start); ctx.fillStyle = rgba(L.color, (1 - lt/d)*.85*L.intensity); ctx.fillRect(0, 0, W, H); },
+  shake(){}, zoom(){}, sfx(){},
+  title(L, lt, X, Y, S, e){
+    const t = (L.text || "").slice(0, 24); if (!t) return;
+    let fs = fitFont(t, F_DISPLAY, S0()*.1*L.size, W*.86);
+    const w = ctx.measureText(t).width, slide = (1 - easeOut(lt/.22))*W*.7;
+    const cx = clamp(X, w/2 + W*.05, W - w/2 - W*.05), cy = clamp(L.track ? Y - S0()*.2 : Y, fs, H - fs);
+    ctx.save(); ctx.translate(cx + slide, cy); ctx.transform(1, 0, -.18, 1, 0, 0); ctx.globalAlpha = e;
+    const bw = w + fs*1.4, bh = fs*1.3*Math.min(1, lt/.12);
+    const bg = ctx.createLinearGradient(-bw/2, 0, bw/2, 0); bg.addColorStop(0, rgba(L.color2, 0)); bg.addColorStop(.2, rgba(L.color2, .55)); bg.addColorStop(.8, rgba(L.color2, .55)); bg.addColorStop(1, rgba(L.color2, 0));
+    ctx.fillStyle = bg; ctx.fillRect(-bw/2, -bh/2, bw, bh);
+    ctx.fillStyle = "rgba(255,255,255,.7)"; for (let k = 0; k < 4; k++){ const yy = (rnd(k + Math.floor(lt*12)) - .5)*bh; ctx.fillRect(-bw/2, yy, bw*rnd(k + 4), 2); }
+    ctx.font = `${fs}px ${F_DISPLAY}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+    ctx.lineWidth = fs*.18; ctx.strokeStyle = "#05060c"; ctx.strokeText(t, 0, 0);
+    const g = ctx.createLinearGradient(0, -fs/2, 0, fs/2); g.addColorStop(0, "#ffffff"); g.addColorStop(.45, L.color); g.addColorStop(1, L.color2);
+    ctx.shadowColor = L.color2; ctx.shadowBlur = fs*.3*L.intensity; ctx.fillStyle = g; ctx.fillText(t, 0, 0);
+    ctx.restore();
+  },
+  caption(L, lt, X, Y, S, e){
+    const [top, bot = ""] = (L.text || "").toLocaleUpperCase("tr").split("|");
+    ctx.globalAlpha = e; ctx.textAlign = "center"; ctx.lineJoin = "round"; ctx.fillStyle = "#fff"; ctx.strokeStyle = "#000";
+    const put = (t, y, base) => { if (!t.trim()) return; const fs = fitFont(t.trim(), F_MEME, S0()*.1*L.size, W*.92); ctx.textBaseline = base; ctx.lineWidth = fs*.14; ctx.strokeText(t.trim(), W/2, y); ctx.fillText(t.trim(), W/2, y); };
+    put(top, H*.03, "top"); put(bot, H*.97, "bottom");
+  },
+  subtitle(L, lt, X, Y, S, e){
+    const t = (L.text || "").slice(0, Math.floor(lt*28)); if (!t) return;
+    const fs = fitFont(L.text, F_BODY, S0()*.045*L.size, W*.86, 500); ctx.font = `500 ${fs}px ${F_BODY}`;
+    const w = ctx.measureText(t).width; ctx.globalAlpha = e;
+    ctx.fillStyle = "rgba(0,0,0,.62)"; ctx.fillRect(W/2 - w/2 - fs*.5, H*.87 - fs*.75, w + fs, fs*1.5);
+    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(t, W/2, H*.87);
+  },
+  filter(L, lt, X, Y, S, e){
+    const k = L.intensity*e;
+    const tint = (mode, a, c1, c2) => { ctx.globalCompositeOperation = mode; const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, rgba(c1, a)); g.addColorStop(1, rgba(c2, a)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.globalCompositeOperation = "source-over"; };
+    const vig = a => { const v = ctx.createRadialGradient(W/2, H/2, S0()*.35, W/2, H/2, Math.hypot(W, H)*.55); v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, `rgba(0,0,0,${a})`); ctx.fillStyle = v; ctx.fillRect(0, 0, W, H); };
+    switch (L.opt){
+      case "Anime": tint("soft-light", .5*k, L.color, L.color2); vig(.5*k); break;
+      case "Neon": tint("screen", .18*k, L.color, L.color2); vig(.4*k); break;
+      case "Sıcak": tint("soft-light", .45*k, "#ff8a1f", "#ff3d3d"); break;
+      case "Soğuk": tint("soft-light", .45*k, "#2f8bff", "#3fd9ff"); break;
+      case "VHS": {
+        ctx.fillStyle = `rgba(0,0,0,${.2*k})`; for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+        const by = ((lt*.35) % 1)*H; ctx.fillStyle = `rgba(255,255,255,${.06*k})`; ctx.fillRect(0, by, W, H*.05);
+        draw.chroma({...L, intensity:.5}, lt, X, Y, S, 1);
+        const fs = S0()*.045; ctx.font = `500 ${fs}px ${F_MONO}`; ctx.fillStyle = "#fff"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+        ctx.shadowColor = "#000"; ctx.shadowBlur = 4; ctx.fillText("▶ OYNAT", W*.04, H*.05); ctx.textAlign = "right"; ctx.fillText(fmt(state.T), W*.96, H*.05); ctx.shadowBlur = 0;
+        break; }
+      default: break;
+    }
+  },
+  sunglasses(L, lt, X, Y, S, e){
+    const p = S0()*.013*L.size, gw = 22*p, ty = Y - p*2, y = -H*.15 + (ty + H*.15)*easeOut(lt/.9);
+    const ox = X - gw/2;
+    ctx.globalAlpha = e;
+    for (let row = 0; row < 4; row++) for (let col = 0; col < 22; col++){
+      let on = row === 0;
+      if (row > 0 && row < 3) on = (col >= 1 && col <= 9) || (col >= 12 && col <= 20);
+      if (row === 3) on = (col >= 2 && col <= 8) || (col >= 13 && col <= 19);
+      if (!on) continue;
+      const white = (row === 1 && (col === 2 || col === 3 || col === 13 || col === 14)) || (row === 2 && (col === 3 || col === 14));
+      ctx.fillStyle = white ? "#ffffff" : "#000000"; ctx.fillRect(ox + col*p, y + row*p, p + .5, p + .5);
+    }
+    if (lt > .9 && L.text){
+      const fs = fitFont(L.text.toLocaleUpperCase("tr"), F_MEME, S0()*.09, W*.9);
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom"; ctx.lineJoin = "round"; ctx.lineWidth = fs*.14; ctx.strokeStyle = "#000"; ctx.fillStyle = "#fff";
+      ctx.strokeText(L.text.toLocaleUpperCase("tr"), W/2, H*.95); ctx.fillText(L.text.toLocaleUpperCase("tr"), W/2, H*.95);
+    }
+  },
+  emojirain(L, lt, X, Y, S, e){
+    const n = Math.round(36*L.intensity), d = Math.max(.1, L.end - L.start);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.globalAlpha = e;
+    for (let i = 0; i < n; i++){
+      const t0 = rnd(i*3 + L.id)*d*.6, age = lt - t0; if (age < 0) continue;
+      const y = -S0()*.1 + age*S0()*(.55 + rnd(i + 9)*.7); if (y > H + S0()*.1) continue;
+      const x = rnd(i*7 + 1)*W + Math.sin(age*3 + i)*S0()*.03, fs = S0()*(.06 + rnd(i + 4)*.06)*L.size;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(Math.sin(age*4 + i)*.5); ctx.font = `${fs}px ${EMOJI_FONT}`; ctx.fillText(L.opt, 0, 0); ctx.restore();
+    }
+  },
+  reaction(L, lt, X, Y, S, e){
+    const sc = lt < .3 ? easeBack(lt/.3) : 1 + .05*Math.sin(lt*10), fs = S0()*.2*L.size;
+    ctx.save(); ctx.translate(X, Y); ctx.scale(sc, sc); ctx.rotate(Math.sin(lt*6)*.08); ctx.globalAlpha = e;
+    ctx.font = `${fs}px ${EMOJI_FONT}`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(L.opt, 0, 0); ctx.restore();
+  },
+  devam(L, lt, X, Y, S, e){
+    const h = S0()*.09*L.size, w = Math.min(W*.8, S0()*.62*L.size), x0 = W*.04 - (1 - easeOut(lt/.35))*(w + W*.1), y0 = H*.82 - h/2;
+    ctx.globalAlpha = e; ctx.beginPath();
+    ctx.moveTo(x0, y0); ctx.lineTo(x0 + w - h*.8, y0); ctx.lineTo(x0 + w - h*.8, y0 - h*.25); ctx.lineTo(x0 + w, y0 + h/2);
+    ctx.lineTo(x0 + w - h*.8, y0 + h*1.25); ctx.lineTo(x0 + w - h*.8, y0 + h); ctx.lineTo(x0, y0 + h); ctx.closePath();
+    ctx.fillStyle = "rgba(58,42,23,.94)"; ctx.fill(); ctx.strokeStyle = "#e9d29a"; ctx.lineWidth = h*.06; ctx.stroke();
+    const t = (L.text || "").toLocaleUpperCase("tr"); fitFont(t, F_BODY, h*.46, w - h*1.3, "italic 700");
+    ctx.fillStyle = "#f2dfa6"; ctx.textAlign = "left"; ctx.textBaseline = "middle"; ctx.fillText(t, x0 + h*.35, y0 + h/2);
+  },
+  elendin(L, lt, X, Y, S, e){
+    const k = clamp((lt - .25)/.4, 0, 1)*e; if (k <= 0) return;
+    ctx.fillStyle = `rgba(0,0,0,${.5*k})`; ctx.fillRect(0, H/2 - S0()*.12, W, S0()*.24);
+    const t = (L.text || "").toLocaleUpperCase("tr"), fs = fitFont(t, F_MEME, S0()*.16*L.size, W*.85);
+    ctx.globalAlpha = k; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.lineJoin = "round";
+    ctx.lineWidth = fs*.08; ctx.strokeStyle = "#000"; ctx.strokeText(t, W/2, H/2); ctx.fillStyle = "#d41f26"; ctx.fillText(t, W/2, H/2);
+  },
+  dramazoom(L, lt, X, Y, S, e){
+    const v = ctx.createRadialGradient(W/2, H/2, S0()*.25, W/2, H/2, Math.hypot(W, H)*.55);
+    v.addColorStop(0, "rgba(0,0,0,0)"); v.addColorStop(1, `rgba(150,0,0,${.6*e*easeOut(lt/.35)})`); ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  },
+  hitmarker(L, lt, X, Y, S, e){
+    const k = Math.floor(lt/.16);
+    for (let j = 0; j <= k; j++){
+      const age = lt - j*.16; if (age > .3 || age < 0) continue;
+      const r = prng(j*31 + L.id), px = X + (r() - .5)*S0()*.25, py = Y + (r() - .5)*S0()*.25, sz = S0()*.035*L.size;
+      ctx.globalAlpha = (1 - age/.3)*e; ctx.strokeStyle = "#fff"; ctx.lineWidth = sz*.22; ctx.lineCap = "square"; ctx.shadowColor = "#000"; ctx.shadowBlur = 4;
+      for (const [dx, dy] of [[1,1],[1,-1],[-1,1],[-1,-1]]){ ctx.beginPath(); ctx.moveTo(px + dx*sz*.35, py + dy*sz*.35); ctx.lineTo(px + dx*sz, py + dy*sz); ctx.stroke(); }
+    }
+    ctx.shadowBlur = 0;
+  },
+  circle(L, lt, X, Y, S, e){
+    const R = S*.13, prog = easeOut(lt/.3);
+    ctx.globalAlpha = e; ctx.strokeStyle = "#e3161d"; ctx.lineWidth = S0()*.012; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.ellipse(X, Y, R, R*.85, 0, -Math.PI/2, -Math.PI/2 + TAU*prog); ctx.stroke();
+    if (lt > .25){
+      const tx = clamp(X + S0()*.33, S0()*.05, W - S0()*.05), ty = clamp(Y - S0()*.3, S0()*.08, H - S0()*.05);
+      const a = Math.atan2(Y - ty, X - tx), ex = X - Math.cos(a)*R*1.05, ey = Y - Math.sin(a)*R*.9;
+      ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(ex, ey); ctx.stroke();
+      const hs = S0()*.04; ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex - Math.cos(a - .5)*hs, ey - Math.sin(a - .5)*hs); ctx.moveTo(ex, ey); ctx.lineTo(ex - Math.cos(a + .5)*hs, ey - Math.sin(a + .5)*hs); ctx.stroke();
+      if (L.text){ const fs = fitFont(L.text.toLocaleUpperCase("tr"), F_MEME, S0()*.06, W*.5); ctx.textAlign = tx > W/2 ? "right" : "left"; ctx.textBaseline = "bottom"; ctx.lineWidth = fs*.12; ctx.strokeStyle = "#000"; ctx.strokeText(L.text.toLocaleUpperCase("tr"), tx, ty - 6); ctx.fillStyle = "#fff"; ctx.fillText(L.text.toLocaleUpperCase("tr"), tx, ty - 6); }
+    }
+  },
+  top(L, lt, X, Y, S, e){
+    const d = designs[(parseInt(String(L.opt).slice(-1)) || 1) - 1] || designs[0], R = S*.09;
+    ctx.fillStyle = `rgba(0,0,0,${.35*e})`; ctx.beginPath(); ctx.ellipse(X, Y + R*.45, R*1.05, R*.35, 0, 0, TAU); ctx.fill();
+    ctx.save(); ctx.globalCompositeOperation = "lighter"; const g = ctx.createRadialGradient(X, Y, 0, X, Y, R*1.6); g.addColorStop(0, rgba(d.color, .35*e*L.intensity)); g.addColorStop(1, rgba(d.color, 0)); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(X, Y, R*1.6, 0, TAU); ctx.fill(); ctx.restore();
+    drawTop(ctx, d, X, Y, R, lt*32, .6, e, true, Math.sin(lt*7)*.05);
+  }
+};
+const ORDER = {filter:0, manga:1, impactframe:8, chroma:9, flash:10, elendin:6, devam:6, caption:7, subtitle:7};
+
+/* ---------- render ---------- */
+let lastS = -1;
+function baseFilter(){ const a = state.adj; return (a.b !== 1 ? `brightness(${a.b}) ` : "") + (a.c !== 1 ? `contrast(${a.c}) ` : "") + (a.s !== 1 ? `saturate(${a.s}) ` : ""); }
+function filterOf(L, lt){
+  const e = env(L, lt);
+  if (L.type === "filter") return ({"Anime":`contrast(${1 + .25*L.intensity}) saturate(${1 + .6*L.intensity}) `, "Siyah-beyaz":"grayscale(1) contrast(1.25) ", "Sepya":"sepia(.85) contrast(1.05) ",
+    "Neon":"saturate(2.2) contrast(1.3) brightness(1.05) ", "Sıcak":"sepia(.25) saturate(1.35) ", "Soğuk":"saturate(1.15) hue-rotate(-12deg) ", "VHS":"saturate(1.5) contrast(1.15) "})[L.opt] || "";
+  if (L.type === "devam") return `sepia(${(.9*e).toFixed(2)}) `;
+  if (L.type === "elendin") return `grayscale(${e.toFixed(2)}) brightness(${(1 - .3*e).toFixed(2)}) `;
+  return "";
+}
+function render(){
+  const T = state.T, m = mapT(T), s = m.s;
+  const act = state.layers.filter(L => T >= L.start && T <= L.end);
+  let srcEl, sw, sh;
+  if (state.source === "video" && video.readyState >= 2){ srcEl = video; sw = video.videoWidth || 1280; sh = video.videoHeight || 720; }
+  else if (state.source === "arena"){ renderArena(s); srcEl = arenaCv; sw = 1280; sh = 720; }
+  if (sw) cov = coverOf(sw, sh);
+  const info0 = {s, M:null};
+  let z = 1, zx = W/2, zy = H/2, shx = 0, shy = 0;
+  for (const L of act){
+    const lt = T - L.start, e = env(L, lt);
+    if (L.type === "zoom" || L.type === "dramazoom"){
+      const d = L.end - L.start, k = L.type === "zoom" ? Math.min(easeOut(lt/.25), easeOut((d - lt)/.25)) : easeOut(lt/.35)*Math.min(1, (d - lt)/.15);
+      const zz = 1 + (L.type === "zoom" ? .45 : .7)*L.intensity*clamp(k, 0, 1);
+      if (zz > z){ z = zz; [zx, zy] = pointFor(L, info0); }
+      if (L.type === "dramazoom"){ const a = S0()*.006, f = Math.floor(T*60); shx += (rnd(f + 7) - .5)*2*a; shy += (rnd(f + 77) - .5)*2*a; }
+    }
+    if (L.type === "shake"){ const a = S0()*.035*L.intensity*e, f = Math.floor(T*60); shx += (rnd(f + L.id) - .5)*2*a; shy += (rnd(f + 99 + L.id) - .5)*2*a; }
+  }
+  let M = new DOMMatrix();
+  if (shx || shy) M = M.translate(W/2 + shx, H/2 + shy).scale(1.04).translate(-W/2, -H/2);
+  if (z !== 1) M = M.translate(zx, zy).scale(z).translate(-zx, -zy);
+  let filt = baseFilter(); for (const L of act) filt += filterOf(L, T - L.start);
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1; ctx.filter = "none";
+  ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  if (srcEl){
+    ctx.setTransform(M);
+    if (state.fit === "contain" && (cov.dw < W - 1 || cov.dh < H - 1)){
+      const sc = Math.max(W/sw, H/sh); ctx.filter = `blur(${Math.round(S0()*.03)}px) brightness(.5) ${filt}`;
+      ctx.drawImage(srcEl, (W - sw*sc)/2, (H - sh*sc)/2, sw*sc, sh*sc);
+    }
+    ctx.filter = filt.trim() || "none";
+    ctx.drawImage(srcEl, cov.dx, cov.dy, cov.dw, cov.dh);
+  }
+  ctx.restore();
+  if (state.source === "video" && s !== lastS && srcEl){ updateTracker(); lastS = s; }
+  const info = {s, M};
+  const list = act.slice().sort((a, b) => (ORDER[a.type] ?? 5) - (ORDER[b.type] ?? 5));
+  for (const L of list){
+    const lt = T - L.start, [X, Y] = pointFor(L, info);
+    ctx.save(); try { draw[L.type]?.(L, lt, X, Y, S0()*L.size, env(L, lt)); } catch (err) { console.warn(err); } ctx.restore();
+  }
+}
+
+/* ---------- audio ---------- */
+let AC = null, master = null, monitor = null, recDest = null, videoNode = null, videoGain = null, noiseB = null;
+function ensureAudio(){
+  if (AC){ if (AC.state === "suspended") AC.resume().catch(() => {}); return AC; }
+  if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return null;
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); monitor = AC.createGain(); monitor.gain.value = state.muted ? 0 : 1;
+    master.connect(monitor); monitor.connect(AC.destination);
+    recDest = AC.createMediaStreamDestination(); master.connect(recDest);
+    hookVideo();
+  } catch (e) { AC = null; }
+  return AC;
+}
+function hookVideo(){
+  if (!AC || videoNode || !video.src) return;
+  try { videoNode = AC.createMediaElementSource(video); videoGain = AC.createGain(); videoGain.gain.value = state.videoSound ? 1 : 0; videoNode.connect(videoGain); videoGain.connect(master); } catch (e) {}
+}
+function noise(){ if (!noiseB){ noiseB = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const d = noiseB.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random()*2 - 1; } const n = AC.createBufferSource(); n.buffer = noiseB; n.loop = true; return n; }
+function gainEnv(t, a, peak, d){ const g = AC.createGain(); g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(Math.max(.0002, peak), t + a); g.gain.exponentialRampToValueAtTime(.0001, t + a + d); g.connect(master); return g; }
+function osc(type, f, t, dur, out){ const o = AC.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); o.connect(out); o.start(t); o.stop(t + dur + .05); return o; }
+const SFX = {
+  "Boom"(t, v){ const g = gainEnv(t, .005, v, 1.3); const o = osc("sine", 110, t, 1.4, g); o.frequency.exponentialRampToValueAtTime(36, t + 1.1);
+    const n = noise(), f = AC.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = 400; n.connect(f); f.connect(gainEnv(t, .002, v*.5, .3)); n.start(t); n.stop(t + .4); },
+  "Korna"(t, v){ [[0,.14],[.18,.14],[.36,.7]].forEach(([d, l]) => { const g = gainEnv(t + d, .01, v*.18, l); for (const f of [466, 471, 233, 699]) osc("sawtooth", f, t + d, l + .02, g); }); },
+  "Vuuş"(t, v){ const n = noise(), f = AC.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 1.4; f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(2600, t + .3); f.frequency.exponentialRampToValueAtTime(400, t + .7);
+    n.connect(f); f.connect(gainEnv(t, .25, v*.9, .45)); n.start(t); n.stop(t + .8); },
+  "Ding"(t, v){ const g = gainEnv(t, .004, v*.45, 1.4); osc("sine", 1568, t, 1.5, g); osc("sine", 3136, t, .8, gainEnv(t, .004, v*.15, .6)); },
+  "Plak cızırtısı"(t, v){ const n = noise(), f = AC.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 4;
+    [[0,800],[.08,3200],[.16,500],[.26,2600],[.4,400]].forEach(([d, q]) => f.frequency.linearRampToValueAtTime(q, t + d)); n.connect(f); f.connect(gainEnv(t, .01, v*.9, .45)); n.start(t); n.stop(t + .5); },
+  "Metal çarpma"(t, v){ for (const f of [523, 1290, 2210, 3170, 4400]) osc("sine", f*(.97 + Math.random()*.06), t, .6, gainEnv(t, .002, v*.16, .45));
+    const n = noise(), hp = AC.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 3000; n.connect(hp); hp.connect(gainEnv(t, .001, v*.4, .05)); n.start(t); n.stop(t + .1); },
+  "Dramatik"(t, v){ [[0,.22,196],[.3,.22,196],[.6,1.4,185]].forEach(([d, l, f]) => { const lp = AC.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 1400; lp.connect(gainEnv(t + d, .01, v*.35, l));
+    osc("sawtooth", f, t + d, l, lp); osc("sawtooth", f/2, t + d, l, lp); }); },
+  "Bas düşüşü"(t, v){ const ws = AC.createWaveShaper(), cu = new Float32Array(256); for (let i = 0; i < 256; i++){ const x = i/128 - 1; cu[i] = Math.tanh(x*3); } ws.curve = cu;
+    ws.connect(gainEnv(t, .01, v*.7, 1.6)); const o = osc("sine", 150, t, 1.7, ws); o.frequency.exponentialRampToValueAtTime(32, t + 1.5); },
+  "Ta-da"(t, v){ [523, 659, 784, 1047].forEach((f, i) => osc("triangle", f, t + i*.09, i === 3 ? 1.2 : .3, gainEnv(t + i*.09, .01, v*.3, i === 3 ? 1.1 : .25))); }
+};
+let lastSfx = 0;
+function playSfx(name, vol = 1){
+  if (!ensureAudio() || !SFX[name]) return;
+  const now = AC.currentTime; if (name === "Metal çarpma" && now - lastSfx < .06) return; lastSfx = now;
+  try { SFX[name](now + .01, clamp(vol, 0, 2)*state.sfxVol); } catch (e) {}
+}
+document.addEventListener("pointerdown", () => ensureAudio());
+document.addEventListener("keydown", () => ensureAudio());
+
+/* ---------- playback ---------- */
+let exporting = null, lastNow = performance.now(), prevT = 0;
+function loop(now){
+  const dt = Math.min(.1, (now - lastNow)/1000); lastNow = now;
+  if (state.playing){
+    const before = state.T;
+    const pc = pieceAt(state.T);
+    if (state.source === "video" && pc && pc.rate > 0 && !video.paused && !video.seeking && video.readyState >= 2){
+      const Tv = pc.o0 + (video.currentTime - pc.s0)/pc.rate;
+      state.T = clamp(Tv, before, before + .25);
+      if (state.T === before && video.currentTime >= pc.s0 + pc.od*pc.rate - .03) state.T += dt;
+    } else state.T += dt;
+    if (state.T >= outDur){
+      if (exporting){ state.T = outDur; render(); finishExport(); }
+      else { state.T = 0; resetTracker(); prevT = 0; }
+    }
+    if (state.playing) triggerSounds(before, state.T);
+    syncVideo();
+  }
+  render(); syncTransport(); previews(now);
+  requestAnimationFrame(loop);
+}
+function triggerSounds(a, b){
+  if (b < a) return;
+  for (const L of state.layers) if (L.type === "sfx" && L.start > a && L.start <= b) playSfx(L.opt, L.intensity);
+  if (a === 0 && b > 0) for (const L of state.layers) if (L.type === "sfx" && L.start === 0) playSfx(L.opt, L.intensity);
+  if (state.source === "arena" && sim && state.arenaSound){
+    const sa = mapT(a).s, sb = mapT(b).s;
+    if (sb > sa){
+      for (const c of sim.clashes) if (c.t > sa && c.t <= sb) playSfx("Metal çarpma", clamp(.25 + c.power*.35, .2, 1));
+      for (const ev of sim.events) if (ev.type === "out" && ev.t > sa && ev.t <= sb) playSfx("Vuuş", .6);
+    }
+  }
+}
+function syncVideo(){
+  if (state.source !== "video" || !video.src) return;
+  const m = mapT(state.T);
+  if (!state.playing || m.rate === 0){
+    if (!video.paused) video.pause();
+    if (Math.abs(video.currentTime - m.s) > .04 && !video.seeking) video.currentTime = m.s;
+    return;
+  }
+  const r = clamp(m.rate, .0625, 16); if (video.playbackRate !== r) video.playbackRate = r;
+  if (Math.abs(video.currentTime - m.s) > .35 && !video.seeking) video.currentTime = m.s;
+  if (video.paused) video.play().catch(() => {});
+}
+function play(on){
+  state.playing = on;
+  if (on) ensureAudio();
+  if (!on && state.source === "video") video.pause();
+  $("#playBtn").textContent = on ? "❚❚" : "▶";
+  $("#playBtn").setAttribute("aria-label", on ? "Durdur" : "Oynat");
+}
+function seek(t){ state.T = clamp(t, 0, outDur); resetTracker(); if (state.source === "video" && video.src){ const s = mapT(state.T).s; if (Math.abs(video.currentTime - s) > .02) video.currentTime = s; } }
+let scrubbing = false;
+function syncTransport(){
+  $("#tc").textContent = fmt(state.T) + " / " + fmt(outDur);
+  if (!scrubbing) $("#scrub").value = Math.round(state.T/outDur*1000);
+  const ph = $("#lanes .playhead"); if (ph) ph.style.left = (state.T/outDur*100) + "%";
+}
+$("#scrub").addEventListener("input", e => { scrubbing = true; seek(e.target.value/1000*outDur); });
+$("#scrub").addEventListener("change", () => { scrubbing = false; });
+$("#playBtn").onclick = () => play(!state.playing);
+$("#muteBtn").onclick = () => { state.muted = !state.muted; if (monitor) monitor.gain.value = state.muted ? 0 : 1; else video.muted = state.muted; $("#muteBtn").textContent = state.muted ? "🔇" : "🔊"; };
+$("#pauseFxBtn").onclick = () => animePause(state.T);
+
+/* ---------- loading video ---------- */
+function loadFile(f){
+  if (!f) return;
+  if (!f.type.startsWith("video/")){ say("Bu bir video dosyası değil. MP4, WebM veya MOV seç.", "bot err"); return; }
+  play(false);
+  video.src = URL.createObjectURL(f); video.muted = false;
+  video.onloadedmetadata = () => {
+    pushHistory();
+    const ar = video.videoWidth/(video.videoHeight || 1);
+    setFormat(ar < .8 ? "9:16" : ar < 1.25 ? "1:1" : "16:9"); state.fit = "contain"; $("#fitSel").value = "contain";
+    state.source = "video"; state.srcDur = video.duration || 8;
+    state.edit = {trimIn:0, trimOut:state.srcDur, speeds:[], freezes:[]};
+    state.layers = []; state.T = 0; rebuild();
+    ensureAudio(); hookVideo();
+    $("#srcBadge").textContent = f.name.slice(0, 50); $("#srcBadge").hidden = false;
+    seek(0); renderAll(); play(true);
+    say(`Videon yüklendi (${state.srcDur.toFixed(1)} sn). Ne yapmak istediğini yaz: “3. saniyede zamanı durdur ve şimşek çaktır” gibi.`, "bot");
+  };
+}
+$("#loadBtn").onclick = () => $("#file").click();
+$("#file").onchange = e => { loadFile(e.target.files[0]); e.target.value = ""; };
+const scr = $("#screen");
+["dragenter","dragover"].forEach(ev => scr.addEventListener(ev, e => { e.preventDefault(); $("#drop").hidden = false; }));
+["dragleave","drop"].forEach(ev => scr.addEventListener(ev, e => { e.preventDefault(); $("#drop").hidden = true; }));
+scr.addEventListener("drop", e => loadFile(e.dataTransfer.files[0]));
+document.addEventListener("dragover", e => e.preventDefault());
+document.addEventListener("drop", e => { e.preventDefault(); if (!e.target.closest?.("#screen") && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
+
+cv.addEventListener("click", e => {
+  const L = state.layers.find(l => l.id === state.sel); if (!L || !FX[L.type].pos) return;
+  pushHistory();
+  const r = cv.getBoundingClientRect();
+  L.x = clamp((e.clientX - r.left)/r.width, 0, 1); L.y = clamp((e.clientY - r.top)/r.height, 0, 1); L.track = "";
+  renderLayers();
+});
+
+/* ---------- tabs ---------- */
+$$(".tab").forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(name){ $$(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === name)); $$('[id^="tab-"]').forEach(p => p.hidden = p.id !== "tab-" + name); }
+
+/* ---------- layer list + editor ---------- */
+function trackOptions(){
+  const o = [["", "Sabit nokta"]];
+  if (state.source === "arena" && sim){ o.push(["auto", "Otomatik (kazanan)"]); sim.ids.forEach(i => o.push(["t" + i, "Takip: " + designs[i].name])); }
+  else o.push(["auto", "Hareket takibi"]);
+  return o;
+}
+function renderLayers(){
+  const list = $("#list"); list.textContent = "";
+  $("#lcount").textContent = `Katmanlar (${state.layers.length})`;
+  if (!state.layers.length) list.append(el("div", "empty", "Henüz efekt yok. Nova'ya yaz, bir paket seç ya da Efektler sekmesinden ekle."));
+  state.layers.forEach(L => {
+    const d = FX[L.type], row = el("div", "lrow" + (L.id === state.sel ? " sel" : ""));
+    row.style.setProperty("--c", L.color !== "#ffffff" ? L.color : "#8f96c2");
+    const name = d.label + (L.type === "sfx" || L.type === "emojirain" || L.type === "reaction" || L.type === "onomato" || L.type === "filter" || L.type === "top" ? ": " + L.opt : L.text && d.text !== undefined ? ": " + L.text : "");
+    row.append(el("span", "", d.icon), el("span", "n", name), el("span", "t", `${fmt(L.start)}–${fmt(L.end)}`));
+    const x = el("button", "x", "×"); x.title = "Sil"; x.setAttribute("aria-label", "Efekti sil");
+    x.onclick = ev => { ev.stopPropagation(); pushHistory(); state.layers = state.layers.filter(l => l !== L); if (state.sel === L.id) state.sel = null; renderLayers(); };
+    row.append(x);
+    row.onclick = () => { state.sel = state.sel === L.id ? null : L.id; histArmed = true; renderLayers(); };
+    list.append(row);
+    if (L.id === state.sel) list.append(editorFor(L));
+  });
+  renderLanes();
+}
+function editorFor(L){
+  const d = FX[L.type], ed = el("div", "editor");
+  const r1 = el("div", "frow");
+  r1.append(numIn("Başla", L, "start"), numIn("Bitir", L, "end"));
+  const now = el("button", "btn sm", "Şu ana taşı"); now.onclick = () => { pushHistory(); const len = L.end - L.start; L.start = state.T; L.end = state.T + len; clampLayer(L); renderLayers(); };
+  r1.append(now); ed.append(r1);
+  const r2 = el("div", "frow");
+  if (d.color !== undefined){ r2.append(colIn(L, "color", "Ana renk")); if (d.color2 !== undefined) r2.append(colIn(L, "color2", "İkinci renk")); }
+  if (d.opts){ const s = el("select"); s.setAttribute("aria-label", "Seçenek"); d.opts.forEach(o => { const op = el("option", "", L.type === "top" ? `${o}: ${designs[(+o.slice(-1)) - 1]?.name || ""}` : o); op.value = o; s.append(op); }); s.value = L.opt;
+    s.onchange = () => { armHist(); L.opt = s.value; if (L.type === "sfx") playSfx(L.opt, L.intensity); renderLayers(); }; r2.append(s); }
+  if (d.pos){ const s = el("select"); s.setAttribute("aria-label", "Konum"); trackOptions().forEach(([v, t]) => { const op = el("option", "", t); op.value = v; s.append(op); }); s.value = L.track;
+    s.onchange = () => { armHist(); L.track = s.value; }; r2.append(s); }
+  if (r2.childNodes.length) ed.append(r2);
+  if (d.text !== undefined){ const r = el("div", "frow"), ti = el("input"); ti.type = "text"; ti.maxLength = 40; ti.value = L.text; ti.setAttribute("aria-label", "Yazı");
+    ti.oninput = () => { armHist(); L.text = ti.value; }; ti.onchange = () => renderLayers(); r.append(el("span", "lab", "Yazı"), ti);
+    if (L.type === "caption") r.append(el("span", "lab", "| ile alt yazıya geç"));
+    ed.append(r); }
+  const r3 = el("div", "frow");
+  r3.append(rngIn(L.type === "sfx" ? "Ses" : "Güç", L, "intensity", .2, 2));
+  if (L.type !== "sfx" && L.type !== "shake" && L.type !== "flash") r3.append(rngIn("Boyut", L, "size", .3, 2.5));
+  ed.append(r3);
+  if (d.pos && L.track === "") ed.append(el("div", "hint", "İpucu: görüntüye tıklayarak bu efektin yerini seç."));
+  return ed;
+}
+function numIn(lab, L, k){ const l = el("label"); const i = el("input", "num"); i.type = "number"; i.step = .1; i.min = 0; i.max = outDur.toFixed(1); i.value = L[k].toFixed(1);
+  i.onchange = () => { pushHistory(); L[k] = clamp(+i.value || 0, 0, outDur); if (L.end <= L.start) L.end = Math.min(outDur, L.start + .3); clampLayer(L); renderLayers(); }; l.append(lab, i); return l; }
+function colIn(L, k, t){ const i = el("input"); i.type = "color"; i.value = L[k]; i.title = t; i.setAttribute("aria-label", t); i.oninput = () => { armHist(); L[k] = i.value; }; i.onchange = () => renderLayers(); return i; }
+function rngIn(lab, L, k, a, b){ const l = el("label"); const i = el("input"); i.type = "range"; i.min = a; i.max = b; i.step = .05; i.value = L[k]; i.oninput = () => { armHist(); L[k] = +i.value; }; l.append(lab, i); return l; }
+function renderLanes(){
+  const box = $("#lanes"); box.textContent = "";
+  const pl = el("div", "lane");
+  pieces.forEach(pc => { const b = el("div", "piece " + pc.kind, pc.kind === "freeze" ? "⏸ dondur" : pc.kind === "slow" ? `🐢 ${pc.rate}x` : pc.kind === "fast" ? `⚡ ${pc.rate}x` : ""); b.style.left = (pc.o0/outDur*100) + "%"; b.style.width = (pc.od/outDur*100) + "%"; pl.append(b); });
+  box.append(pl);
+  state.layers.forEach(L => {
+    const ln = el("div", "lane"), b = el("div", "bar" + (L.id === state.sel ? " sel" : ""), FX[L.type].label);
+    b.style.left = (L.start/outDur*100) + "%"; b.style.width = Math.max(.8, (L.end - L.start)/outDur*100) + "%";
+    b.style.background = `linear-gradient(90deg, ${L.color === "#ffffff" ? "#c9cdee" : L.color}, ${L.color2 === "#ffffff" ? "#eef0ff" : L.color2})`;
+    b.onclick = ev => { ev.stopPropagation(); state.sel = L.id; seek(L.start); renderLayers(); };
+    ln.append(b); box.append(ln);
+  });
+  box.append(el("div", "playhead"));
+}
+$("#lanes").addEventListener("click", e => { const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left)/r.width*outDur); });
+$("#clearBtn").onclick = () => { if (!state.layers.length) return; pushHistory(); state.layers = []; state.sel = null; renderLayers(); toastMsg("Tüm efektler silindi. Geri almak için ↶."); };
+$("#undoBtn").onclick = undo;
+
+/* ---------- effect, meme, sound buttons ---------- */
+function addAndSelect(type, o = {}){ pushHistory(); const L = add(type, o); state.sel = L.id; renderLayers(); if (!state.playing) play(true); return L; }
+$$(".fxgrid[data-cat]").forEach(g => {
+  Object.entries(FX).filter(([, d]) => d.cat === g.dataset.cat).forEach(([k, d]) => {
+    const b = el("button", "fxb"); b.append(el("span", "", d.icon), el("span", "", d.label)); b.onclick = () => addAndSelect(k); g.append(b);
+  });
+});
+FILTERS.forEach(f => { const b = el("button", "fxb"); b.append(el("span", "", "🎨"), el("span", "", f)); b.onclick = () => addAndSelect("filter", {opt:f, start:0, end:outDur}); $("#filterGrid").append(b); });
+EMO.forEach(em => { const b = el("button", "emo", em); b.title = "Emoji yağmuru"; b.onclick = () => addAndSelect("emojirain", {opt:em}); $("#emojiGrid").append(b); });
+SFX_NAMES.forEach(n => { const b = el("button", "fxb"); b.append(el("span", "", "🔊"), el("span", "", n)); b.onclick = () => { playSfx(n); addAndSelect("sfx", {opt:n}); }; $("#sfxGrid").append(b); });
+
+function animePause(T, glyph = "ドン", text = ""){
+  pushHistory();
+  const s = mapT(T).s;
+  changeEdit(e => e.freezes.push({id:uid++, at:s, dur:1.6}), true);
+  const T0 = invS(s), P = sim && state.source === "arena" ? "auto" : "auto";
+  add("impactframe", {start:T0, end:T0 + .35});
+  add("speedlines", {start:T0, end:T0 + 1.6, color:"#000000", intensity:1.1, track:P});
+  add("onomato", {start:T0 + .05, end:T0 + 1.6, opt:glyph, track:P});
+  add("flash", {start:T0, end:T0 + .18});
+  add("sfx", {start:T0, opt:"Boom"});
+  if (text) add("title", {start:T0 + .3, end:T0 + 1.6, text, track:""});
+  add("shake", {start:T0 + 1.6, end:T0 + 2.1});
+  add("chroma", {start:T0 + 1.6, end:T0 + 2});
+  seek(Math.max(0, T0 - .6)); renderAll(); if (!state.playing) play(true);
+  toastMsg("Anime duraklaması eklendi: zaman 1.6 sn donar.");
+}
+const PACKS = [
+  {name:"⏸ Anime Duraklaması", c:"#b26bff", run: T => animePause(T)},
+  {name:"Fırtına Dönüşü", c:"#3fd9ff", run: T => { pushHistory(); add("vortex", {start:T, end:T + 3}); add("aura", {start:T, end:T + 3}); add("speedlines", {start:T, end:T + 1}); add("sfx", {start:T, opt:"Vuuş"}); }},
+  {name:"Büyük Çarpışma", c:"#ffb13d", run: T => { pushHistory(); add("shockwave", {start:T, end:T + .9}); add("flash", {start:T, end:T + .3}); add("shake", {start:T, end:T + .6}); add("sparks", {start:T, end:T + 1.4}); add("title", {start:T + .05, end:T + 1.6, text:"ÇARPIŞMA!"}); add("sfx", {start:T, opt:"Metal çarpma", intensity:1.5}); }},
+  {name:"Şimşek Saldırısı", c:"#9b7bff", run: T => { pushHistory(); add("lightning", {start:T, end:T + 1.6}); add("aura", {start:T, end:T + 1.6, color:"#9b7bff"}); add("flash", {start:T, end:T + .2, color:"#d9ccff"}); add("shake", {start:T, end:T + .4, intensity:.6}); add("chroma", {start:T, end:T + .5}); }},
+  {name:"Ateş Modu", c:"#ff5a3d", run: T => { pushHistory(); add("aura", {start:T, end:T + 3, color:"#ff5a1f", color2:"#ffe14d", intensity:1.4}); add("sparks", {start:T, end:T + 3, intensity:.6}); add("filter", {start:0, end:outDur, opt:"Sıcak", intensity:.8}); }},
+  {name:"Son Vuruş", c:"#ff3d9a", run: T => { pushHistory(); changeEdit(e => e.speeds.push({id:uid++, a:mapT(T).s, b:Math.min(state.srcDur, mapT(T).s + 1.2), rate:.3}), true); add("zoom", {start:T, end:T + 3}); add("slash", {start:T + .2, end:T + 1.4}); add("impactframe", {start:T + 1.2, end:T + 1.5}); add("sfx", {start:T + 1.2, opt:"Boom"}); renderAll(); }},
+  {name:"Manga Sayfası", c:"#e9e2cf", run: T => { pushHistory(); add("manga", {start:T, end:T + 2.5}); add("speedlines", {start:T, end:T + 2.5, color:"#000000"}); add("onomato", {start:T, end:T + 2.5, opt:"ゴゴゴ"}); }},
+  {name:"Işın Saldırısı", c:"#2fb8ff", run: T => { pushHistory(); add("aura", {start:T, end:T + 2.4}); add("beam", {start:T + .6, end:T + 2.4}); add("shake", {start:T + .6, end:T + 1.4, intensity:.6}); add("title", {start:T, end:T + 1.2, text:"MAVİ IŞIN!"}); add("sfx", {start:T + .6, opt:"Bas düşüşü"}); }}
+];
+const MEME_PACKS = [
+  {name:"MLG Modu", c:"#3dff8a", run: T => { pushHistory(); add("hitmarker", {start:T, end:T + 1.5}); add("sunglasses", {start:T, end:T + 3}); add("sfx", {start:T, opt:"Korna"}); add("chroma", {start:T, end:T + .5}); add("emojirain", {start:T + .5, end:T + 3, opt:"🔥"}); }},
+  {name:"Komik An", c:"#ffe14d", run: T => { pushHistory(); add("emojirain", {start:T, end:T + 2.5, opt:"😂"}); add("reaction", {start:T, end:T + 2.5, opt:"😂"}); add("sfx", {start:T, opt:"Korna"}); }},
+  {name:"Dramatik", c:"#ff6b6b", run: T => { pushHistory(); add("dramazoom", {start:T, end:T + 2.2}); add("sfx", {start:T, opt:"Dramatik"}); add("reaction", {start:T + .9, end:T + 2.2, opt:"😱"}); }},
+  {name:"Elendi", c:"#c4161c", run: T => { pushHistory(); changeEdit(e => e.freezes.push({id:uid++, at:mapT(T).s, dur:2.5}), true); const T0 = invS(mapT(T).s); add("elendin", {start:T0, end:T0 + 2.5}); add("sfx", {start:T0, opt:"Bas düşüşü"}); renderAll(); }},
+  {name:"Devam Edecek", c:"#c9a86a", run: T => { pushHistory(); changeEdit(e => e.freezes.push({id:uid++, at:mapT(T).s, dur:3}), true); const T0 = invS(mapT(T).s); add("devam", {start:T0, end:T0 + 3}); add("sfx", {start:T0, opt:"Plak cızırtısı"}); renderAll(); }},
+  {name:"Taş Yüz", c:"#9aa3b8", run: T => { pushHistory(); add("zoom", {start:T, end:T + 2, intensity:.7}); add("reaction", {start:T, end:T + 2, opt:"🗿"}); add("filter", {start:T, end:T + 2, opt:"Siyah-beyaz"}); add("sfx", {start:T, opt:"Boom"}); }}
+];
+function packButtons(host, packs){ packs.forEach(p => { const b = el("button", "pack", p.name); b.style.background = p.c; b.onclick = () => { const T = clamp(state.T, 0, Math.max(0, outDur - .5)); p.run(T); renderLayers(); if (!state.playing) play(true); say(`“${p.name.replace("⏸ ", "")}” ${fmt(T)} anına eklendi.`, "bot"); }; host.append(b); }); }
+packButtons($("#packs"), PACKS); packButtons($("#memePacks"), MEME_PACKS);
+
+/* ---------- edit tab ---------- */
+function renderEditTab(){
+  $("#trimIn").value = state.edit.trimIn.toFixed(1); $("#trimOut").value = state.edit.trimOut.toFixed(1);
+  $("#trimIn").max = $("#trimOut").max = state.srcDur.toFixed(1);
+  $("#fmtSel").value = state.fmt; $("#fitSel").value = state.fit; $("#panR").value = state.pan;
+  const box = $("#editList"); box.textContent = "";
+  if (!state.edit.freezes.length && !state.edit.speeds.length) box.append(el("div", "empty", "Duraklama ya da hız değişikliği yok."));
+  state.edit.freezes.forEach(f => {
+    const it = el("div", "eitem"); it.style.setProperty("--c", "var(--frz)");
+    it.append(el("b", "", "⏸ Dondur"), el("span", "lab", `kaynakta ${fmt(f.at)}`));
+    const l = el("label", "", "Süre "), i = el("input", "num"); i.type = "number"; i.step = .1; i.min = .1; i.max = 10; i.value = f.dur;
+    i.onchange = () => changeEdit(() => { f.dur = clamp(+i.value || 1, .1, 10); }); l.append(i); it.append(l);
+    const x = el("button", "x", "×"); x.onclick = () => changeEdit(e => { e.freezes = e.freezes.filter(q => q !== f); }); it.append(x); box.append(it);
+  });
+  state.edit.speeds.forEach(sp => {
+    const it = el("div", "eitem"); it.style.setProperty("--c", sp.rate < 1 ? "var(--slow)" : "var(--ember)");
+    it.append(el("b", "", sp.rate < 1 ? "🐢 Ağır çekim" : "⚡ Hızlı"));
+    const mkN = (lab, k) => { const l = el("label", "", lab + " "), i = el("input", "num"); i.type = "number"; i.step = .1; i.min = 0; i.max = state.srcDur; i.value = sp[k].toFixed(1);
+      i.onchange = () => changeEdit(() => { sp[k] = clamp(+i.value || 0, 0, state.srcDur); if (sp.b <= sp.a) sp.b = Math.min(state.srcDur, sp.a + .2); }); l.append(i); return l; };
+    it.append(mkN("Baş", "a"), mkN("Son", "b"));
+    const s = el("select"); [.25, .35, .5, .75, 1.5, 2, 3].forEach(r => { const o = el("option", "", r + "x"); o.value = r; s.append(o); }); s.value = sp.rate; s.setAttribute("aria-label", "Hız");
+    s.onchange = () => changeEdit(() => { sp.rate = +s.value; }); it.append(s);
+    const x = el("button", "x", "×"); x.onclick = () => changeEdit(e => { e.speeds = e.speeds.filter(q => q !== sp); }); it.append(x); box.append(it);
+  });
+}
+$("#fmtSel").onchange = e => { setFormat(e.target.value); renderAll(); };
+$("#fitSel").onchange = e => { state.fit = e.target.value; };
+$("#panR").oninput = e => { state.pan = +e.target.value; };
+$("#trimIn").onchange = e => changeEdit(ed => { ed.trimIn = clamp(+e.target.value || 0, 0, ed.trimOut - .2); });
+$("#trimOut").onchange = e => changeEdit(ed => { ed.trimOut = clamp(+e.target.value || state.srcDur, ed.trimIn + .2, state.srcDur); });
+$("#cutIn").onclick = () => { const s = mapT(state.T).s; changeEdit(ed => { ed.trimIn = clamp(s, 0, ed.trimOut - .2); }); toastMsg("Video artık buradan başlıyor."); };
+$("#cutOut").onclick = () => { const s = mapT(state.T).s; changeEdit(ed => { ed.trimOut = clamp(s, ed.trimIn + .2, state.srcDur); }); toastMsg("Video artık burada bitiyor."); };
+$("#addFreeze").onclick = () => { const s = mapT(state.T).s; changeEdit(e => e.freezes.push({id:uid++, at:s, dur:1.5})); toastMsg("Kare 1.5 sn donduruldu."); };
+$("#addSlow").onclick = () => { const s = mapT(state.T).s; changeEdit(e => e.speeds.push({id:uid++, a:s, b:Math.min(state.srcDur, s + 2), rate:.35})); toastMsg("2 saniyelik ağır çekim eklendi."); };
+$("#addFast").onclick = () => { const s = mapT(state.T).s; changeEdit(e => e.speeds.push({id:uid++, a:s, b:Math.min(state.srcDur, s + 2), rate:2})); toastMsg("2 saniye hızlandırıldı."); };
+["B","C","S"].forEach(k => $("#adj" + k).oninput = e => { state.adj[k.toLowerCase()] = +e.target.value; });
+$("#vidSound").onchange = e => { state.videoSound = e.target.checked; if (videoGain) videoGain.gain.value = state.videoSound ? 1 : 0; else video.muted = !state.videoSound; };
+$("#arenaSound").onchange = e => { state.arenaSound = e.target.checked; };
+$("#sfxVol").oninput = e => { state.sfxVol = +e.target.value; };
+
+/* ---------- arena tab ---------- */
+const previewCvs = [];
+function renderTopCards(){
+  const box = $("#topcards"); box.textContent = ""; previewCvs.length = 0;
+  designs.forEach((d, i) => {
+    const card = el("div", "topcard"); if (i >= state.nTops) card.style.opacity = ".45";
+    const pc = mkCanvas(168, 168); previewCvs.push(pc); card.append(pc);
+    const right = el("div"); right.style.display = "grid"; right.style.gap = "6px"; right.style.minWidth = "0";
+    const nm = el("input", "nm"); nm.value = d.name; nm.maxLength = 18; nm.setAttribute("aria-label", `Topaç ${i + 1} adı`); nm.oninput = () => { d.name = nm.value || `Topaç ${i + 1}`; saveTops(); };
+    nm.onchange = () => { renderLayers(); renderPutTops(); };
+    const r1 = el("div", "frow");
+    const c1 = el("input"); c1.type = "color"; c1.value = d.color; c1.title = "Ana renk"; c1.oninput = () => { d.color = c1.value; saveTops(); };
+    const c2 = el("input"); c2.type = "color"; c2.value = d.color2; c2.title = "Orta renk"; c2.oninput = () => { d.color2 = c2.value; saveTops(); };
+    const sh = el("select"); ["yıldız","pençe","dişli"].forEach(s => { const o = el("option", "", s[0].toLocaleUpperCase("tr") + s.slice(1)); o.value = s; sh.append(o); }); sh.value = d.shape; sh.setAttribute("aria-label", "Biçim"); sh.onchange = () => { d.shape = sh.value; saveTops(); };
+    const bl = el("select"); [2,3,4,5,6].forEach(n => { const o = el("option", "", n + " kanat"); o.value = n; bl.append(o); }); bl.value = d.blades; bl.setAttribute("aria-label", "Kanat sayısı"); bl.onchange = () => { d.blades = +bl.value; saveTops(); };
+    r1.append(c1, c2, sh, bl);
+    right.append(nm, r1);
+    [["atk","Saldırı"],["def","Savunma"],["sta","Dayanıklılık"]].forEach(([k, lab]) => {
+      const row = el("div", "stat"), i2 = el("input"); i2.type = "range"; i2.min = 1; i2.max = 10; i2.step = 1; i2.value = d[k]; i2.setAttribute("aria-label", lab);
+      const v = el("span", "", String(d[k])); i2.oninput = () => { d[k] = +i2.value; v.textContent = i2.value; saveTops(); };
+      row.append(el("span", "", lab), i2, v); right.append(row);
+    });
+    const r2 = el("div", "frow"), up = el("input"); up.type = "file"; up.accept = "image/*"; up.hidden = true;
+    const ub = el("button", "btn sm", d.img ? "🖼 Resmi değiştir" : "🖼 Kendi resmin"); ub.onclick = () => up.click();
+    up.onchange = () => { const f = up.files[0]; if (!f) return; const fr = new FileReader(); fr.onload = () => shrinkImg(fr.result, url => { d.img = url; loadImg(d); saveTops(); renderTopCards(); }); fr.readAsDataURL(f); };
+    const full = el("label"); const cb = el("input"); cb.type = "checkbox"; cb.checked = d.imgFull; cb.onchange = () => { d.imgFull = cb.checked; saveTops(); }; full.append(cb, "Resim tüm topaç olsun");
+    r2.append(ub, up);
+    if (d.img){ const rm = el("button", "btn sm", "Resmi kaldır"); rm.onclick = () => { d.img = ""; d.imgEl = null; saveTops(); renderTopCards(); }; r2.append(full, rm); }
+    right.append(r2); card.append(right); box.append(card);
+  });
+}
+function shrinkImg(url, cb){ const im = new Image(); im.onload = () => { const s = 256, c = mkCanvas(s, s), g = c.getContext("2d"), m = Math.min(im.width, im.height); g.drawImage(im, (im.width - m)/2, (im.height - m)/2, m, m, 0, 0, s, s); cb(c.toDataURL("image/png")); }; im.onerror = () => toastMsg("Bu resim açılamadı."); im.src = url; }
+function previews(now){
+  if ($("#tab-arena").hidden) return;
+  previewCvs.forEach((c, i) => { const g = c.getContext("2d"); g.clearRect(0, 0, c.width, c.height); drawTop(g, designs[i], 84, 88, 60, now/1000*18, .75, 1, true, 0); });
+}
+function renderPutTops(){
+  const box = $("#putTops"); box.textContent = "";
+  designs.forEach((d, i) => { const b = el("button", "btn sm", "🌀 " + d.name); b.onclick = () => {
+    if (state.source !== "video"){ say("Önce bir video yükle (📁 Video yükle). Sonra bu düğmeyle topacını videodaki topacın üstüne koyabilirsin.", "bot"); showTab("ai"); return; }
+    addAndSelect("top", {opt:"Topaç " + (i + 1), start:0, end:outDur, track:"auto"}); toastMsg(`${d.name} videona eklendi ve hareketi takip ediyor.`); };
+    box.append(b); });
+}
+$("#nTops").onchange = e => { state.nTops = +e.target.value; renderTopCards(); };
+$("#power").oninput = e => { state.power = +e.target.value; };
+$("#hud").onchange = e => { state.hud = e.target.checked; };
+$("#battleBtn").onclick = () => startBattle(Math.floor(Math.random()*1e6));
+$("#autoBtn").onclick = () => { if (state.source !== "arena" || !sim){ say("Otomatik efektler arena savaşı için. Önce “Savaşı başlat”a bas.", "bot"); return; } autoAnime(); };
+$("#arenaBtn").onclick = () => { showTab("arena"); if (state.source !== "arena") startBattle(Math.floor(Math.random()*1e6)); };
+
+function startBattle(seed, quiet){
+  if (!quiet) pushHistory();
+  play(false); if (!video.paused) video.pause();
+  sim = simulate(designs.slice(0, state.nTops), seed, state.power);
+  state.source = "arena"; state.srcDur = sim.dur;
+  state.edit = {trimIn:0, trimOut:sim.dur, speeds:[], freezes:[]};
+  state.layers = []; state.sel = null; state.T = 0;
+  if (state.fmt !== "16:9" && !quiet){ /* keep chosen format */ }
+  rebuild(); renderResult();
+  $("#srcBadge").hidden = true;
+  renderAll(); seek(0);
+  if (!quiet){ play(true); say(`Savaş başladı! ${sim.ids.length} topaç arenada. Bitince “✨ Otomatik anime efektleri”ne bas ya da bana ne istediğini yaz.`, "bot"); }
+}
+function renderResult(){
+  if (!sim) return;
+  const w = designs[sim.winner], box = $("#result"); box.textContent = "";
+  box.append("Kazanan: ", el("b", "", w.name), ` · ${sim.finish} · ${sim.finishT.toFixed(1)} sn · ${sim.clashes.length} çarpışma`);
+}
+function arenaFrac(x, y){ const c = coverOf(1280, 720), [px, py] = arenaPx(x, y); return [clamp((px*c.sc + c.dx)/W, 0, 1), clamp((py*c.sc + c.dy)/H, 0, 1)]; }
+function autoAnime(noHist){
+  if (!sim) return;
+  if (!noHist) pushHistory();
+  state.layers = []; state.sel = null;
+  state.edit = {trimIn:0, trimOut:state.srcDur, speeds:[], freezes:[]};
+  const fin = sim.finishT, lastEv = sim.events.filter(e => e.t <= fin + .01).pop();
+  const picks = [];
+  for (const c of [...sim.clashes].sort((a, b) => b.power - a.power)){ if (c.t < .6) continue; if (picks.every(p => Math.abs(p.t - c.t) > .9)) picks.push(c); if (picks.length >= 6) break; }
+  const hero = picks.find(c => !lastEv || Math.abs(c.t - lastEv.t) > 1.2) || picks[0];
+  if (lastEv) state.edit.speeds.push({id:uid++, a:Math.max(0, lastEv.t - .9), b:Math.min(state.srcDur, lastEv.t + .5), rate:.35});
+  if (hero) state.edit.freezes.push({id:uid++, at:hero.t, dur:1.5});
+  rebuild();
+  sim.ids.forEach(i => add("aura", {start:0, end:outDur, track:"t" + i, color:designs[i].color, color2:designs[i].color2, intensity:.5, size:.8}));
+  add("filter", {start:0, end:outDur, opt:"Anime", intensity:.6});
+  add("title", {start:.1, end:1.5, text:"3, 2, 1... FIRLAT!", track:"", x:.5, y:.5});
+  add("speedlines", {start:0, end:1.1, track:"", x:.5, y:.55, intensity:.8});
+  add("sfx", {start:.1, opt:"Vuuş"});
+  for (const c of picks){
+    if (c === hero) continue;
+    const T = invS(c.t), [fx, fy] = arenaFrac(c.x, c.y);
+    add("sparks", {start:T, end:T + 1, track:"", x:fx, y:fy});
+    add("shockwave", {start:T, end:T + .8, track:"", x:fx, y:fy, intensity:.8});
+    add("shake", {start:T, end:T + .35, intensity:.7});
+  }
+  if (hero){
+    const T = invS(hero.t), [fx, fy] = arenaFrac(hero.x, hero.y);
+    const atk = designs[hero.a].atk >= designs[hero.b].atk ? hero.a : hero.b;
+    add("impactframe", {start:T, end:T + .35});
+    add("speedlines", {start:T, end:T + 1.5, track:"", x:fx, y:fy, color:"#000000", intensity:1.1});
+    add("onomato", {start:T + .05, end:T + 1.5, track:"", x:fx, y:fy, opt:"ドン"});
+    add("title", {start:T + .3, end:T + 1.5, text:`${designs[atk].name.toLocaleUpperCase("tr")} SALDIRISI!`, track:"", x:.5, y:.78, color:designs[atk].color2, color2:designs[atk].color});
+    add("flash", {start:T, end:T + .15});
+    add("sfx", {start:T, opt:"Boom"});
+    add("shockwave", {start:T + 1.5, end:T + 2.3, track:"", x:fx, y:fy});
+    add("sparks", {start:T + 1.5, end:T + 2.5, track:"", x:fx, y:fy});
+    add("shake", {start:T + 1.5, end:T + 2});
+    add("chroma", {start:T + 1.5, end:T + 1.9});
+  }
+  for (const ev of sim.events.filter(e => e.type === "out")){
+    const T = invS(ev.t), [fx, fy] = arenaFrac(ev.x, ev.y);
+    add("title", {start:T, end:T + 1.4, text:"DIŞARI!", track:"", x:.5, y:.3, color:"#ff6b6b", color2:"#ffe14d"});
+    add("lightning", {start:T, end:T + .8, track:"", x:fx, y:fy});
+    add("sfx", {start:T, opt:"Boom"});
+  }
+  const Tw = Math.min(outDur - .3, invS(fin) + .4), w = designs[sim.winner];
+  add("title", {start:Tw, end:outDur, text:`KAZANAN: ${w.name.toLocaleUpperCase("tr")}`, track:"", x:.5, y:.45, color:w.color2, color2:w.color});
+  add("emojirain", {start:Tw, end:outDur, opt:"👑", intensity:.6});
+  add("sfx", {start:Tw, opt:"Ta-da"});
+  rebuild(); renderAll(); seek(0);
+  if (!noHist){ play(true); say(`Otomatik anime efektleri hazır: en sert çarpışmada zaman duruyor (ドン!), son anda ağır çekim var, ${w.name} kazanıyor. İstediğin yeri değiştir ya da bana yaz.`, "bot"); }
+}
+
+/* ---------- AI ---------- */
+$("#aiName").textContent = AI_NAME.toUpperCase();
+const log = $("#log");
+function say(text, cls){ const m = el("div", "msg " + cls, text); log.append(m); log.scrollTop = log.scrollHeight; return m; }
+let toastEl = null;
+function toastMsg(t){ say(t, "bot"); }
+const CHIPS = ["En büyük çarpışmada zamanı durdur", "Ağır çekim ve şimşek", "MLG meme modu", "Mavi aura, “FIRTINA SALDIRISI!” yazsın", "Dikey TikTok formatı yap"];
+CHIPS.forEach(c => { const b = el("button", "chip", c); b.onclick = () => { $("#prompt").value = c; ask(); }; $("#chips").append(b); });
+
+let samplePromise = null, sampleDead = false;
+function getSample(){
+  if (!samplePromise) samplePromise = (window.claude && typeof window.claude.use === "function") ? window.claude.use("sample").catch(() => null) : Promise.resolve(null);
+  return samplePromise;
+}
+getSample().then(s => { $("#aiMode").textContent = s ? "Claude ile çalışan efekt yapay zekâsı" : "Komutlarını anlayıp efekt ve kurgu yapar"; });
+
+async function ask(){
+  const q = $("#prompt").value.trim(); if (!q) return;
+  $("#prompt").value = ""; say(q, "me");
+  $("#askBtn").disabled = true; $("#orb").classList.add("busy");
+  const pending = say("Düşünüyorum…", "bot");
+  try {
+    let reply = null;
+    const sample = sampleDead ? null : await getSample();
+    if (sample){
+      try { const res = await askClaude(sample, q); reply = applyAI(res); }
+      catch (e){
+        const c = e && e.code;
+        if (["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"].includes(c)){ sampleDead = true; $("#aiMode").textContent = "Komutlarını anlayıp efekt ve kurgu yapar"; }
+        else if (c === "rate_limited") say("Çok hızlı istek geldi, biraz bekle. Şimdilik hızlı modla yaptım.", "bot err");
+      }
+    }
+    if (!reply) reply = localAI(q);
+    pending.remove(); say(reply, "bot"); renderAll();
+    if (!state.playing) play(true);
+  } finally { $("#askBtn").disabled = false; $("#orb").classList.remove("busy"); }
+}
+$("#askBtn").onclick = ask;
+$("#prompt").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey){ e.preventDefault(); ask(); } });
+
+async function askClaude(sample, q){
+  const cur = state.layers.map(({id, ...r}) => r);
+  const caps = await sample.limits().catch(() => null);
+  const opts = {cache:false}; let hasImg = false;
+  if (caps && caps.images){ const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", .7)); if (blob){ opts.images = [blob]; hasImg = true; } }
+  let arenaInfo = "";
+  if (state.source === "arena" && sim){
+    const big = [...sim.clashes].sort((a, b) => b.power - a.power).slice(0, 10).map(c => ({sourceT:+c.t.toFixed(2), outputT:+invS(c.t).toFixed(2), power:+c.power.toFixed(2), x:+arenaFrac(c.x, c.y)[0].toFixed(2), y:+arenaFrac(c.x, c.y)[1].toFixed(2), tops:[designs[c.a].name, designs[c.b].name]}));
+    arenaInfo = `\nThis is a simulated spinning-top battle. Tops (track ids): ${sim.ids.map(i => `t${i}=${designs[i].name} (atk ${designs[i].atk}, def ${designs[i].def}, stamina ${designs[i].sta}, color ${designs[i].color})`).join("; ")}.
+Winner: ${designs[sim.winner].name} by ${sim.finish} at source ${sim.finishT.toFixed(2)}s. Biggest clashes: ${JSON.stringify(big)}. Ring-outs: ${JSON.stringify(sim.events.filter(e => e.type === "out").map(e => ({sourceT:+e.t.toFixed(2), top:designs[e.i].name})))}.
+"track" may be "t0".."t${sim.ids.length - 1}" to follow a specific top, "auto" follows the winner.`;
+  }
+  const prompt = `You are ${AI_NAME}, the VFX artist and video editor inside "Kasırga FX", a free browser app where kids make anime-style edits of spinning-top battles and their own videos. Turn the request into an edit.
+
+Source: ${state.source === "arena" ? "spinning-top battle simulation" : "user's video"}, ${state.srcDur.toFixed(2)}s long. Output canvas ${W}x${H}. Playhead at output ${state.T.toFixed(2)}s (= source ${mapT(state.T).s.toFixed(2)}s).${hasImg ? " The attached image is the current frame: place effects on the main subject (x,y are 0..1 fractions of width/height)." : ""}${arenaInfo}
+
+Time editing (SOURCE seconds): freezes [{"at","dur"}] hold that source moment for dur seconds (anime pause); speeds [{"a","b","rate"}] play source a..b at rate (0.25-3). Current: freezes ${JSON.stringify(state.edit.freezes.map(({id, ...r}) => r))}, speeds ${JSON.stringify(state.edit.speeds.map(({id, ...r}) => r))}.
+Output timeline = source with freezes inserted and speed changes applied. Output time of a source moment s = s + (total freeze durations at source times < s) + extra time from speed regions before s. A freeze at source s starts at output time of s.
+
+Effect layers use OUTPUT seconds. Types:
+${Object.keys(FX).map(k => `- ${k}: ${DESC[k]}`).join("\n")}
+
+Layer fields: {"type","start","end","x","y","track" ("" fixed at x,y | "auto" follow the moving subject${state.source === "arena" ? " | t0..t3" : ""}),"color","color2" (#rrggbb),"size" (0.3-2.5),"intensity" (0.2-2),"text","opt"}.
+Current layers: ${JSON.stringify(cur).slice(0, 6000)}
+
+Rules: return COMPLETE new lists (keep current items unless asked to change/remove). A great anime moment = freeze + impactframe + black speedlines + onomato + flash + sfx Boom, then shake + chroma after the freeze. Use memes when the user asks for funny/meme stuff. At most 24 layers. If the user asks for vertical/TikTok set "format":"9:16" (or "16:9", "1:1").
+
+Reply with ONLY JSON: {"reply":"1-2 short friendly Turkish sentences about what you did","freezes":[...],"speeds":[...],"format":null,"layers":[...]}
+
+User request: """${q.slice(0, 600)}"""`;
+  return await sample.json(prompt, opts);
+}
+function applyAI(o){
+  if (!o || !Array.isArray(o.layers)) throw {code:"invalid_json"};
+  pushHistory();
+  if (o.format && FMTS[o.format]) setFormat(o.format);
+  if (Array.isArray(o.freezes)) state.edit.freezes = o.freezes.filter(f => f && isFinite(+f.at)).slice(0, 8).map(f => ({id:uid++, at:clamp(+f.at, 0, state.srcDur), dur:clamp(+f.dur || 1.5, .1, 10)}));
+  if (Array.isArray(o.speeds)) state.edit.speeds = o.speeds.filter(s => s && isFinite(+s.a) && isFinite(+s.b)).slice(0, 8).map(s => ({id:uid++, a:clamp(+s.a, 0, state.srcDur), b:clamp(+s.b, 0, state.srcDur), rate:clamp(+s.rate || 1, .25, 3)})).filter(s => s.b > s.a);
+  rebuild();
+  const hex = v => /^#[0-9a-f]{6}$/i.test(v) ? v : null;
+  const okTrack = v => v === "" || v === "auto" || (/^t[0-3]$/.test(v) && state.source === "arena" && sim && +v[1] < sim.ids.length) ? v : "auto";
+  state.layers = o.layers.slice(0, 30).filter(l => l && FX[l.type]).map(l => {
+    const d = FX[l.type];
+    return mk(l.type, {start:+l.start || 0, end:+l.end || (+l.start || 0) + (d.dur === "all" ? outDur : d.dur),
+      x:clamp(+l.x, 0, 1) || .5, y:clamp(+l.y, 0, 1) || .5, track: d.pos ? okTrack(String(l.track ?? "auto")) : "",
+      color:hex(l.color) || d.color || "#ffffff", color2:hex(l.color2) || d.color2 || "#ffffff",
+      size:clamp(+l.size || 1, .3, 2.5), intensity:clamp(+l.intensity || 1, .2, 2),
+      text: d.text !== undefined ? String(l.text ?? d.text).slice(0, 40) : "", opt: d.opts ? (d.opts.includes(l.opt) ? l.opt : d.opt) : ""});
+  });
+  state.sel = null; seek(state.T);
+  return String(o.reply || "Tamamdır!").slice(0, 400);
+}
+
+/* Nova's own command understanding (works without an account) */
+const COLORS = {mavi:"#2fb8ff", blue:"#2fb8ff", "kırmızı":"#ff2b3d", kirmizi:"#ff2b3d", red:"#ff2b3d", mor:"#9b5cff", purple:"#9b5cff", "yeşil":"#3dff8a", yesil:"#3dff8a", green:"#3dff8a",
+  "sarı":"#ffe14d", sari:"#ffe14d", yellow:"#ffe14d", turuncu:"#ff8a1f", orange:"#ff8a1f", pembe:"#ff4fb8", pink:"#ff4fb8", beyaz:"#ffffff", white:"#ffffff", "altın":"#ffc83d", altin:"#ffc83d", gold:"#ffc83d",
+  siyah:"#202030", turkuaz:"#3fe8d9", buz:"#9fe8ff"};
+function localAI(q){
+  const s = q.toLocaleLowerCase("tr"), has = (...w) => w.some(x => s.includes(x));
+  let color = null; for (const [k, v] of Object.entries(COLORS)) if (s.includes(k)){ color = v; break; }
+  const tm = s.match(/(\d+(?:[.,]\d+)?)\s*(?:\.|'?(?:inci|ıncı|uncu|üncü|nci|ncı|ncu|ncü))?\s*(?:sn|saniye|sec|s\b)/);
+  let T = state.T, where = "şu anki yere";
+  if (tm){ T = parseFloat(tm[1].replace(",", ".")); where = `${fmt(T)} anına`; }
+  else if (state.source === "arena" && sim && has("çarpış","carpis","çarp","darbe")){ const big = [...sim.clashes].sort((a, b) => b.power - a.power)[0]; if (big){ T = invS(big.t); where = "en büyük çarpışmaya"; } }
+  else if (has("sonda","sonunda","bitiş","son an")){ T = Math.max(0, outDur - 2); where = "sona"; }
+  else if (has("başta","başında","başla")){ T = 0; where = "başa"; }
+  T = clamp(T, 0, Math.max(0, outDur - .3));
+  const quoted = q.match(/[“"'«]([^”"'»]{1,30})[”"'»]/);
+  const did = [];
+  if (has("hepsini sil","temizle","sıfırla","kaldır") && !has("ekle")){ pushHistory(); state.layers = []; state.sel = null; return "Tüm efektleri temizledim. Yeni bir şey iste!"; }
+  if (has("geri al")){ undo(); return "Son değişikliği geri aldım."; }
+  if (state.source === "arena" && has("otomatik","hepsini yap","full anime","tam anime")){ autoAnime(); return "Otomatik anime kurgusu hazır: duraklama, ağır çekim, çarpışma efektleri ve kazanan yazısı."; }
+  if (has("yeni savaş","savaşı başlat","yeniden savaş","tekrar savaş")){ startBattle(Math.floor(Math.random()*1e6)); return "Yeni bir savaş başlattım!"; }
+  if (has("dikey","tiktok","shorts","reels")){ setFormat("9:16"); did.push("dikey format"); }
+  else if (has("kare format","kare yap","instagram")){ setFormat("1:1"); did.push("kare format"); }
+  else if (has("yatay","youtube")){ setFormat("16:9"); did.push("yatay format"); }
+  if (has("her şeyi","hepsini","tümünü","bütün") && color){ pushHistory(); state.layers.forEach(L => { if (FX[L.type].color !== undefined) L.color = color; }); return "Tüm efektlerin rengini değiştirdim."; }
+  pushHistory();
+  const big = has("büyük","dev","güçlü","mega","süper") ? 1.5 : 1;
+  const o = (type, extra = {}) => { const L = add(type, Object.assign({start:T, intensity:Math.min(2, big)}, extra)); if (color && FX[type].color !== undefined && !extra.color && type !== "flash") L.color = color; did.push(FX[type].label); return L; };
+  let paused = false;
+  if (has("dondur","duraklat","durdur","zamanı dur","zaman dur","freeze","anime duraklama")){
+    const g = GLYPHS.find(x => q.includes(x)) || (has("gogogo","ゴゴゴ","tehdit") ? "ゴゴゴ" : "ドン");
+    const before = state.layers.length; hist.pop();
+    animePause(T, g, quoted ? quoted[1].toLocaleUpperCase("tr") : ""); paused = true; did.push("anime duraklaması");
+    T = invS(mapT(T).s); void before;
+  }
+  if (has("ağır çekim","agir cekim","yavaş","yavas","slow")){ const sv = mapT(T).s; changeEdit(e => e.speeds.push({id:uid++, a:sv, b:Math.min(state.srcDur, sv + 2), rate:.35}), true); did.push("ağır çekim"); }
+  if (has("hızlandır","hizlandir","hızlı sar","fast")){ const sv = mapT(T).s; changeEdit(e => e.speeds.push({id:uid++, a:sv, b:Math.min(state.srcDur, sv + 2), rate:2}), true); did.push("hızlandırma"); }
+  if (has("aura","enerji","güç","guc","power","alev")) o("aura");
+  if (has("girdap","dönüş","kasırga","kasirga","fırtına","firtina","tornado","rüzgar","ruzgar","vortex")) o("vortex");
+  if (has("hız çizgi","hiz cizgi","speed line","çizgi")) o("speedlines");
+  if (has("kıvılcım","kivilcim","spark")) o("sparks");
+  if (has("şimşek","simsek","yıldırım","yildirim","elektrik","lightning")) o("lightning");
+  if (has("patla","şok","darbe","impact","vuruş","boom","bum") && !paused){ o("shockwave"); o("flash", {color:"#ffffff", end:T + .3}); o("shake", {end:T + .6}); o("sfx", {opt:"Boom"}); }
+  if (has("kılıç","kilic","kesik","slash","kes ")) o("slash");
+  if (has("ışın","isin","lazer","beam","kamehameha")) o("beam");
+  if (has("darbe kare","impact frame","siyah beyaz yanıp")) o("impactframe");
+  if (has("manga")) { o("manga"); }
+  if (!paused && (GLYPHS.some(x => q.includes(x)) || has("manga sesi","japonca"))) o("onomato", {opt: GLYPHS.find(x => q.includes(x)) || "ドン"});
+  if (has("zoom","yakınlaş","yakinlas")) o("zoom");
+  if (has("glitch","kayma","bozul")) o("chroma");
+  if (has("gözlük","gozluk","havalı","havali","deal with")) o("sunglasses");
+  if (has("mlg","hitmarker")){ o("hitmarker"); o("sunglasses"); o("sfx", {opt:"Korna"}); }
+  if (has("komik","güldür","gülme","haha","😂")){ o("emojirain", {opt:"😂"}); o("sfx", {opt:"Korna"}); }
+  if (has("kafatası","kafatasi","💀","öldü","oldu ")) o("emojirain", {opt:"💀"});
+  if (has("taç","kral","👑")) o("emojirain", {opt:"👑"});
+  if (has("ağla","😭")) o("emojirain", {opt:"😭"});
+  if (has("moai","taş yüz","🗿")) o("reaction", {opt:"🗿"});
+  if (has("şaşır","sasir","😱")) o("reaction", {opt:"😱"});
+  if (has("devam edecek","to be continued")){ const sv = mapT(T).s; changeEdit(e => e.freezes.push({id:uid++, at:sv, dur:3}), true); const T0 = invS(sv); o("devam", {start:T0, end:T0 + 3}); o("sfx", {start:T0, opt:"Plak cızırtısı"}); }
+  if (has("elendi","kaybetti","yenildi","wasted")) { o("elendin"); o("sfx", {opt:"Bas düşüşü"}); }
+  if (has("dramatik","drama")){ o("dramazoom"); o("sfx", {opt:"Dramatik"}); }
+  if (has("daire","işaretle","isaretle","ok koy")) o("circle");
+  if (has("korna","airhorn")) o("sfx", {opt:"Korna"});
+  if (has("ding")) o("sfx", {opt:"Ding"});
+  if (has("ta-da","tada")) o("sfx", {opt:"Ta-da"});
+  if (has("siyah beyaz","siyah-beyaz")) o("filter", {start:0, end:outDur, opt:"Siyah-beyaz"});
+  if (has("sepya","eski film")) o("filter", {start:0, end:outDur, opt:"Sepya"});
+  if (has("neon")) o("filter", {start:0, end:outDur, opt:"Neon"});
+  if (has("vhs","eski kaset","retro")) o("filter", {start:0, end:outDur, opt:"VHS"});
+  if (has("anime renk","anime filtre","anime yap")) o("filter", {start:0, end:outDur, opt:"Anime"});
+  if (has("topaç koy","topacımı koy","topacimi koy","benim topaç")) { if (state.source === "video") o("top", {start:0, end:outDur}); }
+  if (quoted && !paused){
+    if (has("meme yazı","üst yazı","alt yazı")) o("caption", {text:quoted[1]});
+    else if (has("altyazı","altyazi")) o("subtitle", {text:quoted[1]});
+    else o("title", {text:quoted[1].toLocaleUpperCase("tr"), start:T + .05});
+  }
+  if (!did.length){ hist.pop(); return "Bunu tam anlayamadım. Şunları deneyebilirsin: “4. saniyede zamanı durdur”, “ağır çekim + şimşek”, “MLG modu”, “komik yap”, “dramatik”, ““SÜPER SALDIRI” yazsın”, “dikey format”, “otomatik” (arenada)."; }
+  return `${where.charAt(0).toLocaleUpperCase("tr") + where.slice(1)} ekledim: ${[...new Set(did)].join(", ")}. Aşağıdaki katmanlardan ince ayar yapabilirsin.`;
+}
+
+/* ---------- export ---------- */
+function pickMime(){ for (const m of ["video/mp4;codecs=avc1","video/mp4","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"]) if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m; return ""; }
+$("#exportBtn").onclick = () => {
+  if (exporting){ finishExport(); return; }
+  if (!window.MediaRecorder || !cv.captureStream){ say("Bu tarayıcı video kaydetmeyi desteklemiyor. Chrome veya Edge ile dene.", "bot err"); return; }
+  ensureAudio();
+  const stream = cv.captureStream(30);
+  if (recDest) recDest.stream.getAudioTracks().forEach(tr => stream.addTrack(tr));
+  const mime = pickMime(), chunks = [];
+  let rec;
+  try { rec = new MediaRecorder(stream, mime ? {mimeType:mime, videoBitsPerSecond:8e6} : {}); } catch (e) { say("Kayıt başlatılamadı. Chrome veya Edge ile dene.", "bot err"); return; }
+  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  rec.onstop = () => saveVideo(new Blob(chunks, {type:(mime || "video/webm").split(";")[0]}));
+  exporting = rec; $("#recBadge").hidden = false;
+  $("#exportBtn").textContent = "■ Kaydı durdur";
+  say(`Kaydediyorum (${outDur.toFixed(1)} sn). Video baştan sona bir kez oynayacak, bitince kaydet düğmesi çıkacak.`, "bot");
+  play(false); seek(0); prevT = 0;
+  const begin = () => { rec.start(250); triggerSounds(-1, 0); play(true); };
+  if (state.source === "video") { const go = () => { video.removeEventListener("seeked", go); begin(); }; video.addEventListener("seeked", go); setTimeout(() => { if (rec.state === "inactive") go(); }, 800); } else begin();
+};
+function finishExport(){
+  const rec = exporting; exporting = null; play(false);
+  if (rec && rec.state !== "inactive") rec.stop();
+  $("#recBadge").hidden = true; $("#exportBtn").textContent = "⬇ Videoyu indir";
+}
+async function saveVideo(blob){
+  const ext = blob.type.includes("mp4") ? "mp4" : "webm", name = "kasirga-fx." + ext, url = URL.createObjectURL(blob);
+  $("#outCard").hidden = false; $("#outVideo").src = url; $("#outLink").href = url; $("#outLink").download = name;
+  $("#outTitle").textContent = `Video hazır (${(blob.size/1048576).toFixed(1)} MB, ${ext.toUpperCase()})`;
+  $("#outCard").scrollIntoView({behavior:"smooth", block:"nearest"});
+  if (window.claude && typeof window.claude.use === "function"){
+    const dl = await window.claude.use("downloads").catch(() => null);
+    if (dl){
+      $("#outLink").onclick = async ev => { ev.preventDefault(); try { await dl.save({filename:name, data:blob}); } catch (e) {} };
+      try { await dl.save({filename:name, data:blob}); } catch (e) {}
+      return;
+    }
+  }
+  $("#outLink").click();
+}
+
+/* ---------- keyboard ---------- */
+document.addEventListener("keydown", e => {
+  const tag = (e.target.tagName || "").toLowerCase();
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && tag !== "input" && tag !== "textarea"){ e.preventDefault(); undo(); return; }
+  if (tag === "input" || tag === "textarea" || tag === "select") return;
+  if (e.code === "Space"){ e.preventDefault(); play(!state.playing); }
+  else if (e.key.toLowerCase() === "f"){ animePause(state.T); }
+  else if (e.key === "Delete" && state.sel){ pushHistory(); state.layers = state.layers.filter(l => l.id !== state.sel); state.sel = null; renderLayers(); }
+  else if (e.key === "ArrowRight"){ play(false); seek(state.T + 1/30); }
+  else if (e.key === "ArrowLeft"){ play(false); seek(state.T - 1/30); }
+});
+
+function renderAll(){ renderLayers(); renderEditTab(); }
+
+/* ---------- start ---------- */
+renderTopCards(); renderPutTops();
+startBattle(5, true);
+autoAnime(true);
+hist.length = 0;
+say(`Merhaba, ben ${AI_NAME}! Şu an bir topaç savaşı oynuyor ve otomatik anime efektleri açık. Videonu yükleyebilir, Arena sekmesinden kendi topaçlarını tasarlayabilir ya da bana “3. saniyede zamanı durdur, şimşek çaktır” gibi komutlar yazabilirsin.`, "bot");
+if (document.fonts && document.fonts.load){ ["40px Bungee","40px Anton","40px 'Dela Gothic One'"].forEach(f => document.fonts.load(f, "ドンゴバキズシュ ABC").catch(() => {})); }
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches) play(true);
+requestAnimationFrame(loop);
+})();
+</script>
+
+</body>
+</html>
