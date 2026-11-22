@@ -22,7 +22,7 @@ window.KSB_GAMES = [
     note: 'Arkadaşlarınla oynamak için oyunda ODA KUR, kodu paylaş; onlar KATIL ile gelsin.',
     web: true, dl: 'https://github.com/keremsarpb-web/keremsarpb-web.github.io/releases/download/yalpa-v1.0.0/Yalpa.exe' },
   { id: 'kasirga-fx', title: 'Kasırga FX', genre: 'aksiyon', label: 'Video stüdyosu · Yapay zekâ', plat: ['PC', 'Telefon'], fit: 'land',
-    pitch: 'Ücretsiz anime video stüdyosu. Kendi topaçlarını tasarla, arenada savaştır, en sevdiğin çarpışmada zamanı durdur. Videonu yükle; Nova yapay zekâsına yaz, aura, şimşek, manga sesi, darbe karesi, memeler, ağır çekim ve dikey TikTok formatı eklesin. Bitince videoyu indir.',
+    pitch: 'Ücretsiz anime video stüdyosu. Kendi topaçlarını tasarla, arenada savaştır, en sevdiğin çarpışmada zamanı durdur. Videonu yükle: topaçlar otomatik bulunur ve takip edilir, arkalarına neon, ateş ya da gökkuşağı izi ekle. Nova yapay zekâsına Türkçe yaz (“her çarpışmada kıvılcım”, “kazanana ateş izi”), aura, şimşek, manga sesi, memeler, ağır çekim ve dikey TikTok formatı eklesin. Bitince videoyu indir.',
     keys: [['Boşluk', 'oynat · durdur'], ['F', 'anime duraklaması'], ['Ctrl+Z', 'geri al'], ['Tıkla', 'efekti taşı']],
     note: 'Videon bilgisayarından dışarı çıkmaz, her şey tarayıcında işlenir. Videoyu indirmek için Chrome veya Edge kullan.',
     web: true },

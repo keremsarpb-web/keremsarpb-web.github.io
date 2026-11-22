@@ -127,6 +127,9 @@ input[type=color]{width:28px;height:24px;border:0;padding:0;background:none}
 .out{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
 .out video{width:100%;border-radius:8px;max-width:100%;max-height:320px;background:#000}
 .foot{max-width:1440px;margin:18px auto 0;color:var(--muted);font-size:12px}
+.prog{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--volt),var(--plasma));transition:width .2s}
+.msg{white-space:pre-line}
 @media (prefers-reduced-motion:reduce){.orb.busy{animation:none}}
 </style>
 
@@ -163,6 +166,7 @@ input[type=color]{width:28px;height:24px;border:0;padding:0;background:none}
     <nav class="tabs" role="tablist">
       <button class="tab" role="tab" data-tab="ai" aria-selected="true">Nova</button>
       <button class="tab" role="tab" data-tab="fx" aria-selected="false">Efektler</button>
+      <button class="tab" role="tab" data-tab="track" aria-selected="false">Takip</button>
       <button class="tab" role="tab" data-tab="meme" aria-selected="false">Memeler</button>
       <button class="tab" role="tab" data-tab="edit" aria-selected="false">Kurgu</button>
       <button class="tab" role="tab" data-tab="arena" aria-selected="false">Arena</button>
@@ -186,6 +190,24 @@ input[type=color]{width:28px;height:24px;border:0;padding:0;background:none}
       <h4>Anime efektleri</h4><div class="fxgrid" data-cat="anime"></div>
       <h4>Yazılar</h4><div class="fxgrid" data-cat="yazi"></div>
       <h4>Filtreler</h4><div class="fxgrid" id="filterGrid"></div>
+    </section>
+
+    <section class="card panel" id="tab-track" hidden>
+      <h4>Topaç takibi</h4>
+      <div class="hint" id="trkInfo"></div>
+      <div class="prog" id="trkProg" hidden><i></i></div>
+      <div class="frow">
+        <button class="btn hot" id="anBtn">🎯 Topaçları bul ve takip et</button>
+        <button class="btn sm" id="anStop" hidden>Taramayı durdur</button>
+        <button class="btn sm" id="pickBtn" hidden>👆 Ana hedefi seç</button>
+      </div>
+      <label class="lab"><input type="checkbox" id="showMk" checked> Hedef işaretlerini göster (indirilen videoya girmez)</label>
+      <div class="elist" id="tgtList"></div>
+      <h4>İz (trail) ekle</h4>
+      <div class="frow"><label>Hedef <select id="trailTgt"></select></label></div>
+      <div class="fxgrid" id="trailGrid"></div>
+      <h4>Hepsi bir arada</h4>
+      <div class="frow"><button class="btn pink" id="autoBtn2">✨ Otomatik anime efektleri</button></div>
     </section>
 
     <section class="card panel" id="tab-meme" hidden>
@@ -299,6 +321,7 @@ const EMO = ["😂","💀","🔥","😱","💯","⚡","🌀","👑","😭","🗿
 const SFX_NAMES = ["Boom","Korna","Vuuş","Ding","Plak cızırtısı","Metal çarpma","Dramatik","Bas düşüşü","Ta-da"];
 const FILTERS = ["Anime","Siyah-beyaz","Sepya","Neon","Sıcak","Soğuk","VHS"];
 const GLYPHS = ["ドン","ゴゴゴ","バキッ","ズドン","シュッ","ドドド"];
+const TRAIL_STYLES = ["Neon şerit","Ateş izi","Gökkuşağı","Yıldız tozu","Elektrik","Gölge"];
 const FX = {
   aura:       {label:"Enerji Aurası", icon:"🔵", cat:"anime", color:"#2fb8ff", color2:"#ffffff", dur:3, pos:1},
   vortex:     {label:"Dönüş Girdabı", icon:"🌀", cat:"anime", color:"#7a5cff", color2:"#3fd9ff", dur:3, pos:1},
@@ -315,6 +338,7 @@ const FX = {
   flash:      {label:"Parlama", icon:"⚪", cat:"anime", color:"#ffffff", dur:.3},
   shake:      {label:"Kamera Sarsıntısı", icon:"📳", cat:"anime", dur:.6},
   zoom:       {label:"Yakınlaştır", icon:"🔍", cat:"anime", dur:1.2, pos:1},
+  trail:      {label:"İz (trail)", icon:"☄️", cat:"anime", color:"#3fd9ff", color2:"#ffffff", dur:"all", pos:1, opts:TRAIL_STYLES, opt:"Neon şerit"},
   title:      {label:"Saldırı Adı", icon:"🔤", cat:"yazi", color:"#ffe14d", color2:"#ff3d9a", dur:1.6, pos:1, text:"KASIRGA SALDIRISI!"},
   caption:    {label:"Meme Yazısı", icon:"🅰️", cat:"yazi", dur:3, text:"ÜST YAZI|ALT YAZI"},
   subtitle:   {label:"Altyazı", icon:"💬", cat:"yazi", dur:2.5, text:"Bu topaç durdurulamaz..."},
@@ -340,6 +364,7 @@ const DESC = {
   filter:"color filter for a range, opt one of " + FILTERS.join(", "), sunglasses:"pixel 'deal with it' sunglasses drop on a point + text", emojirain:"emoji rain, opt is the emoji",
   reaction:"big reaction emoji pops at a point, opt is the emoji", devam:"sepia + 'to be continued' style arrow banner, text", elendin:"grey 'eliminated' screen with big red text",
   dramazoom:"dramatic zoom with red vignette", hitmarker:"MLG hitmarkers around point", circle:"red circle + arrow pointing at point, text", sfx:"sound effect at start, opt one of " + SFX_NAMES.join(", "),
+  trail:"glowing motion trail behind a tracked top (track auto or t0..t3, usually whole duration); opt style one of " + TRAIL_STYLES.join(", ") + "; size = trail length",
   top:"draw one of the user's designed spinning tops on the point (opt Topaç 1..4), whole duration, usually track auto"
 };
 
@@ -625,9 +650,9 @@ function setFormat(f){
 /* ---------- motion tracker (hareket takibi) ---------- */
 const TW = 96, TH = 54;
 const tc = mkCanvas(TW, TH), tctx = tc.getContext("2d", {willReadFrequently:true});
-let prevLum = null; const trk = {x:.5, y:.55};
-function resetTracker(){ prevLum = null; }
-function updateTracker(){
+let prevLum = null; const trk = {x:.5, y:.55}; const liveHist = [];
+function resetTracker(){ prevLum = null; liveHist.length = 0; }
+function updateTracker(s){
   tctx.drawImage(cv, 0, 0, TW, TH);
   const d = tctx.getImageData(0, 0, TW, TH).data, lum = new Float32Array(TW*TH);
   for (let i = 0; i < TW*TH; i++) lum[i] = d[i*4]*.3 + d[i*4+1]*.59 + d[i*4+2]*.11;
@@ -640,17 +665,15 @@ function updateTracker(){
     if (sw > 400){ trk.x += (sx/sw/TW - trk.x)*.35; trk.y += (sy/sw/TH - trk.y)*.35; }
   }
   prevLum = lum;
+  liveHist.push({s, x:trk.x, y:trk.y}); if (liveHist.length > 90) liveHist.shift();
 }
 
 /* ---------- points ---------- */
 function arenaOut(x, y, oz){ const [px, py] = arenaPx(x, y, oz); return [px*cov.sc + cov.dx, py*cov.sc + cov.dy]; }
 function pointFor(L, info){
   if (!L.track) return [L.x*W, L.y*H];
-  if (state.source === "arena" && sim){
-    const i = L.track === "auto" ? sim.winner : +L.track.slice(1);
-    const f = frameOf(i, info.s);
-    if (f){ const [px, py] = arenaOut(f.x, f.y, f.oz); if (!info.M) return [px, py]; const q = info.M.transformPoint({x:px, y:py}); return [q.x, q.y]; }
-  }
+  const p = posAt(L.track, info.s);
+  if (p){ if (!info.M) return p; const q = info.M.transformPoint({x:p[0], y:p[1]}); return [q.x, q.y]; }
   return [trk.x*W, trk.y*H];
 }
 
@@ -831,6 +854,47 @@ const draw = {
     ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = e; ctx.strokeStyle = "#000"; ctx.lineWidth = S0()*.014; const m = S0()*.03; ctx.strokeRect(m, m, W - m*2, H - m*2);
   },
   flash(L, lt, X, Y, S, e){ const d = Math.max(.05, L.end - L.start); ctx.fillStyle = rgba(L.color, (1 - lt/d)*.85*L.intensity); ctx.fillRect(0, 0, W, H); },
+  trail(L, lt, X, Y, S, e, info){
+    const span = .45*L.size + .15, pts = trailPts(L, info, span, 36); if (pts.length < 2) return;
+    const w0 = S0()*.026*L.intensity, st = L.opt, b = Math.floor(lt*24);
+    ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.globalCompositeOperation = "lighter";
+    const N = pts.length;
+    if (st === "Gölge"){
+      for (let k = N - 1; k >= 1; k -= 3){ const p = pts[k]; if (!p) continue; const a = (1 - k/N)*.55*e, r = w0*2.3;
+        const g = ctx.createRadialGradient(p[0], p[1], 0, p[0], p[1], r); g.addColorStop(0, rgba(L.color2, a)); g.addColorStop(.5, rgba(L.color, a*.7)); g.addColorStop(1, rgba(L.color, 0));
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p[0], p[1], r, 0, TAU); ctx.fill(); }
+      return;
+    }
+    if (st === "Yıldız tozu"){
+      for (let k = 0; k < N; k++){ const p = pts[k]; if (!p) continue; const u = k/N;
+        for (let j = 0; j < 3; j++){ const sd = k*7 + j + L.id*31, jx = (rnd(sd) - .5)*w0*3*(.3 + u), jy = (rnd(sd + 1) - .5)*w0*3*(.3 + u);
+          const tw = .5 + .5*Math.sin(lt*20 + sd), r = w0*.32*(1 - u)*(.5 + tw); if (r < .4) continue;
+          ctx.fillStyle = mix(L.color2, L.color, u, (1 - u)*e); ctx.beginPath();
+          for (let q = 0; q < 8; q++){ const a = q*Math.PI/4, rr = q % 2 ? r*.35 : r; ctx.lineTo(p[0] + jx + Math.cos(a)*rr, p[1] + jy + Math.sin(a)*rr); }
+          ctx.closePath(); ctx.fill(); } }
+      return;
+    }
+    for (let pass = 0; pass < 2; pass++){
+      ctx.shadowBlur = pass ? 0 : w0*.8; ctx.shadowColor = st === "Gökkuşağı" ? "#ffffff" : L.color;
+      for (let k = 0; k < N - 1; k++){
+        const p = pts[k], q = pts[k + 1]; if (!p || !q) continue; const u = k/(N - 1);
+        let col;
+        if (st === "Gökkuşağı") col = `hsla(${(k*14 + lt*240) % 360},100%,${pass ? 82 : 60}%,${(1 - u)*e})`;
+        else if (st === "Ateş izi") col = mix(L.color2, L.color, Math.min(1, u*1.6), (1 - u)*e*(pass ? 1 : .75));
+        else col = pass ? rgba(L.color2, (1 - u)*e) : rgba(L.color, (1 - u)*.75*e);
+        let ax1 = p[0], ay1 = p[1], bx = q[0], by = q[1];
+        if (st === "Elektrik"){ const j = w0*1.3; ax1 += (rnd(b*61 + k) - .5)*j; ay1 += (rnd(b*67 + k) - .5)*j; bx += (rnd(b*61 + k + 1) - .5)*j; by += (rnd(b*67 + k + 1) - .5)*j; }
+        ctx.strokeStyle = col; ctx.lineWidth = pass ? Math.max(1, w0*.35*(1 - u)) : w0*(1 - u*.85)*(st === "Elektrik" ? .6 : 1);
+        ctx.beginPath(); ctx.moveTo(ax1, ay1); ctx.lineTo(bx, by); ctx.stroke();
+      }
+    }
+    ctx.shadowBlur = 0;
+    if (st === "Ateş izi"){
+      for (let k = 0; k < N; k += 2){ const p = pts[k]; if (!p) continue; const u = k/N, ph = (lt*2 + rnd(k + L.id)) % 1;
+        ctx.fillStyle = mix("#fff6c2", L.color, Math.min(1, u + ph*.5), (1 - u)*(1 - ph)*e);
+        ctx.beginPath(); ctx.arc(p[0] + (rnd(k + 3) - .5)*w0, p[1] - ph*w0*3, w0*.3*(1 - ph) + .5, 0, TAU); ctx.fill(); }
+    }
+  },
   shake(){}, zoom(){}, sfx(){},
   title(L, lt, X, Y, S, e){
     const t = (L.text || "").slice(0, 24); if (!t) return;
@@ -962,7 +1026,7 @@ const draw = {
     drawTop(ctx, d, X, Y, R, lt*32, .6, e, true, Math.sin(lt*7)*.05);
   }
 };
-const ORDER = {filter:0, manga:1, impactframe:8, chroma:9, flash:10, elendin:6, devam:6, caption:7, subtitle:7};
+const ORDER = {filter:0, manga:1, trail:2, impactframe:8, chroma:9, flash:10, elendin:6, devam:6, caption:7, subtitle:7};
 
 /* ---------- render ---------- */
 let lastS = -1;
@@ -1011,13 +1075,14 @@ function render(){
     ctx.drawImage(srcEl, cov.dx, cov.dy, cov.dw, cov.dh);
   }
   ctx.restore();
-  if (state.source === "video" && s !== lastS && srcEl){ updateTracker(); lastS = s; }
+  if (state.source === "video" && s !== lastS && srcEl){ updateTracker(s); lastS = s; }
   const info = {s, M};
   const list = act.slice().sort((a, b) => (ORDER[a.type] ?? 5) - (ORDER[b.type] ?? 5));
   for (const L of list){
     const lt = T - L.start, [X, Y] = pointFor(L, info);
-    ctx.save(); try { draw[L.type]?.(L, lt, X, Y, S0()*L.size, env(L, lt)); } catch (err) { console.warn(err); } ctx.restore();
+    ctx.save(); try { draw[L.type]?.(L, lt, X, Y, S0()*L.size, env(L, lt), info); } catch (err) { console.warn(err); } ctx.restore();
   }
+  drawMarkers(info);
 }
 
 /* ---------- audio ---------- */
@@ -1148,8 +1213,10 @@ function loadFile(f){
     state.layers = []; state.T = 0; rebuild();
     ensureAudio(); hookVideo();
     $("#srcBadge").textContent = f.name.slice(0, 50); $("#srcBadge").hidden = false;
+    AN.cancel = true; AN.ready = false; AN.tracks = []; AN.events = []; AN.peaks = []; liveHist.length = 0;
+    const startAn = () => AN.running ? setTimeout(startAn, 250) : analyzeVideo(); setTimeout(startAn, 400);
     seek(0); renderAll(); play(true);
-    say(`Videon yüklendi (${state.srcDur.toFixed(1)} sn). Ne yapmak istediğini yaz: “3. saniyede zamanı durdur ve şimşek çaktır” gibi.`, "bot");
+    say(`Videon yüklendi (${state.srcDur.toFixed(1)} sn). Şimdi topaçları bulmak için videoyu tarıyorum; bitince efektler ve izler onları takip edecek. Bu sırada bana ne istediğini yazabilirsin.`, "bot");
   };
 }
 $("#loadBtn").onclick = () => $("#file").click();
@@ -1162,6 +1229,18 @@ document.addEventListener("dragover", e => e.preventDefault());
 document.addEventListener("drop", e => { e.preventDefault(); if (!e.target.closest?.("#screen") && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]); });
 
 cv.addEventListener("click", e => {
+  if (state.picking){
+    state.picking = false;
+    const r0 = cv.getBoundingClientRect(), cx = (e.clientX - r0.left)/r0.width*W, cy = (e.clientY - r0.top)/r0.height*H, s = mapT(state.T).s;
+    let best = -1, bd = 1e9;
+    AN.tracks.forEach((tr, i) => { const p = posAt("t" + i, s); if (!p) return; const d = Math.hypot(p[0] - cx, p[1] - cy); if (d < bd){ bd = d; best = i; } });
+    if (best < 0 || bd > S0()*.25){ say("Tıkladığın yerde takip edilen bir topaç yok. Hedef işaretlerinin göründüğü bir anda tekrar dene.", "bot"); return; }
+    if (best > 0){
+      pushHistory(); const A = AN.tracks[0], B = AN.tracks[best]; AN.tracks[0] = B; AN.tracks[best] = A; [A.color, B.color] = [B.color, A.color];
+      state.layers.forEach(L => { if (L.track === "t0") L.track = "t" + best; else if (L.track === "t" + best) L.track = "t0"; });
+    }
+    renderTrackTab(); renderLayers(); say("Bu topaç artık Hedef 1. “Otomatik” takip eden efektler onu izliyor.", "bot"); return;
+  }
   const L = state.layers.find(l => l.id === state.sel); if (!L || !FX[L.type].pos) return;
   pushHistory();
   const r = cv.getBoundingClientRect();
@@ -1177,6 +1256,7 @@ function showTab(name){ $$(".tab").forEach(b => b.setAttribute("aria-selected", 
 function trackOptions(){
   const o = [["", "Sabit nokta"]];
   if (state.source === "arena" && sim){ o.push(["auto", "Otomatik (kazanan)"]); sim.ids.forEach(i => o.push(["t" + i, "Takip: " + designs[i].name])); }
+  else if (state.source === "video" && AN.ready && AN.tracks.length){ o.push(["auto", "Otomatik (Hedef 1)"]); AN.tracks.forEach((t, i) => o.push(["t" + i, "Takip: Hedef " + (i + 1)])); }
   else o.push(["auto", "Hareket takibi"]);
   return o;
 }
@@ -1187,7 +1267,7 @@ function renderLayers(){
   state.layers.forEach(L => {
     const d = FX[L.type], row = el("div", "lrow" + (L.id === state.sel ? " sel" : ""));
     row.style.setProperty("--c", L.color !== "#ffffff" ? L.color : "#8f96c2");
-    const name = d.label + (L.type === "sfx" || L.type === "emojirain" || L.type === "reaction" || L.type === "onomato" || L.type === "filter" || L.type === "top" ? ": " + L.opt : L.text && d.text !== undefined ? ": " + L.text : "");
+    const name = d.label + (L.type === "sfx" || L.type === "emojirain" || L.type === "reaction" || L.type === "onomato" || L.type === "filter" || L.type === "top" || L.type === "trail" ? ": " + L.opt : L.text && d.text !== undefined ? ": " + L.text : "");
     row.append(el("span", "", d.icon), el("span", "n", name), el("span", "t", `${fmt(L.start)}–${fmt(L.end)}`));
     const x = el("button", "x", "×"); x.title = "Sil"; x.setAttribute("aria-label", "Efekti sil");
     x.onclick = ev => { ev.stopPropagation(); pushHistory(); state.layers = state.layers.filter(l => l !== L); if (state.sel === L.id) state.sel = null; renderLayers(); };
@@ -1255,11 +1335,11 @@ FILTERS.forEach(f => { const b = el("button", "fxb"); b.append(el("span", "", "�
 EMO.forEach(em => { const b = el("button", "emo", em); b.title = "Emoji yağmuru"; b.onclick = () => addAndSelect("emojirain", {opt:em}); $("#emojiGrid").append(b); });
 SFX_NAMES.forEach(n => { const b = el("button", "fxb"); b.append(el("span", "", "🔊"), el("span", "", n)); b.onclick = () => { playSfx(n); addAndSelect("sfx", {opt:n}); }; $("#sfxGrid").append(b); });
 
-function animePause(T, glyph = "ドン", text = ""){
-  pushHistory();
+function animePause(T, glyph = "ドン", text = "", noHist, tgt = "auto"){
+  if (!noHist) pushHistory();
   const s = mapT(T).s;
   changeEdit(e => e.freezes.push({id:uid++, at:s, dur:1.6}), true);
-  const T0 = invS(s), P = sim && state.source === "arena" ? "auto" : "auto";
+  const T0 = invS(s), P = tgt;
   add("impactframe", {start:T0, end:T0 + .35});
   add("speedlines", {start:T0, end:T0 + 1.6, color:"#000000", intensity:1.1, track:P});
   add("onomato", {start:T0 + .05, end:T0 + 1.6, opt:glyph, track:P});
@@ -1379,7 +1459,7 @@ $("#nTops").onchange = e => { state.nTops = +e.target.value; renderTopCards(); }
 $("#power").oninput = e => { state.power = +e.target.value; };
 $("#hud").onchange = e => { state.hud = e.target.checked; };
 $("#battleBtn").onclick = () => startBattle(Math.floor(Math.random()*1e6));
-$("#autoBtn").onclick = () => { if (state.source !== "arena" || !sim){ say("Otomatik efektler arena savaşı için. Önce “Savaşı başlat”a bas.", "bot"); return; } autoAnime(); };
+$("#autoBtn").onclick = () => runAuto();
 $("#arenaBtn").onclick = () => { showTab("arena"); if (state.source !== "arena") startBattle(Math.floor(Math.random()*1e6)); };
 
 function startBattle(seed, quiet){
@@ -1401,7 +1481,7 @@ function renderResult(){
   box.append("Kazanan: ", el("b", "", w.name), ` · ${sim.finish} · ${sim.finishT.toFixed(1)} sn · ${sim.clashes.length} çarpışma`);
 }
 function arenaFrac(x, y){ const c = coverOf(1280, 720), [px, py] = arenaPx(x, y); return [clamp((px*c.sc + c.dx)/W, 0, 1), clamp((py*c.sc + c.dy)/H, 0, 1)]; }
-function autoAnime(noHist){
+function autoAnime(noHist, quiet){
   if (!sim) return;
   if (!noHist) pushHistory();
   state.layers = []; state.sel = null;
@@ -1414,6 +1494,7 @@ function autoAnime(noHist){
   if (hero) state.edit.freezes.push({id:uid++, at:hero.t, dur:1.5});
   rebuild();
   sim.ids.forEach(i => add("aura", {start:0, end:outDur, track:"t" + i, color:designs[i].color, color2:designs[i].color2, intensity:.5, size:.8}));
+  sim.ids.forEach(i => add("trail", {start:0, end:outDur, track:"t" + i, opt:"Neon şerit", color:designs[i].color, color2:designs[i].color2, intensity:.8}));
   add("filter", {start:0, end:outDur, opt:"Anime", intensity:.6});
   add("title", {start:.1, end:1.5, text:"3, 2, 1... FIRLAT!", track:"", x:.5, y:.5});
   add("speedlines", {start:0, end:1.1, track:"", x:.5, y:.55, intensity:.8});
@@ -1450,7 +1531,286 @@ function autoAnime(noHist){
   add("emojirain", {start:Tw, end:outDur, opt:"👑", intensity:.6});
   add("sfx", {start:Tw, opt:"Ta-da"});
   rebuild(); renderAll(); seek(0);
-  if (!noHist){ play(true); say(`Otomatik anime efektleri hazır: en sert çarpışmada zaman duruyor (ドン!), son anda ağır çekim var, ${w.name} kazanıyor. İstediğin yeri değiştir ya da bana yaz.`, "bot"); }
+  const msg = `Otomatik anime efektleri hazır: topaçların arkasında neon iz var, en sert çarpışmada zaman duruyor (ドン!), son anda ağır çekim var, ${w.name} kazanıyor.`;
+  if (!noHist){ play(true); if (!quiet) say(msg, "bot"); }
+  return msg;
+}
+
+/* ---------- topaç takibi: videodaki dönen topaçları bulur ve izler ---------- */
+const AN = {ready:false, running:false, cancel:false, autoAfter:false, tracks:[], events:[], peaks:[], vw:0, vh:0};
+const TCOL = ["#3fd9ff","#ff3d9a","#ffe14d","#5ef2a0"];
+const TRAILS = [["Neon şerit","#3fd9ff","#ffffff"],["Ateş izi","#ff3d1f","#ffe14d"],["Gökkuşağı","#ff3d9a","#ffffff"],["Yıldız tozu","#ffe14d","#ffffff"],["Elektrik","#9b7bff","#ffffff"],["Gölge","#3fd9ff","#ffffff"]];
+state.showMarkers = true; state.picking = false;
+
+function trackPos(id, s){
+  const tr = AN.tracks[id]; if (!tr) return null;
+  const p = tr.pts, n = p.length/3; if (!n) return null;
+  if (s < p[0] - .25 || s > p[(n - 1)*3] + .25) return null;
+  let lo = 0, hi = n - 1;
+  while (hi - lo > 1){ const m = (lo + hi) >> 1; if (p[m*3] <= s) lo = m; else hi = m; }
+  const t0 = p[lo*3], t1 = p[hi*3];
+  if (s <= t0) return [p[lo*3 + 1], p[lo*3 + 2]];
+  if (s >= t1) return [p[hi*3 + 1], p[hi*3 + 2]];
+  if (t1 - t0 > .9) return null;
+  const u = (s - t0)/(t1 - t0);
+  return [p[lo*3 + 1] + (p[hi*3 + 1] - p[lo*3 + 1])*u, p[lo*3 + 2] + (p[hi*3 + 2] - p[lo*3 + 2])*u];
+}
+function posAt(track, s){
+  if (!track) return null;
+  if (state.source === "arena" && sim){
+    let i = track === "auto" ? sim.winner : +track.slice(1); if (!(i < sim.ids.length)) i = sim.winner;
+    const f = frameOf(i, s); return f ? arenaOut(f.x, f.y, f.oz) : null;
+  }
+  if (state.source === "video" && AN.ready && AN.tracks.length){
+    const id = track === "auto" ? 0 : +track.slice(1), p = trackPos(id, s); if (!p) return null;
+    return [p[0]*AN.vw*cov.sc + cov.dx, p[1]*AN.vh*cov.sc + cov.dy];
+  }
+  return null;
+}
+function srcFrac(x, y){ const c = coverOf(AN.vw || 1280, AN.vh || 720); return [clamp((x*(AN.vw || 1280)*c.sc + c.dx)/W, 0, 1), clamp((y*(AN.vh || 720)*c.sc + c.dy)/H, 0, 1)]; }
+function trailPts(L, info, span, n){
+  if (!L.track) return [];
+  const pts = [];
+  if (state.source === "video" && !AN.ready){
+    for (let k = liveHist.length - 1; k >= 0; k--){ const h = liveHist[k]; if (h.s > info.s + 1e-6) continue; if (h.s < info.s - span) break; pts.push([h.x*W, h.y*H]); }
+    return pts;
+  }
+  const lo = state.source === "arena" ? 0 : state.edit.trimIn;
+  for (let k = 0; k <= n; k++){
+    const s = info.s - span*k/n; if (s < lo - 1e-6) break;
+    const p = posAt(L.track, s); if (!p){ pts.push(null); continue; }
+    const q = info.M ? info.M.transformPoint({x:p[0], y:p[1]}) : {x:p[0], y:p[1]}; pts.push([q.x, q.y]);
+  }
+  return pts;
+}
+function drawMarkers(info){
+  if (exporting || !(state.showMarkers || state.picking) || state.source !== "video" || !AN.ready) return;
+  AN.tracks.forEach((tr, i) => {
+    const p = posAt("t" + i, info.s); if (!p) return;
+    const q = info.M.transformPoint({x:p[0], y:p[1]}), r = S0()*.065;
+    ctx.save(); ctx.strokeStyle = tr.color; ctx.lineWidth = Math.max(2, S0()*.004); ctx.setLineDash([8, 6]); ctx.lineDashOffset = -state.T*40;
+    ctx.beginPath(); ctx.arc(q.x, q.y, r, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+    const fs = Math.round(S0()*.028), t = `HEDEF ${i + 1}`;
+    ctx.font = `500 ${fs}px ${F_MONO}`; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    const w = ctx.measureText(t).width; ctx.fillStyle = "rgba(0,0,0,.65)"; ctx.fillRect(q.x - w/2 - 5, q.y - r - fs*1.5, w + 10, fs*1.35);
+    ctx.fillStyle = tr.color; ctx.fillText(t, q.x, q.y - r - fs*.3); ctx.restore();
+  });
+}
+
+async function analyzeVideo(){
+  if (!video.src || AN.running) return;
+  AN.running = true; AN.cancel = false; AN.ready = false; AN.tracks = []; renderTrackTab();
+  setTrackStatus("Topaçları arıyorum… %0", 0);
+  const v = document.createElement("video"); v.muted = true; v.preload = "auto"; v.playsInline = true; v.src = video.src;
+  const ok = await new Promise(res => { v.onloadeddata = () => res(true); v.onerror = () => res(false); setTimeout(() => res(v.readyState >= 2), 5000); });
+  if (!ok){ AN.running = false; setTrackStatus("Video taranamadı. Başka bir video dene."); renderTrackTab(); return; }
+  const vw = v.videoWidth || 640, vh = v.videoHeight || 360;
+  let aw = 160, ah = Math.round(160*vh/vw); if (ah > 200){ ah = 200; aw = Math.round(200*vw/vh); }
+  const c = mkCanvas(aw, ah), g = c.getContext("2d", {willReadFrequently:true});
+  const dur = v.duration || state.srcDur, fps = dur > 60 ? 8 : dur > 25 ? 10 : 15, step = 1/fps;
+  const N = aw*ah, minA = Math.max(4, N*.0007), maxA = N*.18, gate = Math.max(aw, ah)*.22, maxMiss = Math.round(fps*.8);
+  const seekTo = t => new Promise(res => { let done = false; const f = () => { if (done) return; done = true; v.removeEventListener("seeked", f); res(); }; v.addEventListener("seeked", f); v.currentTime = t; setTimeout(f, 1500); });
+  let prev = null, nextId = 0; const active = [], done = [], energy = [];
+  for (let fi = 0; fi*step < dur; fi++){
+    const t = fi*step;
+    if (AN.cancel) break;
+    await seekTo(t);
+    g.drawImage(v, 0, 0, aw, ah);
+    const d = g.getImageData(0, 0, aw, ah).data, lum = new Float32Array(N);
+    for (let i = 0; i < N; i++) lum[i] = d[i*4]*.3 + d[i*4 + 1]*.59 + d[i*4 + 2]*.11;
+    if (prev){
+      let sum = 0; const diff = new Float32Array(N);
+      for (let i = 0; i < N; i++){ diff[i] = Math.abs(lum[i] - prev[i]); sum += diff[i]; }
+      const thr = Math.max(18, sum/N*3), mask = new Uint8Array(N); let cnt = 0;
+      for (let i = 0; i < N; i++) if (diff[i] > thr){ mask[i] = 1; cnt++; }
+      energy.push(t, cnt/N);
+      const blobs = [];
+      if (cnt/N < .35){
+        const m2 = new Uint8Array(N);
+        for (let y = 1; y < ah - 1; y++) for (let x = 1; x < aw - 1; x++){ const i = y*aw + x; if (mask[i] || mask[i - 1] || mask[i + 1] || mask[i - aw] || mask[i + aw]) m2[i] = 1; }
+        const seen = new Uint8Array(N), st = [];
+        for (let i = 0; i < N; i++){
+          if (!m2[i] || seen[i]) continue;
+          let a = 0, sx = 0, sy = 0, r = 0, gg = 0, b = 0; st.push(i); seen[i] = 1;
+          while (st.length){
+            const j = st.pop(), x = j % aw, y = (j/aw) | 0; a++; sx += x; sy += y; r += d[j*4]; gg += d[j*4 + 1]; b += d[j*4 + 2];
+            if (x > 0 && m2[j - 1] && !seen[j - 1]){ seen[j - 1] = 1; st.push(j - 1); }
+            if (x < aw - 1 && m2[j + 1] && !seen[j + 1]){ seen[j + 1] = 1; st.push(j + 1); }
+            if (y > 0 && m2[j - aw] && !seen[j - aw]){ seen[j - aw] = 1; st.push(j - aw); }
+            if (y < ah - 1 && m2[j + aw] && !seen[j + aw]){ seen[j + aw] = 1; st.push(j + aw); }
+          }
+          if (a >= minA && a <= maxA) blobs.push({x:sx/a, y:sy/a, a, c:[r/a, gg/a, b/a]});
+        }
+      }
+      const pairs = [];
+      active.forEach((tr, ti) => {
+        const px = tr.x + tr.vx*(tr.miss + 1), py = tr.y + tr.vy*(tr.miss + 1);
+        blobs.forEach((bl, bi) => {
+          const dist = Math.hypot(bl.x - px, bl.y - py); if (dist > gate*(1 + tr.miss*.15)) return;
+          const cd = Math.hypot(bl.c[0] - tr.c[0], bl.c[1] - tr.c[1], bl.c[2] - tr.c[2]);
+          pairs.push({ti, bi, cost: dist/aw + cd/441*.35});
+        });
+      });
+      pairs.sort((p, q) => p.cost - q.cost);
+      const usedT = new Set(), usedB = new Set();
+      for (const p of pairs){
+        if (usedT.has(p.ti) || usedB.has(p.bi)) continue; usedT.add(p.ti); usedB.add(p.bi);
+        const tr = active[p.ti], bl = blobs[p.bi], k = tr.miss + 1;
+        tr.vx = tr.vx*.5 + (bl.x - tr.x)/k*.5; tr.vy = tr.vy*.5 + (bl.y - tr.y)/k*.5;
+        tr.x = bl.x; tr.y = bl.y; tr.miss = 0; tr.area += bl.a; tr.c = tr.c.map((v0, q) => v0*.8 + bl.c[q]*.2);
+        tr.pts.push(t, bl.x/aw, bl.y/ah);
+      }
+      for (let i = active.length - 1; i >= 0; i--) if (!usedT.has(i)){ const tr = active[i]; tr.miss++; if (tr.miss > maxMiss){ done.push(tr); active.splice(i, 1); } }
+      blobs.forEach((bl, bi) => { if (!usedB.has(bi) && bl.a >= minA*1.5 && active.length < 12) active.push({id:nextId++, x:bl.x, y:bl.y, vx:0, vy:0, miss:0, area:bl.a, c:bl.c, pts:[t, bl.x/aw, bl.y/ah]}); });
+    }
+    prev = lum;
+    if (fi % 4 === 0) setTrackStatus(`Topaçları arıyorum… %${Math.round(t/dur*100)}`, t/dur);
+  }
+  done.push(...active);
+  v.removeAttribute("src"); try { v.load(); } catch (e) {}
+  if (AN.cancel){ AN.running = false; AN.autoAfter = false; setTrackStatus("Tarama durduruldu. İstediğinde tekrar başlatabilirsin."); renderTrackTab(); return; }
+  // kopan parçaları birleştir
+  let segs = done.filter(tr => tr.pts.length >= 9).sort((a, b) => a.pts[0] - b.pts[0]);
+  let merged = true;
+  while (merged){
+    merged = false;
+    for (const A of segs){
+      if (A.dead) continue;
+      const te = A.pts[A.pts.length - 3], xe = A.pts[A.pts.length - 2], ye = A.pts[A.pts.length - 1];
+      let best = null, bc = 1e9;
+      for (const B of segs){
+        if (B === A || B.dead) continue; const ts = B.pts[0]; if (ts <= te || ts - te > 1) continue;
+        const dd = Math.hypot((B.pts[1] - xe)*aw, (B.pts[2] - ye)*ah); if (dd > gate*1.5) continue;
+        const cd = Math.hypot(B.c[0] - A.c[0], B.c[1] - A.c[1], B.c[2] - A.c[2]), cost = dd/aw + cd/441*.5 + (ts - te)*.2;
+        if (cost < bc){ bc = cost; best = B; }
+      }
+      if (best){ A.pts.push(...best.pts); A.area += best.area; best.dead = true; merged = true; }
+    }
+    segs = segs.filter(x => !x.dead);
+  }
+  segs.forEach(tr => {
+    const p = tr.pts, n = p.length/3, q = p.slice();
+    for (let i = 0; i < n; i++){ let sx = 0, sy = 0, c2 = 0; for (let k = -2; k <= 2; k++){ const j = i + k; if (j < 0 || j >= n || Math.abs(p[j*3] - p[i*3]) > .4) continue; sx += p[j*3 + 1]; sy += p[j*3 + 2]; c2++; } q[i*3 + 1] = sx/c2; q[i*3 + 2] = sy/c2; }
+    tr.pts = Float32Array.from(q); tr.score = n*Math.sqrt(tr.area/n); tr.len = p[(n - 1)*3] - p[0];
+  });
+  const keep = segs.filter(tr => tr.len >= Math.min(1, dur*.15)).sort((a, b) => b.score - a.score).slice(0, 4);
+  AN.tracks = keep.map((tr, i) => ({pts:tr.pts, color:TCOL[i], start:tr.pts[0], end:tr.pts[tr.pts.length - 3], c:tr.c}));
+  AN.vw = vw; AN.vh = vh;
+  // çarpışmalar: iki hedefin çok yaklaştığı anlar
+  AN.events = [];
+  for (let i = 0; i < AN.tracks.length; i++) for (let j = i + 1; j < AN.tracks.length; j++){
+    let pd = 9, pd2 = 9, last = -9;
+    for (let t = 0; t < dur; t += step){
+      const a = trackPos(i, t), b = trackPos(j, t); if (!a || !b){ pd = pd2 = 9; continue; }
+      const dd = Math.hypot(a[0] - b[0], (a[1] - b[1])*vh/vw);
+      if (pd < .09 && pd <= dd && pd <= pd2 && t - last > .5){ AN.events.push({t:t - step, x:(a[0] + b[0])/2, y:(a[1] + b[1])/2, power:(.1 - pd)*12 + .3, a:i, b:j}); last = t; }
+      pd2 = pd; pd = dd;
+    }
+  }
+  const ev2 = [];
+  for (let k = 1; k < energy.length/2 - 1; k++){ const e0 = energy[k*2 + 1]; if (e0 > energy[k*2 - 1] && e0 >= energy[k*2 + 3]) ev2.push({t:energy[k*2], power:e0}); }
+  ev2.sort((a, b) => b.power - a.power); AN.peaks = [];
+  for (const p of ev2){ if (AN.peaks.every(q => Math.abs(q.t - p.t) > .8)) AN.peaks.push(p); if (AN.peaks.length >= 5) break; }
+  const mx = AN.peaks[0]?.power || 1; AN.peaks.forEach(p => { p.power = p.power/mx; });
+  AN.ready = true; AN.running = false;
+  renderTrackTab(); renderLayers();
+  say(AN.tracks.length ? `Tarama bitti: ${AN.tracks.length} topaç buldum${AN.events.length ? ` ve ${AN.events.length} çarpışma yakaladım` : ""}. Takip sekmesinde hedefleri görebilir, iz ve aura ekleyebilirsin.` : "Tarama bitti ama hareket eden bir topaç bulamadım. Efektler canlı hareket takibiyle çalışmaya devam edecek.", "bot");
+  if (AN.autoAfter){ AN.autoAfter = false; autoAnimeVideo(); }
+}
+function setTrackStatus(t, frac){
+  $("#trkInfo").textContent = t;
+  const p = $("#trkProg"); p.hidden = frac === undefined; if (frac !== undefined) p.firstElementChild.style.width = Math.round(frac*100) + "%";
+}
+function targetName(i){ return state.source === "arena" && sim ? (designs[i]?.name || `Topaç ${i + 1}`) : `Hedef ${i + 1}`; }
+function targetColor(tv){
+  if (!tv || tv === "auto") tv = state.source === "arena" && sim ? "t" + sim.winner : "t0";
+  const i = +tv.slice(1);
+  if (state.source === "arena" && sim) return designs[i]?.color || null;
+  return AN.tracks[i]?.color || null;
+}
+function targetList(){
+  if (state.source === "arena" && sim) return sim.ids.map(i => ({val:"t" + i, name:designs[i].name, color:designs[i].color}));
+  if (state.source === "video" && AN.ready) return AN.tracks.map((t, i) => ({val:"t" + i, name:`Hedef ${i + 1}`, color:t.color, span:`${fmt(t.start)}–${fmt(t.end)} arası görünüyor`}));
+  return [];
+}
+function renderTrackTab(){
+  const isVid = state.source === "video";
+  $("#anBtn").hidden = !isVid || AN.running; $("#anStop").hidden = !AN.running;
+  $("#anBtn").textContent = AN.ready ? "🎯 Yeniden tara" : "🎯 Topaçları bul ve takip et";
+  $("#pickBtn").hidden = !(isVid && AN.ready && AN.tracks.length > 1);
+  $("#showMk").checked = state.showMarkers;
+  if (!AN.running){
+    if (!isVid) setTrackStatus("Arenadaki topaçlar birebir takip ediliyor. Aşağıdan her birine aura ya da iz ekleyebilirsin. Kendi videondaki topaçları takip etmek için önce video yükle.");
+    else if (!AN.ready) setTrackStatus("Videondaki dönen topaçları bulmak için düğmeye bas. Video bir kez baştan sona taranır.");
+    else setTrackStatus(AN.tracks.length ? `${AN.tracks.length} hedef bulundu. “Otomatik” takip eden efektler Hedef 1'i izler. Yanlış topaçsa “Ana hedefi seç”e bas.` : "Hareket eden bir topaç bulunamadı. Efektler canlı hareket takibini kullanıyor.");
+  }
+  const box = $("#tgtList"); box.textContent = "";
+  targetList().forEach(tg => {
+    const it = el("div", "eitem"); it.style.setProperty("--c", tg.color);
+    it.append(el("b", "", tg.name)); if (tg.span) it.append(el("span", "lab", tg.span));
+    const b1 = el("button", "btn sm", "Aura + iz");
+    b1.onclick = () => { pushHistory(); add("aura", {start:0, end:outDur, track:tg.val, color:tg.color, intensity:.6}); const L = add("trail", {start:0, end:outDur, track:tg.val, color:tg.color}); state.sel = L.id; renderLayers(); say(`${tg.name} için aura ve iz eklendi.`, "bot"); if (!state.playing) play(true); };
+    const b2 = el("button", "btn sm", "Sadece iz"); b2.onclick = () => addAndSelect("trail", {start:0, end:outDur, track:tg.val, color:tg.color});
+    it.append(b1, b2);
+    if (isVid){
+      const s = el("select"); s.setAttribute("aria-label", "Topaç"); designs.forEach((d, i) => { const o = el("option", "", d.name); o.value = i; s.append(o); });
+      const b3 = el("button", "btn sm", "Topacımı koy"); b3.onclick = () => addAndSelect("top", {opt:"Topaç " + (+s.value + 1), start:0, end:outDur, track:tg.val});
+      it.append(s, b3);
+    }
+    box.append(it);
+  });
+  const sel = $("#trailTgt"), keep = sel.value; sel.textContent = "";
+  trackOptions().filter(([v]) => v).forEach(([v, t]) => { const o = el("option", "", t.replace("Takip: ", "")); o.value = v; sel.append(o); });
+  if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+}
+TRAILS.forEach(([n, c1, c2]) => {
+  const b = el("button", "fxb"); b.append(el("span", "", "☄️"), el("span", "", n));
+  b.onclick = () => { const tv = $("#trailTgt").value || "auto"; const tc2 = targetColor(tv); addAndSelect("trail", {opt:n, start:0, end:outDur, track:tv, color: n === "Neon şerit" && tc2 ? tc2 : c1, color2:c2}); };
+  $("#trailGrid").append(b);
+});
+$("#anBtn").onclick = () => analyzeVideo();
+$("#anStop").onclick = () => { AN.cancel = true; };
+$("#pickBtn").onclick = () => { state.picking = true; if (state.playing) play(false); say("Şimdi videoda ana topacın üstüne tıkla.", "bot"); };
+$("#showMk").onchange = e => { state.showMarkers = e.target.checked; };
+$("#autoBtn2").onclick = () => runAuto();
+
+function autoAnimeVideo(quiet){
+  pushHistory();
+  state.layers = []; state.sel = null;
+  state.edit = {trimIn:state.edit.trimIn, trimOut:state.edit.trimOut, speeds:[], freezes:[]};
+  const ev = AN.events.map(e => ({t:e.t, p:e.power, xy:srcFrac(e.x, e.y)}));
+  AN.peaks.forEach(p => { if (ev.every(e => Math.abs(e.t - p.t) > .6)) ev.push({t:p.t, p:p.power*.6, xy:null}); });
+  ev.sort((a, b) => b.p - a.p);
+  const hero = ev.find(e => e.t > .5 && e.t < state.srcDur - .5) || null;
+  if (hero) state.edit.freezes.push({id:uid++, at:hero.t, dur:1.5});
+  rebuild();
+  const tg = AN.tracks.length ? AN.tracks.slice(0, 2).map((t, i) => ["t" + i, t.color]) : [["auto", "#3fd9ff"]];
+  tg.forEach(([tv, col]) => { add("trail", {start:0, end:outDur, track:tv, opt:"Neon şerit", color:col}); add("aura", {start:0, end:outDur, track:tv, color:col, intensity:.45, size:.8}); });
+  add("filter", {start:0, end:outDur, opt:"Anime", intensity:.6});
+  add("title", {start:.1, end:1.5, text:"SAVAŞ BAŞLASIN!", track:"", x:.5, y:.5}); add("sfx", {start:.1, opt:"Vuuş"});
+  const pos = e => e.xy ? {track:"", x:e.xy[0], y:e.xy[1]} : {track:"auto"};
+  ev.filter(e => e !== hero).slice(0, 5).forEach(e => { const T = invS(e.t); add("sparks", {start:T, end:T + 1, ...pos(e)}); add("shockwave", {start:T, end:T + .8, intensity:.8, ...pos(e)}); add("shake", {start:T, end:T + .35, intensity:.7}); add("sfx", {start:T, opt:"Metal çarpma"}); });
+  if (hero){
+    const T = invS(hero.t), p = pos(hero);
+    add("impactframe", {start:T, end:T + .35}); add("speedlines", {start:T, end:T + 1.5, color:"#000000", intensity:1.1, ...p}); add("onomato", {start:T + .05, end:T + 1.5, opt:"ドン", ...p});
+    add("title", {start:T + .3, end:T + 1.5, text:"SÜPER SALDIRI!", track:"", x:.5, y:.78}); add("flash", {start:T, end:T + .15}); add("sfx", {start:T, opt:"Boom"});
+    add("shockwave", {start:T + 1.5, end:T + 2.3, ...p}); add("sparks", {start:T + 1.5, end:T + 2.5, ...p}); add("shake", {start:T + 1.5, end:T + 2}); add("chroma", {start:T + 1.5, end:T + 1.9});
+  }
+  rebuild(); renderAll(); seek(0); play(true);
+  const msg = `Otomatik anime kurgusu hazır: ${AN.tracks.length ? AN.tracks.length + " topaç takip ediliyor, arkalarında neon iz var" : "canlı hareket takibi açık"}${hero ? ", en sert anda zaman duruyor (ドン!)" : ""}.`;
+  if (!quiet) say(msg, "bot");
+  return msg;
+}
+function runAuto(quiet){
+  if (state.source === "arena" && sim) return autoAnime(false, quiet);
+  if (state.source === "video"){
+    if (AN.ready) return autoAnimeVideo(quiet);
+    AN.autoAfter = true; if (!AN.running) analyzeVideo();
+    const msg = "Önce videodaki topaçları buluyorum. Tarama bitince otomatik anime efektlerini kendim kuracağım.";
+    if (!quiet) say(msg, "bot");
+    return msg;
+  }
+  return "Önce bir savaş başlat ya da video yükle.";
 }
 
 /* ---------- AI ---------- */
@@ -1459,7 +1819,7 @@ const log = $("#log");
 function say(text, cls){ const m = el("div", "msg " + cls, text); log.append(m); log.scrollTop = log.scrollHeight; return m; }
 let toastEl = null;
 function toastMsg(t){ say(t, "bot"); }
-const CHIPS = ["En büyük çarpışmada zamanı durdur", "Ağır çekim ve şimşek", "MLG meme modu", "Mavi aura, “FIRTINA SALDIRISI!” yazsın", "Dikey TikTok formatı yap"];
+const CHIPS = ["Her çarpışmada kıvılcım ve sarsıntı", "En büyük çarpışmada zamanı durdur", "Kazanana ateş izi ekle", "2 saniye ağır çekim, sonra patlama", "MLG meme modu", "Yardım"];
 CHIPS.forEach(c => { const b = el("button", "chip", c); b.onclick = () => { $("#prompt").value = c; ask(); }; $("#chips").append(b); });
 
 let samplePromise = null, sampleDead = false;
@@ -1504,6 +1864,8 @@ async function askClaude(sample, q){
     arenaInfo = `\nThis is a simulated spinning-top battle. Tops (track ids): ${sim.ids.map(i => `t${i}=${designs[i].name} (atk ${designs[i].atk}, def ${designs[i].def}, stamina ${designs[i].sta}, color ${designs[i].color})`).join("; ")}.
 Winner: ${designs[sim.winner].name} by ${sim.finish} at source ${sim.finishT.toFixed(2)}s. Biggest clashes: ${JSON.stringify(big)}. Ring-outs: ${JSON.stringify(sim.events.filter(e => e.type === "out").map(e => ({sourceT:+e.t.toFixed(2), top:designs[e.i].name})))}.
 "track" may be "t0".."t${sim.ids.length - 1}" to follow a specific top, "auto" follows the winner.`;
+  } else if (state.source === "video" && AN.ready){
+    arenaInfo = `\nThe motion tracker found ${AN.tracks.length} moving targets (spinning tops): ${AN.tracks.map((t, i) => `t${i} visible source ${t.start.toFixed(1)}-${t.end.toFixed(1)}s`).join(", ")}. "auto" follows t0. Detected clashes: ${JSON.stringify(AN.events.slice(0, 10).map(e => ({sourceT:+e.t.toFixed(2), outputT:+invS(e.t).toFixed(2), x:+srcFrac(e.x, e.y)[0].toFixed(2), y:+srcFrac(e.x, e.y)[1].toFixed(2)})))}. Action peaks (source s): ${JSON.stringify(AN.peaks.map(p => +p.t.toFixed(2)))}.`;
   }
   const prompt = `You are ${AI_NAME}, the VFX artist and video editor inside "Kasırga FX", a free browser app where kids make anime-style edits of spinning-top battles and their own videos. Turn the request into an edit.
 
@@ -1515,10 +1877,10 @@ Output timeline = source with freezes inserted and speed changes applied. Output
 Effect layers use OUTPUT seconds. Types:
 ${Object.keys(FX).map(k => `- ${k}: ${DESC[k]}`).join("\n")}
 
-Layer fields: {"type","start","end","x","y","track" ("" fixed at x,y | "auto" follow the moving subject${state.source === "arena" ? " | t0..t3" : ""}),"color","color2" (#rrggbb),"size" (0.3-2.5),"intensity" (0.2-2),"text","opt"}.
+Layer fields: {"type","start","end","x","y","track" ("" fixed at x,y | "auto" follow the moving subject${state.source === "arena" || AN.ready ? " | t0..t3" : ""}),"color","color2" (#rrggbb),"size" (0.3-2.5),"intensity" (0.2-2),"text","opt"}.
 Current layers: ${JSON.stringify(cur).slice(0, 6000)}
 
-Rules: return COMPLETE new lists (keep current items unless asked to change/remove). A great anime moment = freeze + impactframe + black speedlines + onomato + flash + sfx Boom, then shake + chroma after the freeze. Use memes when the user asks for funny/meme stuff. At most 24 layers. If the user asks for vertical/TikTok set "format":"9:16" (or "16:9", "1:1").
+Rules: return COMPLETE new lists (keep current items unless asked to change/remove). A great anime moment = freeze + impactframe + black speedlines + onomato + flash + sfx Boom, then shake + chroma after the freeze. Use memes when the user asks for funny/meme stuff. Add trail layers on tracked tops when the user wants trails (iz). At most 24 layers. If the user asks for vertical/TikTok set "format":"9:16" (or "16:9", "1:1").
 
 Reply with ONLY JSON: {"reply":"1-2 short friendly Turkish sentences about what you did","freezes":[...],"speeds":[...],"format":null,"layers":[...]}
 
@@ -1533,7 +1895,7 @@ function applyAI(o){
   if (Array.isArray(o.speeds)) state.edit.speeds = o.speeds.filter(s => s && isFinite(+s.a) && isFinite(+s.b)).slice(0, 8).map(s => ({id:uid++, a:clamp(+s.a, 0, state.srcDur), b:clamp(+s.b, 0, state.srcDur), rate:clamp(+s.rate || 1, .25, 3)})).filter(s => s.b > s.a);
   rebuild();
   const hex = v => /^#[0-9a-f]{6}$/i.test(v) ? v : null;
-  const okTrack = v => v === "" || v === "auto" || (/^t[0-3]$/.test(v) && state.source === "arena" && sim && +v[1] < sim.ids.length) ? v : "auto";
+  const okTrack = v => (v === "" || v === "auto" || (/^t[0-3]$/.test(v) && ((state.source === "arena" && sim && +v[1] < sim.ids.length) || (state.source === "video" && AN.ready && +v[1] < AN.tracks.length)))) ? v : "auto";
   state.layers = o.layers.slice(0, 30).filter(l => l && FX[l.type]).map(l => {
     const d = FX[l.type];
     return mk(l.type, {start:+l.start || 0, end:+l.end || (+l.start || 0) + (d.dur === "all" ? outDur : d.dur),
@@ -1546,83 +1908,298 @@ function applyAI(o){
   return String(o.reply || "Tamamdır!").slice(0, 400);
 }
 
-/* Nova's own command understanding (works without an account) */
-const COLORS = {mavi:"#2fb8ff", blue:"#2fb8ff", "kırmızı":"#ff2b3d", kirmizi:"#ff2b3d", red:"#ff2b3d", mor:"#9b5cff", purple:"#9b5cff", "yeşil":"#3dff8a", yesil:"#3dff8a", green:"#3dff8a",
-  "sarı":"#ffe14d", sari:"#ffe14d", yellow:"#ffe14d", turuncu:"#ff8a1f", orange:"#ff8a1f", pembe:"#ff4fb8", pink:"#ff4fb8", beyaz:"#ffffff", white:"#ffffff", "altın":"#ffc83d", altin:"#ffc83d", gold:"#ffc83d",
-  siyah:"#202030", turkuaz:"#3fe8d9", buz:"#9fe8ff"};
+/* ---------- Nova: Türkçe komut anlama (hesap gerekmeden çalışır) ---------- */
+const deacc = s => s.toLocaleLowerCase("tr").replace(/ş/g, "s").replace(/ı/g, "i").replace(/ğ/g, "g").replace(/ü/g, "u").replace(/ö/g, "o").replace(/ç/g, "c").replace(/[âä]/g, "a").replace(/î/g, "i").replace(/û/g, "u");
+function lev(a, b){
+  const m = a.length, n = b.length; if (Math.abs(m - n) > 2) return 9;
+  let p = Array.from({length:n + 1}, (_, j) => j);
+  for (let i = 1; i <= m; i++){ const c = [i]; for (let j = 1; j <= n; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); p = c; }
+  return p[n];
+}
+// kelime kökü eşleşmesi: "şimşeği" -> "simse", yazım hatalarına (1 harf) izin verir
+function hasR(txt, list){
+  const pad = " " + txt + " ", words = txt.split(" ").filter(Boolean);
+  return list.some(r => {
+    if (r.includes(" ")) return pad.includes(" " + r);
+    for (const w of words){ if (w.startsWith(r)) return true; if (r.length >= 5 && w.length >= r.length - 1 && lev(w.slice(0, r.length), r) <= 1) return true; }
+    return false;
+  });
+}
+const hasW = (txt, list) => { const w = txt.split(" "); return list.some(x => w.includes(x)); };
+
+const NK = [
+  {k:"pause", r:["dondur","duraklat","durdur","zaman dur","zamani dur","freeze","zaman dursun","anime durak","zamani yavaslat ve dur"]},
+  {k:"slow", r:["agir cekim","yavas","slow"]},
+  {k:"fast", r:["hizlandir","hizli sar","hizli oynat","fast forward"]},
+  {k:"impact", r:["patla","darbe","impact","boom","kaboom","guum"], w:["bum"]},
+  {k:"aura", r:["aura","enerji","alev","power up","guclen"]},
+  {k:"vortex", r:["girdap","donus","kasirga","firtina","tornado","ruzgar","vortex","hortum"]},
+  {k:"speedlines", r:["hiz cizgi","speed line","odak cizgi","cizgiler","cizgi"]},
+  {k:"sparks", r:["kivilcim","kivilcik","spark"]},
+  {k:"lightning", r:["simsek","yildirim","elektrik","lightning","thunder"]},
+  {k:"shockwave", r:["sok dalga","dalga","shockwave","halka"]},
+  {k:"slash", r:["kilic","kesik","slash","kesme"]},
+  {k:"beam", r:["isin","lazer","beam","kamehameha","huzme"]},
+  {k:"impactframe", r:["darbe kare","impact frame","ters renk","negatif"]},
+  {k:"onomato", r:["manga ses","japonca","don efekt","gogogo","dododo","onomato"]},
+  {k:"chroma", r:["glitch","renk kay","bozul","rgb"]},
+  {k:"manga", r:["manga sayfa","manga yap","manga gibi","cizgi roman"]},
+  {k:"flash", r:["parlama","parlasin","flas","flash","beyaz ekran"]},
+  {k:"shake", r:["sars","titre","salla","deprem","shake"]},
+  {k:"zoom", r:["zoom","yakinlas","yaklas","yakin cek"]},
+  {k:"trail", r:["iz birak","trail","kuyruk"], w:["iz","izi","izini","izler","izleri","izli","izle"]},
+  {k:"sunglasses", r:["gozluk","deal with","havali"]},
+  {k:"emojirain", r:["emoji","yagdir"]},
+  {k:"reaction", r:["tepki","surat"]},
+  {k:"devam", r:["devam edecek","to be continued"]},
+  {k:"elendin", r:["elendi","kaybetti","yenildi","wasted","elenme"]},
+  {k:"drama", r:["dramatik","drama","gerilim"]},
+  {k:"mlg", r:["mlg","hitmarker","vurus isaret"]},
+  {k:"funny", r:["komik","guldur","gulme","haha","kahkaha","eglenceli"]},
+  {k:"circle", r:["daire","isaretle","ok koy","yuvarlak","cember"]},
+  {k:"topput", r:["topacimi koy","topac koy","benim topac","topacimi ekle","kendi topac"]},
+  {k:"subtitle", r:["altyazi"]},
+  {k:"caption", r:["meme yazi","ust yazi","alt yazi"]},
+  {k:"title", r:["saldiri adi","yazi","yazsin","baslik"]}
+];
+const NK_LABEL = {pause:"zamanı durdur", slow:"ağır çekim", fast:"hızlandır", impact:"patlama", drama:"dramatik", mlg:"MLG modu", funny:"komik yap", topput:"topacımı koy", trail:"iz (trail)"};
+const NFIL = [["Siyah-beyaz",["siyah beyaz","siyah-beyaz","gri ton"]],["Sepya",["sepya","eski film","nostalji"]],["Neon",["neon"]],["VHS",["vhs","retro","kaset","eski video"]],
+  ["Sıcak",["sicak renk","sicak filtre","yaz filtre"]],["Soğuk",["soguk renk","soguk filtre","buzlu"]],["Anime",["anime renk","anime filtre","canli renk","renkleri canlandir"]]];
+const NSFX = [["Korna",["korna","airhorn"]],["Boom",["boom"]],["Vuuş",["vuus","whoosh"]],["Ding",["ding","zil sesi"]],["Plak cızırtısı",["plak","cizirti","scratch"]],
+  ["Metal çarpma",["metal ses","cinlama","clang"]],["Dramatik",["dramatik ses","dun dun"]],["Bas düşüşü",["bas dus","bass","bas sesi"]],["Ta-da",["tada","ta-da","alkis","tebrik"]]];
+const NEMO = [["😂",["gul","komik","kahkaha"]],["💀",["kafatas","iskelet","olum"]],["🔥",["ates","yangin"]],["😱",["sok","korku","saskin","sasir"]],["💯",["yuz puan"]],
+  ["👑",["tac","kral","sampiyon"]],["😭",["agla","uzgun"]],["🗿",["moai","tas yuz","tas surat"]],["😎",["havali","cool"]],["🤯",["beyin","inanilmaz"]],["⚡",["yildirim emoji"]],["🌀",["girdap emoji"]]];
+const NCOL = [["kirmizi","#ff2b3d"],["mavi","#2fb8ff"],["lacivert","#2f4bff"],["mor","#9b5cff"],["yesil","#3dff8a"],["sari","#ffe14d"],["turuncu","#ff8a1f"],["pembe","#ff4fb8"],
+  ["beyaz","#ffffff"],["altin","#ffc83d"],["siyah","#202030"],["turkuaz","#3fe8d9"],["buz","#9fe8ff"],["gri","#a0a8c0"],["red","#ff2b3d"],["blue","#2fb8ff"],["green","#3dff8a"],["purple","#9b5cff"],["yellow","#ffe14d"],["pink","#ff4fb8"]];
+const NPOS = [["sag ust",[.8,.2]],["sol ust",[.2,.2]],["sag alt",[.8,.8]],["sol alt",[.2,.8]],["ortaya",[.5,.5]],["merkeze",[.5,.5]],["ekranin ortas",[.5,.5]],["ustte",[.5,.18]],["yukarida",[.5,.18]],["altta",[.5,.82]],["asagida",[.5,.82]],["sagda",[.8,.5]],["solda",[.2,.5]]];
+const colorOf = w => { for (const [k, v] of NCOL) if (w.startsWith(k)) return v; return null; };
+const NOVA_HELP = `Bana normal Türkçe yaz, ben anlarım. Örnekler:
+• “4. saniyede zamanı durdur, ドン yazsın”
+• “her çarpışmada kıvılcım ve sarsıntı”
+• “kazanana ateş izi ekle” / “kırmızı topaca mavi aura”
+• “2 saniye ağır çekim, sonra patlama”
+• “şimşeği mor yap”, “aurayı sil”, “daha büyük yap”, “uzat”
+• “MLG modu”, “komik yap”, “dramatik”, “elendi”, “devam edecek”
+• “siyah beyaz”, “VHS”, “dikey TikTok formatı”
+• “otomatik anime yap”, “topaçları bul” (videoda)`;
+const NOVA_TIPS = ["İstersen “daha büyük yap” ya da “rengini mor yap” diyerek düzeltebilirsin.", "Beğenmezsen “geri al” yaz.", "Bir efekte tıklayıp görüntüde yerini değiştirebilirsin.", "“her çarpışmada …” dersen tüm çarpışmalara eklerim.", ""];
+let novaLast = [];
+
+function novaEvents(){
+  if (state.source === "arena" && sim) return {cl: sim.clashes.map(c => ({t:c.t, p:c.power, xy:arenaFrac(c.x, c.y)})), outs: sim.events.filter(e => e.type === "out").map(e => ({t:e.t, xy:arenaFrac(e.x, e.y)})), fin: sim.finishT};
+  if (state.source === "video" && AN.ready){
+    const cl = AN.events.map(e => ({t:e.t, p:e.power, xy:srcFrac(e.x, e.y)}));
+    if (cl.length < 2) AN.peaks.forEach(p => cl.push({t:p.t, p:p.power*.5, xy:null}));
+    return {cl, outs:[], fin:null};
+  }
+  return {cl:[], outs:[], fin:null};
+}
+function novaTime(c, E){
+  let m;
+  if ((m = c.match(/(\d+):(\d{1,2}(?:[.,]\d+)?)/))) return {Ts:[+m[1]*60 + parseFloat(m[2].replace(",", "."))], label:null};
+  if ((m = c.match(/(\d+(?:[.,]\d+)?)\s*(?:inci|nci|uncu|ncu|unci)?\s*(?:saniye|sn|sec|s(?=\s|$))/))) return {Ts:[parseFloat(m[1].replace(",", "."))], label:null};
+  const byT = [...E.cl].sort((a, b) => a.t - b.t), byP = [...E.cl].sort((a, b) => b.p - a.p);
+  const one = (e, label) => e ? {Ts:[invS(e.t)], label, xys:[e.xy]} : {Ts:[], miss:true};
+  if (hasR(c, ["her carpis","tum carpis","butun carpis","her vurus","her darbe","her temas"])){
+    const sel = []; for (const e of byP){ if (sel.every(x => Math.abs(x.t - e.t) > .5)) sel.push(e); if (sel.length >= 8) break; }
+    sel.sort((a, b) => a.t - b.t);
+    return sel.length ? {Ts:sel.map(e => invS(e.t)), label:"her çarpışma", xys:sel.map(e => e.xy), multi:true} : {Ts:[], miss:true};
+  }
+  if (hasR(c, ["en buyuk","en sert","en guclu","en iyi an","en epik","en hizli","en heyecan"])) return one(byP[0], "en büyük çarpışma");
+  if (hasR(c, ["ilk carpis","ilk vurus","ilk temas"])) return one(byT[0], "ilk çarpışma");
+  if (hasR(c, ["son carpis","son vurus"])) return one(byT[byT.length - 1], "son çarpışma");
+  if (hasR(c, ["carpis","carpinca","carptig","vurus aninda","carpma aninda","temas"])) return one(byP[0], "en büyük çarpışma");
+  if (hasR(c, ["disari"])) return E.outs[0] ? {Ts:[invS(E.outs[0].t)], label:"dışarı atıldığı an", xys:[E.outs[0].xy]} : {Ts:[], miss:true};
+  if (hasR(c, ["kazaninca","kazandig","bitince","bitiste","sonunda","sonda","en son","finalde"])) return {Ts:[E.fin !== null ? Math.min(outDur - .5, invS(E.fin) + .3) : Math.max(0, outDur - 2)], label:"son"};
+  if (hasR(c, ["basta","basinda","baslangic","en bas","acilis"])) return {Ts:[0], label:"başlangıç"};
+  if (hasR(c, ["ortasinda","yarisinda"])) return {Ts:[outDur/2], label:"orta"};
+  if (hasR(c, ["simdi","burada","su an"])) return {Ts:[state.T], label:null};
+  return {Ts:[], label:null};
+}
+function nearestTarget(col){
+  const [r, g, b] = rgb(col); let best = null, bd = 1e9;
+  const cand = state.source === "arena" && sim ? sim.ids.map(i => [i, rgb(designs[i].color)]) : AN.tracks.map((t, i) => [i, t.c || [128, 128, 128]]);
+  for (const [i, c] of cand){ const d = Math.hypot(c[0] - r, c[1] - g, c[2] - b); if (d < bd){ bd = d; best = i; } }
+  return best;
+}
+function trailStyleOf(c){
+  return hasR(c, ["ates","alev"]) ? "Ateş izi" : hasR(c, ["gokkusa","renkli","rainbow"]) ? "Gökkuşağı" : hasR(c, ["yildiz","parilti","toz"]) ? "Yıldız tozu"
+    : hasR(c, ["elektrik","simsek"]) ? "Elektrik" : hasR(c, ["golge","hayalet","kopya"]) ? "Gölge" : "Neon şerit";
+}
+function novaSuggest(n){
+  let best = null, bd = 3;
+  const words = n.split(" ").filter(w => w.length >= 4);
+  for (const K of NK) for (const r of K.r.concat(K.w || [])){
+    if (r.includes(" ") || r.length < 4) continue;
+    for (const w of words){ const d = lev(w.slice(0, r.length + 1), r); if (d < bd){ bd = d; best = NK_LABEL[K.k] || FX[K.k]?.label || K.k; } }
+  }
+  return best;
+}
+
 function localAI(q){
-  const s = q.toLocaleLowerCase("tr"), has = (...w) => w.some(x => s.includes(x));
-  let color = null; for (const [k, v] of Object.entries(COLORS)) if (s.includes(k)){ color = v; break; }
-  const tm = s.match(/(\d+(?:[.,]\d+)?)\s*(?:\.|'?(?:inci|ıncı|uncu|üncü|nci|ncı|ncu|ncü))?\s*(?:sn|saniye|sec|s\b)/);
-  let T = state.T, where = "şu anki yere";
-  if (tm){ T = parseFloat(tm[1].replace(",", ".")); where = `${fmt(T)} anına`; }
-  else if (state.source === "arena" && sim && has("çarpış","carpis","çarp","darbe")){ const big = [...sim.clashes].sort((a, b) => b.power - a.power)[0]; if (big){ T = invS(big.t); where = "en büyük çarpışmaya"; } }
-  else if (has("sonda","sonunda","bitiş","son an")){ T = Math.max(0, outDur - 2); where = "sona"; }
-  else if (has("başta","başında","başla")){ T = 0; where = "başa"; }
-  T = clamp(T, 0, Math.max(0, outDur - .3));
-  const quoted = q.match(/[“"'«]([^”"'»]{1,30})[”"'»]/);
-  const did = [];
-  if (has("hepsini sil","temizle","sıfırla","kaldır") && !has("ekle")){ pushHistory(); state.layers = []; state.sel = null; return "Tüm efektleri temizledim. Yeni bir şey iste!"; }
-  if (has("geri al")){ undo(); return "Son değişikliği geri aldım."; }
-  if (state.source === "arena" && has("otomatik","hepsini yap","full anime","tam anime")){ autoAnime(); return "Otomatik anime kurgusu hazır: duraklama, ağır çekim, çarpışma efektleri ve kazanan yazısı."; }
-  if (has("yeni savaş","savaşı başlat","yeniden savaş","tekrar savaş")){ startBattle(Math.floor(Math.random()*1e6)); return "Yeni bir savaş başlattım!"; }
-  if (has("dikey","tiktok","shorts","reels")){ setFormat("9:16"); did.push("dikey format"); }
-  else if (has("kare format","kare yap","instagram")){ setFormat("1:1"); did.push("kare format"); }
-  else if (has("yatay","youtube")){ setFormat("16:9"); did.push("yatay format"); }
-  if (has("her şeyi","hepsini","tümünü","bütün") && color){ pushHistory(); state.layers.forEach(L => { if (FX[L.type].color !== undefined) L.color = color; }); return "Tüm efektlerin rengini değiştirdim."; }
+  const raw = q.trim();
+  const quotes = [...raw.matchAll(/[“"«]([^”"»]{1,30})[”"»]/g)].map(m => m[1].trim()).filter(Boolean);
+  const glyph = GLYPHS.find(g => raw.includes(g)) || null, emo0 = EMO.find(x => raw.includes(x)) || null;
+  let n = deacc(raw.replace(/[“"«][^”"»]{1,30}[”"»]/g, " tirnak ")).replace(/['’]/g, " ").replace(/(\d)\.(?=\s|$)/g, "$1 ").replace(/[!?;:()]/g, " ").replace(/\s+/g, " ").trim();
+  if (!n) return "Bir şey yazmadın. Örneğin: “4. saniyede zamanı durdur”.";
+  const nw = n.split(" ").length;
+  if (hasR(n, ["yardim","ne yapabil","neler yapabil","komutlar","nasil kullan"])) return NOVA_HELP;
+  if (nw <= 3 && hasR(n, ["merhaba","selam","naber","hey"])) return `Selam! Ben ${AI_NAME}. Ne yapalım? Mesela “en büyük çarpışmada zamanı durdur” ya da “yardım” yaz.`;
+  if (nw <= 5 && hasR(n, ["tesekkur","sagol","eyvallah","harika","super olmus","cok guzel","efsane olmus"])) return "Rica ederim! Başka ne ekleyelim? Mesela “her çarpışmada kıvılcım”.";
+  if (hasR(n, ["geri al"])){ undo(); return "Son değişikliği geri aldım."; }
+  if (hasR(n, ["hepsini sil","hepsini kaldir","her seyi sil","tum efektleri sil","temizle","sifirla"])){ pushHistory(); state.layers = []; state.sel = null; novaLast = []; return "Tüm efektleri temizledim. Yeni bir şey iste!"; }
+  if (hasR(n, ["yeni savas","savasi baslat","savas baslat","tekrar savas","yeniden savas","yeni mac"])){ startBattle(Math.floor(Math.random()*1e6)); return "Yeni bir savaş başlattım! Bitince “otomatik anime yap” yazabilirsin."; }
+  const fmtDone = [];
+  if (hasR(n, ["dikey","tiktok","shorts","reels"])){ setFormat("9:16"); fmtDone.push("dikey 9:16 format"); }
+  else if (hasR(n, ["kare format","kare yap","instagram"])){ setFormat("1:1"); fmtDone.push("kare format"); }
+  else if (hasR(n, ["yatay","youtube"])){ setFormat("16:9"); fmtDone.push("yatay format"); }
+  if (hasR(n, ["otomatik","anime yap","epik yap","efsane yap","sen yap","hepsini yap","full anime","tam anime","sen sec","kendin yap","havali yap","guzel yap"])){
+    const msg = runAuto(true); return (fmtDone.length ? fmtDone.join(", ") + " ayarlandı. " : "") + (msg || "Otomatik anime kurgusunu hazırladım.");
+  }
+
+  n = n.replace(/(\d+(?:[.,]\d+)?)\s*(?:sn|saniye)\s*sonra/g, (m0, a) => ` rel${a.replace(",", ".")} `);
+  const parts = n.split(/\s*(?:,|\bve sonra\b|\bdaha sonra\b|\bardindan\b|\bsonra\b|\bthen\b|\.\s)\s*/).map(x => x.trim()).filter(Boolean);
   pushHistory();
-  const big = has("büyük","dev","güçlü","mega","süper") ? 1.5 : 1;
-  const o = (type, extra = {}) => { const L = add(type, Object.assign({start:T, intensity:Math.min(2, big)}, extra)); if (color && FX[type].color !== undefined && !extra.color && type !== "flash") L.color = color; did.push(FX[type].label); return L; };
-  let paused = false;
-  if (has("dondur","duraklat","durdur","zamanı dur","zaman dur","freeze","anime duraklama")){
-    const g = GLYPHS.find(x => q.includes(x)) || (has("gogogo","ゴゴゴ","tehdit") ? "ゴゴゴ" : "ドン");
-    const before = state.layers.length; hist.pop();
-    animePause(T, g, quoted ? quoted[1].toLocaleUpperCase("tr") : ""); paused = true; did.push("anime duraklaması");
-    T = invS(mapT(T).s); void before;
+  const E = novaEvents(), out = [], batch = [];
+  let cursor = null, lastLen = 0, did = false, qi = 0, modified = false;
+  for (let c of parts){
+    const qn = (c.match(/tirnak/g) || []).length, qs = quotes.slice(qi, qi + qn); qi += qn; c = c.replace(/tirnak/g, " ");
+    // hedef
+    let target = null, tname = null, m;
+    if (state.source === "arena" && sim) for (const i of sim.ids){ const nm = deacc(designs[i].name); if (nm && c.includes(nm)){ target = "t" + i; tname = designs[i].name; c = c.replace(nm, " "); } }
+    if (!target && ((m = c.match(/(?:^|\s)(\d)\s*(?:inci|nci|uncu|ncu|unci)?\s*(?:topa|hedef)/)) || (m = c.match(/hedef\s*(\d)/)))){ const i = +m[1] - 1; if (i >= 0 && i < 4){ target = "t" + i; tname = targetName(i); } }
+    if (!target) for (const [w, i] of [["birinci",0],["ikinci",1],["ucuncu",2],["dorduncu",3]]) if (c.includes(w + " topa") || c.includes(w + " hedef")){ target = "t" + i; tname = targetName(i); }
+    if (!target && hasR(c, ["kazanan"])){ target = "auto"; tname = state.source === "arena" && sim ? designs[sim.winner].name : "ana hedef"; }
+    if (!target && hasR(c, ["kaybeden"]) && state.source === "arena" && sim){ const i = sim.ids.find(x => x !== sim.winner); target = "t" + i; tname = designs[i].name; }
+    const wl = c.split(" ");
+    if (!target) for (let k = 0; k < wl.length - 1; k++){ const col = colorOf(wl[k]); if (col && wl[k + 1].startsWith("topa")){ const i = nearestTarget(col); if (i !== null){ target = "t" + i; tname = targetName(i); wl[k] = ""; } } }
+    c = wl.join(" ").replace(/\s+/g, " ").trim();
+    // süre
+    let dur = null, whole = false, rel = null;
+    if ((m = c.match(/(\d+(?:[.,]\d+)?)\s*(?:sn|saniye)\s*(?:boyunca|surs|sure|uzun|kadar)/))){ dur = parseFloat(m[1].replace(",", ".")); c = c.replace(m[0], " "); }
+    else if (hasR(c, ["agir cekim","yavas","hizlandir"]) && (m = c.match(/(\d+(?:[.,]\d+)?)\s*(?:sn|saniye)/))){ dur = parseFloat(m[1].replace(",", ".")); c = c.replace(m[0], " "); }
+    if ((m = c.match(/rel(\d+(?:\.\d+)?)/))){ rel = +m[1]; c = c.replace(m[0], " "); }
+    if (hasR(c, ["bastan sona","tum video","butun video","video boyunca","surekli","her zaman"]) || hasW(c, ["hep"])){ whole = true; c = c.replace(/bastan sona|tum video\w*|butun video\w*|video boyunca|surekli|her zaman/g, " "); }
+    // zaman
+    const tm = novaTime(c, E);
+    let Ts = tm.Ts, tlabel = tm.label || (whole ? "baştan sona" : null), xys = tm.xys || [];
+    if (tm.miss) tlabel = "çarpışma bulamadım, şu ana";
+    if (!Ts.length){ const base = cursor === null ? state.T : cursor + lastLen; Ts = [rel !== null ? (cursor === null ? state.T : cursor) + rel : base]; if (cursor !== null && !tlabel) tlabel = "ardından"; }
+    else if (rel !== null) Ts = Ts.map(t => t + rel);
+    Ts = Ts.map(t => clamp(t, 0, Math.max(0, outDur - .3)));
+    c = c.replace(/\ben (buyuk|sert|guclu|iyi|epik|hizli|heyecan)\w*( \w+)?/g, " ").replace(/\b(ilk|son|her|tum|butun) (carpis|vurus|darbe|temas)\w*/g, " ");
+    // ayarlar
+    let pos = null; for (const [k, v] of NPOS) if ((" " + c + " ").includes(" " + k)){ pos = v; break; }
+    const cols = c.split(" ").map(colorOf).filter(Boolean);
+    const size = hasR(c, ["buyuk","kocaman","devasa","mega","super"]) || hasW(c, ["dev"]) ? 1.5 : hasR(c, ["kucuk","minik","ufak"]) ? .7 : null;
+    const inten = hasR(c, ["guclu","asiri","sert","yogun","parlak"]) || hasW(c, ["cok"]) ? 1.6 : hasR(c, ["hafif","biraz","yumusak"]) || hasW(c, ["az"]) ? .6 : null;
+    let kinds = NK.filter(K => (K.w && hasW(c, K.w)) || hasR(c, K.r)).map(K => K.k);
+    if (kinds.includes("caption") || kinds.includes("subtitle")) kinds = kinds.filter(k => k !== "title");
+    if (kinds.includes("trail")){ const st = trailStyleOf(c); if (st === "Elektrik") kinds = kinds.filter(k => k !== "lightning"); if (st === "Ateş izi") kinds = kinds.filter(k => k !== "aura" || hasR(c, ["aura"])); }
+    if (kinds.includes("pause") && kinds.includes("onomato")) kinds = kinds.filter(k => k !== "onomato");
+    const sfxs = NSFX.filter(([, r]) => hasR(c, r)).map(([s0]) => s0);
+    const fils = NFIL.filter(([, r]) => hasR(c, r)).map(([f]) => f);
+    let emo = emo0; if (!emo) for (const [em, r] of NEMO) if (hasR(c, r)){ emo = em; break; }
+    const beamDir = hasR(c, ["sola"]) ? "Sola" : hasR(c, ["yukari"]) ? "Yukarı" : hasR(c, ["asagi"]) ? "Aşağı" : "Sağa";
+
+    // var olan efektleri değiştir / sil
+    const del = hasR(c, ["sil","kaldir","cikar","istemiyorum","yok et","gitsin","kapat"]);
+    const verbs = hasR(c, ["yap","olsun","degistir","cevir","boya"]) && !hasR(c, ["ekle","koy","olustur"]) && !hasW(c, ["ver"]);
+    const grow = hasR(c, ["buyut","daha buyuk"]), shrink = hasR(c, ["kucult","daha kucuk"]), longer = hasR(c, ["uzat","daha uzun"]), shorter = hasR(c, ["kisalt","daha kisa"]);
+    const stronger = hasR(c, ["guclendir","daha guclu","daha parlak","artir"]), weaker = hasR(c, ["zayiflat","daha hafif","azalt","soluklas"]);
+    const types = kinds.filter(k => FX[k]);
+    const pool = types.length ? state.layers.filter(L => types.includes(L.type)) : (state.sel && !novaLast.includes(state.sel)) ? state.layers.filter(L => L.id === state.sel) : state.layers.filter(L => novaLast.includes(L.id));
+    if (del){
+      if (!pool.length){ out.push(types.length ? `silinecek ${types.map(k => FX[k].label).join(", ")} bulamadım` : "neyi sileceğimi anlayamadım (örn. “şimşeği sil”)"); continue; }
+      const ids = new Set(pool.map(L => L.id)); state.layers = state.layers.filter(L => !ids.has(L.id)); if (ids.has(state.sel)) state.sel = null;
+      out.push(`${pool.length} efekt sildim (${[...new Set(pool.map(L => FX[L.type].label))].join(", ")})`); did = modified = true; continue;
+    }
+    if (pool.length && ((verbs && (cols.length || size || inten || pos || target)) || grow || shrink || longer || shorter || stronger || weaker)){
+      pool.forEach(L => {
+        const d = FX[L.type];
+        if (cols[0] && d.color !== undefined) L.color = cols[0];
+        if (cols[1] && d.color2 !== undefined) L.color2 = cols[1];
+        if (grow) L.size = clamp(L.size*1.4, .3, 2.5); else if (shrink) L.size = clamp(L.size/1.4, .3, 2.5); else if (verbs && size) L.size = size;
+        if (stronger) L.intensity = clamp(L.intensity*1.4, .2, 2); else if (weaker) L.intensity = clamp(L.intensity/1.4, .2, 2); else if (verbs && inten) L.intensity = inten;
+        if (longer) L.end = Math.min(outDur, L.end + (dur || 1.5)); if (shorter) L.end = Math.max(L.start + .2, L.end - (dur || 1));
+        if (d.pos && pos){ L.track = ""; L.x = pos[0]; L.y = pos[1]; } if (d.pos && target) L.track = target;
+      });
+      out.push(`${pool.length} efekti güncelledim (${[...new Set(pool.map(L => FX[L.type].label))].join(", ")})`); did = modified = true; continue;
+    }
+
+    // yeni efektler ekle
+    if (!kinds.length && !sfxs.length && !fils.length && !qs.length && !glyph && !emo0) continue;
+    let maxLen = .8;
+    for (let ti = 0; ti < Ts.length; ti++){
+      let T = Ts[ti]; const xy = xys[ti] || null, labels = [];
+      const opt = (type, extra = {}) => {
+        const d = FX[type], o = {start:T};
+        if (whole && d.dur !== "all"){ o.start = 0; o.end = outDur; } else if (dur && d.dur !== "all") o.end = T + dur;
+        if (d.pos){
+          if (pos){ o.track = ""; o.x = pos[0]; o.y = pos[1]; }
+          else if (target) o.track = target;
+          else if (xy && ["sparks","shockwave","lightning","slash","onomato","hitmarker","circle","beam"].includes(type)){ o.track = ""; o.x = xy[0]; o.y = xy[1]; }
+        }
+        if (d.color !== undefined && cols[0]) o.color = cols[0];
+        if (d.color2 !== undefined && cols[1]) o.color2 = cols[1];
+        if (size && type !== "sfx") o.size = size; if (inten) o.intensity = inten;
+        const L = add(type, Object.assign(o, extra)); batch.push(L.id); labels.push(d.label);
+        if (L.end - L.start < 4) maxLen = Math.max(maxLen, L.end - L.start);
+        return L;
+      };
+      const freezeAt = (d0) => { const s = mapT(T).s; changeEdit(e => e.freezes.push({id:uid++, at:s, dur:d0}), true); T = invS(s); };
+      for (const k of kinds){
+        switch (k){
+          case "pause": { const before = state.layers.length; animePause(T, glyph || (hasR(c, ["gogogo","tehdit","korkutucu"]) ? "ゴゴゴ" : "ドン"), qs[0] ? qs[0].toLocaleUpperCase("tr") : "", true, target || "auto");
+            T = invS(mapT(T).s); batch.push(...state.layers.slice(before).map(L => L.id)); labels.push("zamanı 1,6 sn durdurma"); maxLen = Math.max(maxLen, 1.6); break; }
+          case "slow": { const s = mapT(T).s, d0 = dur || 2; changeEdit(e => e.speeds.push({id:uid++, a:s, b:Math.min(state.srcDur, s + d0), rate:.3}), true); T = invS(s); labels.push(`${d0} sn ağır çekim`); maxLen = Math.max(maxLen, d0/.3); break; }
+          case "fast": { const s = mapT(T).s, d0 = dur || 2; changeEdit(e => e.speeds.push({id:uid++, a:s, b:Math.min(state.srcDur, s + d0), rate:2}), true); T = invS(s); labels.push(`${d0} sn hızlandırma`); maxLen = Math.max(maxLen, d0/2); break; }
+          case "impact": opt("shockwave"); opt("flash", {color:"#ffffff"}); opt("shake"); opt("sparks"); if (!sfxs.includes("Boom")) opt("sfx", {opt:"Boom"}); break;
+          case "drama": opt("dramazoom"); if (!sfxs.includes("Dramatik")) opt("sfx", {opt:"Dramatik"}); break;
+          case "mlg": opt("hitmarker"); opt("sunglasses"); opt("sfx", {opt:"Korna"}); opt("emojirain", {opt:"🔥"}); break;
+          case "funny": opt("emojirain", {opt:emo || "😂"}); opt("reaction", {opt:emo || "😂"}); if (!sfxs.includes("Korna")) opt("sfx", {opt:"Korna"}); break;
+          case "elendin": freezeAt(2.5); opt("elendin", {start:T, end:T + 2.5, text: qs[0] ? qs[0].toLocaleUpperCase("tr") : "ELENDİN"}); opt("sfx", {start:T, opt:"Bas düşüşü"}); break;
+          case "devam": freezeAt(3); opt("devam", {start:T, end:T + 3, text: qs[0] ? qs[0].toLocaleUpperCase("tr") : "DEVAM EDECEK"}); opt("sfx", {start:T, opt:"Plak cızırtısı"}); break;
+          case "trail": { const st = trailStyleOf(c), def = TRAILS.find(x => x[0] === st), tv = target || "auto";
+            opt("trail", {opt:st, start: dur ? T : 0, end: dur ? T + dur : outDur, track:tv, color: cols[0] || (st === "Neon şerit" ? targetColor(tv) : null) || def[1], color2: cols[1] || def[2]}); break; }
+          case "topput": if (state.source === "video") opt("top", {start:0, end:outDur, track:target || "auto"}); else labels.push("(topacını koymak için önce video yükle)"); break;
+          case "emojirain": if (!kinds.includes("funny") && !kinds.includes("mlg")) opt("emojirain", {opt:emo || "😂"}); break;
+          case "reaction": if (!kinds.includes("funny")) opt("reaction", {opt:emo || "😱"}); break;
+          case "onomato": opt("onomato", {opt:glyph || (hasR(c, ["gogogo","tehdit"]) ? "ゴゴゴ" : "ドン")}); break;
+          case "beam": opt("beam", {opt:beamDir}); break;
+          case "title": opt("title", {text:(qs[0] || "SÜPER SALDIRI!").toLocaleUpperCase("tr"), start:T + .05}); break;
+          case "caption": opt("caption", {text: qs.length >= 2 ? qs[0] + "|" + qs[1] : (qs[0] || "ÜST YAZI|ALT YAZI")}); break;
+          case "subtitle": opt("subtitle", {text: qs[0] || "Bu topaç durdurulamaz..."}); break;
+          case "sunglasses": if (!kinds.includes("mlg")) opt("sunglasses", qs[0] ? {text:qs[0]} : {}); break;
+          case "circle": opt("circle", qs[0] ? {text:qs[0]} : {}); break;
+          default: if (FX[k]) opt(k);
+        }
+      }
+      if (glyph && !kinds.includes("pause") && !kinds.includes("onomato")) opt("onomato", {opt:glyph});
+      if (emo0 && !kinds.some(k => ["funny","emojirain","reaction","mlg"].includes(k))) opt("emojirain", {opt:emo0});
+      for (const sn of sfxs) if (!(sn === "Boom" && kinds.includes("impact"))) opt("sfx", {opt:sn});
+      for (const f of fils) opt("filter", {opt:f, start: dur ? T : 0, end: dur ? T + dur : outDur});
+      if (qs.length && !kinds.some(k => ["title","caption","subtitle","pause","sunglasses","elendin","devam","circle"].includes(k))) opt("title", {text:qs[0].toLocaleUpperCase("tr"), start:T + .05});
+      if (labels.length){
+        did = true;
+        if (ti === 0 || !tm.multi) out.push(`${fmt(T)}${tlabel ? " (" + tlabel + ")" : ""}${tname ? ", " + tname + " için" : ""}: ${[...new Set(labels)].join(", ")}`);
+      }
+      cursor = T;
+    }
+    if (tm.multi && Ts.length > 1) out[out.length - 1] = out[out.length - 1].replace(/^[\d:.]+ \(her çarpışma\)/, `${Ts.length} çarpışmanın hepsine`);
+    lastLen = clamp(maxLen, .5, 6);
   }
-  if (has("ağır çekim","agir cekim","yavaş","yavas","slow")){ const sv = mapT(T).s; changeEdit(e => e.speeds.push({id:uid++, a:sv, b:Math.min(state.srcDur, sv + 2), rate:.35}), true); did.push("ağır çekim"); }
-  if (has("hızlandır","hizlandir","hızlı sar","fast")){ const sv = mapT(T).s; changeEdit(e => e.speeds.push({id:uid++, a:sv, b:Math.min(state.srcDur, sv + 2), rate:2}), true); did.push("hızlandırma"); }
-  if (has("aura","enerji","güç","guc","power","alev")) o("aura");
-  if (has("girdap","dönüş","kasırga","kasirga","fırtına","firtina","tornado","rüzgar","ruzgar","vortex")) o("vortex");
-  if (has("hız çizgi","hiz cizgi","speed line","çizgi")) o("speedlines");
-  if (has("kıvılcım","kivilcim","spark")) o("sparks");
-  if (has("şimşek","simsek","yıldırım","yildirim","elektrik","lightning")) o("lightning");
-  if (has("patla","şok","darbe","impact","vuruş","boom","bum") && !paused){ o("shockwave"); o("flash", {color:"#ffffff", end:T + .3}); o("shake", {end:T + .6}); o("sfx", {opt:"Boom"}); }
-  if (has("kılıç","kilic","kesik","slash","kes ")) o("slash");
-  if (has("ışın","isin","lazer","beam","kamehameha")) o("beam");
-  if (has("darbe kare","impact frame","siyah beyaz yanıp")) o("impactframe");
-  if (has("manga")) { o("manga"); }
-  if (!paused && (GLYPHS.some(x => q.includes(x)) || has("manga sesi","japonca"))) o("onomato", {opt: GLYPHS.find(x => q.includes(x)) || "ドン"});
-  if (has("zoom","yakınlaş","yakinlas")) o("zoom");
-  if (has("glitch","kayma","bozul")) o("chroma");
-  if (has("gözlük","gozluk","havalı","havali","deal with")) o("sunglasses");
-  if (has("mlg","hitmarker")){ o("hitmarker"); o("sunglasses"); o("sfx", {opt:"Korna"}); }
-  if (has("komik","güldür","gülme","haha","😂")){ o("emojirain", {opt:"😂"}); o("sfx", {opt:"Korna"}); }
-  if (has("kafatası","kafatasi","💀","öldü","oldu ")) o("emojirain", {opt:"💀"});
-  if (has("taç","kral","👑")) o("emojirain", {opt:"👑"});
-  if (has("ağla","😭")) o("emojirain", {opt:"😭"});
-  if (has("moai","taş yüz","🗿")) o("reaction", {opt:"🗿"});
-  if (has("şaşır","sasir","😱")) o("reaction", {opt:"😱"});
-  if (has("devam edecek","to be continued")){ const sv = mapT(T).s; changeEdit(e => e.freezes.push({id:uid++, at:sv, dur:3}), true); const T0 = invS(sv); o("devam", {start:T0, end:T0 + 3}); o("sfx", {start:T0, opt:"Plak cızırtısı"}); }
-  if (has("elendi","kaybetti","yenildi","wasted")) { o("elendin"); o("sfx", {opt:"Bas düşüşü"}); }
-  if (has("dramatik","drama")){ o("dramazoom"); o("sfx", {opt:"Dramatik"}); }
-  if (has("daire","işaretle","isaretle","ok koy")) o("circle");
-  if (has("korna","airhorn")) o("sfx", {opt:"Korna"});
-  if (has("ding")) o("sfx", {opt:"Ding"});
-  if (has("ta-da","tada")) o("sfx", {opt:"Ta-da"});
-  if (has("siyah beyaz","siyah-beyaz")) o("filter", {start:0, end:outDur, opt:"Siyah-beyaz"});
-  if (has("sepya","eski film")) o("filter", {start:0, end:outDur, opt:"Sepya"});
-  if (has("neon")) o("filter", {start:0, end:outDur, opt:"Neon"});
-  if (has("vhs","eski kaset","retro")) o("filter", {start:0, end:outDur, opt:"VHS"});
-  if (has("anime renk","anime filtre","anime yap")) o("filter", {start:0, end:outDur, opt:"Anime"});
-  if (has("topaç koy","topacımı koy","topacimi koy","benim topaç")) { if (state.source === "video") o("top", {start:0, end:outDur}); }
-  if (quoted && !paused){
-    if (has("meme yazı","üst yazı","alt yazı")) o("caption", {text:quoted[1]});
-    else if (has("altyazı","altyazi")) o("subtitle", {text:quoted[1]});
-    else o("title", {text:quoted[1].toLocaleUpperCase("tr"), start:T + .05});
+  if (fmtDone.length){ did = true; out.unshift(fmtDone.join(", ")); }
+  if (!did){
+    hist.pop();
+    if (out.length){ const t0 = out.join("; ") + "."; return t0.charAt(0).toLocaleUpperCase("tr") + t0.slice(1); }
+    if (state.source === "video" && hasR(n, ["takip","bul","analiz","tara"])){ analyzeVideo(); return "Videondaki topaçları arıyorum. Bitince Takip sekmesinde hedefleri göreceksin."; }
+    const sug = novaSuggest(n);
+    return (sug ? `Bunu tam anlayamadım. Şunu mu demek istedin: “${sug}”?\n\n` : "Bunu tam anlayamadım.\n\n") + NOVA_HELP;
   }
-  if (!did.length){ hist.pop(); return "Bunu tam anlayamadım. Şunları deneyebilirsin: “4. saniyede zamanı durdur”, “ağır çekim + şimşek”, “MLG modu”, “komik yap”, “dramatik”, ““SÜPER SALDIRI” yazsın”, “dikey format”, “otomatik” (arenada)."; }
-  return `${where.charAt(0).toLocaleUpperCase("tr") + where.slice(1)} ekledim: ${[...new Set(did)].join(", ")}. Aşağıdaki katmanlardan ince ayar yapabilirsin.`;
+  if (batch.length){ novaLast = batch.slice(); state.sel = batch[batch.length - 1]; }
+  const tip = NOVA_TIPS[Math.floor(Math.random()*NOVA_TIPS.length)];
+  return (modified && !batch.length ? "Tamam, " : "Tamam! Ekledim: ") + out.join("; ") + "." + (tip ? " " + tip : "");
 }
 
 /* ---------- export ---------- */
@@ -1678,7 +2255,7 @@ document.addEventListener("keydown", e => {
   else if (e.key === "ArrowLeft"){ play(false); seek(state.T - 1/30); }
 });
 
-function renderAll(){ renderLayers(); renderEditTab(); }
+function renderAll(){ renderLayers(); renderEditTab(); renderTrackTab(); }
 
 /* ---------- start ---------- */
 renderTopCards(); renderPutTops();
